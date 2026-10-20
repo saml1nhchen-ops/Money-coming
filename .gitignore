@@ -26,3 +26,6 @@ node_modules/
 *.zip
 .vscode/
 .idea/
+
+# Generated static frontend preview
+preview-dist/

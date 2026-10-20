@@ -1,0 +1,18 @@
+# This is a separate frontend PREVIEW site. Do not attach the production domain.
+[build]
+  command = "node tests/test_frontend.cjs && node tests/test_diagnostic.cjs && node deploy/build-preview.cjs"
+  publish = "preview-dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow, noarchive"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Cache-Control = "no-store"
+
+# Hash routes are resolved by the browser; missing API routes must remain 404.
+# Do not add a blanket SPA rewrite that would return HTML for /api/*.
