@@ -1,0 +1,241 @@
+{
+  "source_commit": "e1c813d89708ca358c6d547b62bb470230c31189",
+  "export_date": "2026-10-20",
+  "files": [
+    {
+      "path": ".gitignore",
+      "sha256": "29675e847151e053725a476d0717b3de106752a52ebdcef4e7767d7196b9115f",
+      "bytes": 350
+    },
+    {
+      "path": ".openai/hosting.json",
+      "sha256": "80627926910c0b932fbc7f185bf250ad0b9da272a3fe1c20ed86e5271cd24d38",
+      "bytes": 112
+    },
+    {
+      "path": "dist/ai-api.js",
+      "sha256": "b047b4b2fc3b0de58c96b163cd8acff58401a57285e4c2a260a00bd6eaf982b1",
+      "bytes": 11864
+    },
+    {
+      "path": "dist/ai-providers.json",
+      "sha256": "457e091768cbec8b4f02c77cd656171e0055a8497a2b9a85a410d7c015024f7a",
+      "bytes": 6687
+    },
+    {
+      "path": "dist/app.js",
+      "sha256": "7dca01df9974f71e71e762610df6e4c1ee96ac19246fc117cd1f66dbf9b81d89",
+      "bytes": 59437
+    },
+    {
+      "path": "dist/bai.js",
+      "sha256": "6c78d39e91803445e86b115468dc47967b59f5bc06847e6bf84176226c0daa85",
+      "bytes": 11462
+    },
+    {
+      "path": "dist/diagnostic.js",
+      "sha256": "f984ffca8ad9cab6f98a320cc9f1224b367db180bab859a9db51c99e71348105",
+      "bytes": 39712
+    },
+    {
+      "path": "dist/index.html",
+      "sha256": "83e152405f442a0902efaa192835e9dd630e328c2ab1a9be9dd1ce1bffd9b2cb",
+      "bytes": 851
+    },
+    {
+      "path": "dist/research-ui.css",
+      "sha256": "028fc34cbd23a2c0f99bae9945115501a465dd9380a9573aa91912def73847f9",
+      "bytes": 9779
+    },
+    {
+      "path": "dist/research-ui.js",
+      "sha256": "e6126ce54fb5441e93b877f0ee5432ef7d784ea36c12d0ca19b4ecdcba3b6e65",
+      "bytes": 21307
+    },
+    {
+      "path": "dist/research.js",
+      "sha256": "0c6ac90293bdb54e3598e3ed8308c9e88aa4c2c8e1595f0f18a90eeea3d910ef",
+      "bytes": 19316
+    },
+    {
+      "path": "dist/style.css",
+      "sha256": "cf5c53467bb19654bc63bc825cd814bea43a0423861f5d02089d93ace35e9b3c",
+      "bytes": 12698
+    },
+    {
+      "path": "dist/tool-center.js",
+      "sha256": "56d8fc810ddbcfa4fef3b943d7271d1bc4d3d63260cfa57cf9910e62d78c7ecf",
+      "bytes": 16899
+    },
+    {
+      "path": "dist/upstreams.json",
+      "sha256": "64d8c30409bc0037d2065daf9726bf7a042cdc4515da73471f8c312693f074a7",
+      "bytes": 4504442
+    },
+    {
+      "path": "QUICKSTART.zh-CN.md",
+      "sha256": "de3136c1b1abf58b2f80143afe484d7ab744e8581cba6af258c2a23f6b452f1b",
+      "bytes": 1936
+    },
+    {
+      "path": "README.md",
+      "sha256": "4ed633f19994ba22811a5ac83d49224f757cc3c2be2d585c4c86de5673930a09",
+      "bytes": 8222
+    },
+    {
+      "path": "server.py",
+      "sha256": "8310692508107d902430cb204f05bba583f5fcff666d2a029aee4871ac29b1f4",
+      "bytes": 9961
+    },
+    {
+      "path": "start-bai.ps1",
+      "sha256": "7b062681d97a82fedf7f0252d8a423de4b0100c26c631d3d07b7f62b464a7a40",
+      "bytes": 428
+    },
+    {
+      "path": "start-research.ps1",
+      "sha256": "48ba69aef9a9caed014f15cc888c37f27619ea08bbd2a04119001d329639bdee",
+      "bytes": 361
+    },
+    {
+      "path": "start-signal.ps1",
+      "sha256": "6df759a45e5dab46203e1c8436361cf03c395b967255dd6856381557745b7ffa",
+      "bytes": 1593
+    },
+    {
+      "path": "start-tools.ps1",
+      "sha256": "e1eeffa58d261afff5524382356eed3e6215e8f0b23048ef056ad6898fd6c8b1",
+      "bytes": 656
+    },
+    {
+      "path": "tests/test_ai_api.py",
+      "sha256": "091c91e51efca50fbddfdc08a352ba62d2edab198717e21e9663c8e06af2c977",
+      "bytes": 6271
+    },
+    {
+      "path": "tests/test_backend.py",
+      "sha256": "559a3914fd3c12a685f128a72dabe482cfc27c1f961a78506cb8d2d78cf5815e",
+      "bytes": 2492
+    },
+    {
+      "path": "tests/test_bai_service.py",
+      "sha256": "8017cb13d858b7c909580f5f5e1b8e9a5a322e8a033e4664f0446b44472243c4",
+      "bytes": 4715
+    },
+    {
+      "path": "tests/test_diagnostic.cjs",
+      "sha256": "d5d5101a0f3f242f89c094a7e5eb4e085921d723f18d4ed8e208d577393e2f8c",
+      "bytes": 3253
+    },
+    {
+      "path": "tests/test_frontend.cjs",
+      "sha256": "9d68ab565aa048ff8370e04c0957bd9b9dd0d75eb3107001ad71ddab07e36bfd",
+      "bytes": 1519
+    },
+    {
+      "path": "tests/test_geo_baseline.py",
+      "sha256": "cc83e0ba4b9df89289bed70a3bdb7e2c244f116146a3ed4d02108ab71a6c4098",
+      "bytes": 4512
+    },
+    {
+      "path": "tests/test_geo_flow.py",
+      "sha256": "39338159e44e0b01b037754da2a369fa2c4bdd7c81cd21a252e42377e6921b4e",
+      "bytes": 6596
+    },
+    {
+      "path": "tests/test_native_service.py",
+      "sha256": "2b381ebcf5d083db9999908b5c0d591dfb36244597bec4341cba7c094d308577",
+      "bytes": 2846
+    },
+    {
+      "path": "tools/ai_api.py",
+      "sha256": "d6f579272a1900a4c47b34ec71ea73a70065caf8ff5495885bda7b0980e2126b",
+      "bytes": 14024
+    },
+    {
+      "path": "tools/bai_service.py",
+      "sha256": "40d83bc904fd16c1db16461d00d9c66b82a2b590a93a605f4ac95f590be204f5",
+      "bytes": 11750
+    },
+    {
+      "path": "tools/build_catalog.py",
+      "sha256": "e38cb18cd9b16675e08736169d734f08726437e917e9483c3834f99f87c981ae",
+      "bytes": 2032
+    },
+    {
+      "path": "tools/crawl_http.py",
+      "sha256": "d5020164b716281cc3bacc48d2f5817cd23c6977ec1b27aa7dc36eeeae517066",
+      "bytes": 992
+    },
+    {
+      "path": "tools/geo_analysis.py",
+      "sha256": "67570ed0b43f8a6bf73ba79457e5eee64a11f4dd99ff5215d22c3dda139c2745",
+      "bytes": 8095
+    },
+    {
+      "path": "tools/geo_flow.py",
+      "sha256": "6adccb4df6b453aa81320cd1eb4726378e7d462fc92756a07145e800e1bdeb9f",
+      "bytes": 24056
+    },
+    {
+      "path": "tools/geo_plan.py",
+      "sha256": "fa1e7663aee956a916f1abd1c9778a6e23c91eed6846ae3d755660e7640730f9",
+      "bytes": 3205
+    },
+    {
+      "path": "tools/install_runtimes.py",
+      "sha256": "18b5f4bf00d675b52d09d8b6ef4c071cbe9a83f41e692101d6812b533220eb73",
+      "bytes": 1552
+    },
+    {
+      "path": "tools/INTEGRATION.md",
+      "sha256": "105cdaf0f5dc3e2d09a0e7faafdebdbb02a9df5e5241903116f2b91e471999ea",
+      "bytes": 14367
+    },
+    {
+      "path": "tools/loreal_discover.py",
+      "sha256": "744156607db7d0d17997ebb97324e992e1ce0e82e54973f76db038ccd573ca9f",
+      "bytes": 507
+    },
+    {
+      "path": "tools/native_service.py",
+      "sha256": "69a75e5aa4f7c035047609fa9cf116506f595dc1597cb122b6d48210d828673f",
+      "bytes": 23775
+    },
+    {
+      "path": "tools/niubi_bridge.mts",
+      "sha256": "3e799dde12fce812e1214c2411498fe9f534eec3f070f8aa1fd26f7d1f7dd509",
+      "bytes": 2325
+    },
+    {
+      "path": "tools/niubigeo-pnpm-lock.yaml",
+      "sha256": "12c07a6b3bafaef75bccbb8aa2e939637c085a63d4417f7e80f3c6b0c4a23c78",
+      "bytes": 18199
+    },
+    {
+      "path": "tools/promptfoo-pnpm-lock.yaml",
+      "sha256": "56a0c53f749ee32af8cfe2ff6f798561eee4d4bb0f3c5204daa89c261b1aa9f8",
+      "bytes": 198042
+    },
+    {
+      "path": "tools/smoke_native.py",
+      "sha256": "b00356efaa35c98596aaad6205fa5750cb058a6862f0a809031e700983f95373",
+      "bytes": 1443
+    },
+    {
+      "path": "tools/sync_upstreams.py",
+      "sha256": "c213afdb4b87fab487b338dfbe89101d2ee4ed11a8e14b385e9994e3fcf25466",
+      "bytes": 2754
+    },
+    {
+      "path": "tools/upstreams.lock.json",
+      "sha256": "27c8ee98d8e0701110ef2123f1a4c4235130fbc14e3d41a70f5a772a57fb7bcc",
+      "bytes": 25327
+    },
+    {
+      "path": "启动 Signal GEO.command",
+      "sha256": "5acb2a449dea3d536ccd4fdf5bd8d181a14bee563d8335027b25b38eee7737fd",
+      "bytes": 211
+    }
+  ]
+}

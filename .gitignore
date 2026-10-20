@@ -1,0 +1,28 @@
+runtime/
+__pycache__/
+work/
+.env
+.venv/
+*.tar.gz
+.DS_Store
+
+# Credentials and local configuration
+.env.*
+!.env.example
+*.pem
+*.key
+credentials*.json
+*service-account*.json
+# Local runtime, evidence, databases and caches
+node_modules/
+.pnpm-store/
+.cache/
+.pytest_cache/
+*.py[cod]
+*.db
+*.sqlite*
+*.log
+*.pid
+*.zip
+.vscode/
+.idea/

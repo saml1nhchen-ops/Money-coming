@@ -1,0 +1,15 @@
+const vm=require('node:vm'),fs=require('node:fs'),assert=require('node:assert/strict');
+const source=fs.readFileSync('dist/app.js','utf8').replace(/init\(\);\s*$/,'');
+const sandbox={console,localStorage:{getItem:()=>null},document:{querySelector:()=>null,addEventListener:()=>{}},crypto:require('node:crypto').webcrypto,URL,URLSearchParams};
+vm.createContext(sandbox);vm.runInContext(source,sandbox);
+vm.runInContext(`data=seed();ws='demo';filter.market='us';`,sandbox);
+assert.equal(vm.runInContext("metric().valid.length",sandbox),27);
+assert.equal(vm.runInContext("metric().m",sandbox),21);
+vm.runInContext(`data.answers=Array.from({length:10},(_,i)=>({id:'t'+i,workspace:'demo',market:'us',status:i<8?'success':'failed',raw_answer:i<4?'Aster Home Aster Home Aster Home':'Other brand',platform:'Test',collected_at:'2026-10-18T12:00:00Z',citations:[]}));`,sandbox);
+assert.equal(vm.runInContext('metric().rate',sandbox),.5);
+assert.equal(vm.runInContext('metric().failed',sandbox),2);
+assert.equal(vm.runInContext("citations({citations:[{url:'https://a.example/one'},{url:'https://a.example/one'}]}).length",sandbox),1);
+assert.equal(vm.runInContext("esc('<script>')",sandbox),'&lt;script&gt;');
+assert.equal(vm.runInContext(`csvParse('prompt_text,topic\\n"A, B",Test')[0].prompt_text`,sandbox),'A, B');
+assert.equal(vm.runInContext(`safeURL('javascript:alert(1)')`,sandbox),false);
+console.log('Frontend: metrics denominator, repeated mentions, URL deduplication, CSV quoting and escaping passed.');
