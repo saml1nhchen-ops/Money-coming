@@ -1,0 +1,15 @@
+**
+!dist/
+!dist/**
+!tools/
+!tools/**
+!tests/
+!tests/**
+!deploy/
+!deploy/**
+!server.py
+**/__pycache__/
+**/*.pyc
+**/.env*
+**/*.key
+**/*.pem

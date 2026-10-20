@@ -1,0 +1,29 @@
+name: Deployment image checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Build private-workbench image
+        run: docker build -f deploy/Dockerfile -t signal-geo:check .
+      - name: Run application regression checks inside image
+        run: |
+          docker run --rm signal-geo:check python -m unittest discover -s tests -p 'test_*.py'
+          docker run --rm signal-geo:check node tests/test_frontend.cjs
+          docker run --rm signal-geo:check node tests/test_diagnostic.cjs
+      - name: Start full workbench with persistent volumes
+        run: |
+          docker tag signal-geo:check signal-geo-ci-workbench:latest
+          docker compose -p signal-geo-ci -f deploy/compose.yaml up -d --no-build --wait --wait-timeout 90
+          docker compose -p signal-geo-ci -f deploy/compose.yaml exec -T workbench python deploy/run_services.py --check
+      - name: Remove CI instance and disposable test volumes
+        if: always()
+        run: docker compose -p signal-geo-ci -f deploy/compose.yaml down -v

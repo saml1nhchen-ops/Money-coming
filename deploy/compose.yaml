@@ -1,0 +1,20 @@
+# Linux VMs only: keep all application ports on server loopback.
+# Access through SSH tunnels; this is not a public, multi-tenant deployment.
+services:
+  workbench:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    network_mode: host
+    init: true
+    restart: unless-stopped
+    volumes:
+      - jobs:/app/runtime/jobs
+      - api-runs:/app/runtime/ai-api-runs
+      - bai-runs:/app/runtime/bai-runs
+      - geo-flows:/app/runtime/geo-flows
+volumes:
+  jobs:
+  api-runs:
+  bai-runs:
+  geo-flows:
