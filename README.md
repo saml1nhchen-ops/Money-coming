@@ -92,6 +92,6 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 
 ## 在线团队后台（腾讯云 / 阿里云）
 
-默认网站入口使用团队后台，模型密钥只在服务器配置。默认首次进入工作台全览；原 `dist/index.html` 深链接也转入团队页并保留路由和表单草稿参数。团队分析入口 `dist/team.html#/w/demo/research`，公开后台地址已预填。团队登录默认保持登录，只在可信设备保存登录凭证；新后台支持 30 天与重启恢复，旧后台兼容原 1 小时会话，密码和模型密钥不进浏览器存储。此能力需发布新后台版本。浏览器直连仅保留在 `dist/browser.html`。详见 [腾讯云部署说明](deploy/TENCENT.zh-CN.md)。
+默认网站入口使用团队后台，模型密钥只在服务器配置。默认首次进入工作台全览；原 `dist/index.html` 深链接也转入团队页并保留路由和表单草稿参数。团队分析入口 `dist/team.html#/w/demo/research`，公开后台地址已预填。团队登录默认保持登录，只在可信设备保存登录凭证；新后台支持 30 天与重启恢复，旧后台兼容原 1 小时会话，密码和模型密钥不进浏览器存储。此能力已随 v0.3.1 后台部署。浏览器直连仅保留在 `dist/browser.html`。详见 [腾讯云部署说明](deploy/TENCENT.zh-CN.md)。
 
-正式 Release 自动更新后台的工作流与回滚脚本见 [Release 部署](deploy/RELEASE.zh-CN.md)。部署会话已确认 [v0.3.0 构建和部署成功](https://github.com/saml1nhchen-ops/Money-coming/actions/runs/39652604630)，Pages 前端发布仍独立于后台；线上故障回滚演练尚未完成。
+正式 Release 自动更新后台的工作流与回滚脚本见 [Release 部署](deploy/RELEASE.zh-CN.md)。已核对 [v0.3.1 正式发布、构建和部署全部成功](https://github.com/saml1nhchen-ops/Money-coming/actions/runs/39661708128)，Pages 前端发布仍独立于后台；线上故障回滚演练尚未完成。
