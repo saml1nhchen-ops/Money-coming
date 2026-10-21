@@ -1,5 +1,7 @@
 # Signal GEO · 证据与诊断工作台 v0.3
 
+在线共享分析后台的部署准备见 [部署与 Cremo 验证指南](deploy/ONLINE.zh-CN.md)。当前代码支持 GitHub Pages 连接 HTTPS 后台；这不表示后台已部署或真实模型验证已完成。
+
 新增“开源工具与执行”：18 个原始仓库固定版本、420 份原始 Skill 文档和许可证、10 组原生 CLI/脚本适配、OpenSEO/Elmo/SE Ranking MCP 适配，以及本机任务日志、原生文件下载和证据交接。使用 `start-tools.ps1` 启动本机执行服务。完整能力、已验证路径与缺失环境见 [tools/INTEGRATION.md](tools/INTEGRATION.md)。完整应用栈、账号登录和所有付费实时采样尚未运行，不能将“源码已导入”视为“全部功能已上线”。
 
 ## 2026-10-19 诊断方案更新

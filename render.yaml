@@ -1,0 +1,26 @@
+# Blueprint preparation only. Creating this paid service requires owner approval.
+services:
+  - type: web
+    name: signal-geo-private-backend
+    runtime: docker
+    plan: starter
+    region: singapore
+    branch: cremo-online-connection
+    numInstances: 1
+    autoDeployTrigger: "off"
+    healthCheckPath: /healthz
+    disk:
+      name: signal-geo-runtime
+      mountPath: /app/runtime
+      sizeGB: 1
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: SIGNAL_DAILY_CALL_LIMIT
+        value: "126"
+      - key: SIGNAL_BAI_API_KEY
+        sync: false
+      - key: SIGNAL_WORKSPACE_PASSWORD
+        sync: false
+      # SIGNAL_PUBLIC_HOST defaults to Render's RENDER_EXTERNAL_HOSTNAME.
+      # Optional SIGNAL_GPT_MODEL/SIGNAL_GEMINI_MODEL must match live catalog IDs.

@@ -1,0 +1,1068 @@
+{
+  "id": "synthetic-report-ui",
+  "created_at": "2026-10-20T16:00:00Z",
+  "status": "partial",
+  "stage": "report",
+  "config": {
+    "market": "US",
+    "website": "https://northstar.example",
+    "brand_aliases": [
+      "Northstar"
+    ],
+    "providers": [
+      "p",
+      "q"
+    ],
+    "generator": "p",
+    "count": 3,
+    "repeats": 1,
+    "skus": [
+      {
+        "name": "Clear Serum",
+        "aliases": [
+          "Clear Serum"
+        ]
+      }
+    ],
+    "competitors": [
+      {
+        "name": "Harbor",
+        "aliases": [
+          "Harbor"
+        ],
+        "domains": [
+          "harbor.example"
+        ]
+      }
+    ],
+    "configuration": {
+      "p": {
+        "name": "Model One"
+      },
+      "q": {
+        "name": "Model Two"
+      }
+    }
+  },
+  "samples": [
+    {
+      "id": "s1",
+      "provider": "p",
+      "question_index": 0,
+      "repeat": 1,
+      "prompt": "适合干燥肌肤的精华有哪些？",
+      "answer": "1. Northstar: Clear Serum 适合日常使用。\n2. Harbor: 另一种选择。",
+      "status": "complete",
+      "citations": [
+        {
+          "url": "https://northstar.example/serum"
+        }
+      ],
+      "retrieved_sources": [],
+      "model_requested": "p",
+      "model_returned": "p",
+      "channel": "direct",
+      "protocol": "chat",
+      "search_requested": true,
+      "search_observed": true,
+      "raw_sha256": "synthetic-fixture-not-a-real-payload"
+    },
+    {
+      "id": "s2",
+      "provider": "p",
+      "question_index": 1,
+      "repeat": 1,
+      "prompt": "旅行时怎样选择保湿产品？",
+      "answer": "1. Harbor: 便携保湿产品。",
+      "status": "complete",
+      "citations": [
+        {
+          "url": "https://harbor.example/travel"
+        }
+      ],
+      "retrieved_sources": [],
+      "model_requested": "p",
+      "model_returned": "p",
+      "channel": "direct",
+      "protocol": "chat",
+      "search_requested": true,
+      "search_observed": true,
+      "raw_sha256": "synthetic-fixture-not-a-real-payload"
+    },
+    {
+      "id": "s3",
+      "provider": "q",
+      "question_index": 0,
+      "repeat": 1,
+      "prompt": "适合干燥肌肤的精华有哪些？",
+      "answer": "Northstar 和 Clear Serum 可以作为候选。",
+      "status": "complete",
+      "citations": [],
+      "retrieved_sources": [],
+      "model_requested": "q",
+      "model_returned": "q",
+      "channel": "direct",
+      "protocol": "chat",
+      "search_requested": true,
+      "search_observed": false,
+      "raw_sha256": "synthetic-fixture-not-a-real-payload"
+    },
+    {
+      "id": "s4",
+      "provider": "q",
+      "question_index": 1,
+      "repeat": 1,
+      "prompt": "旅行时怎样选择保湿产品？",
+      "answer": "1. Harbor: 查看适用条件。",
+      "status": "complete",
+      "citations": [
+        {
+          "url": "https://harbor.example/travel"
+        }
+      ],
+      "retrieved_sources": [],
+      "model_requested": "q",
+      "model_returned": "q",
+      "channel": "direct",
+      "protocol": "chat",
+      "search_requested": true,
+      "search_observed": true,
+      "raw_sha256": "synthetic-fixture-not-a-real-payload"
+    },
+    {
+      "id": "failed",
+      "provider": "p",
+      "question_index": 1,
+      "repeat": 1,
+      "prompt": "旅行时怎样选择保湿产品？",
+      "answer": "",
+      "status": "failed",
+      "citations": [
+        {
+          "url": "https://hidden.example/failed"
+        }
+      ],
+      "retrieved_sources": [],
+      "model_requested": "p",
+      "model_returned": "p",
+      "channel": "direct",
+      "protocol": "chat",
+      "search_requested": true,
+      "search_observed": true,
+      "raw_sha256": "synthetic-fixture-not-a-real-payload",
+      "error": "HTTP 429"
+    },
+    {
+      "id": "brand",
+      "provider": "q",
+      "question_index": 2,
+      "repeat": 1,
+      "prompt": "Northstar 有哪些产品？",
+      "answer": "Northstar 的产品介绍。",
+      "status": "complete",
+      "citations": [
+        {
+          "url": "https://hidden.example/brand"
+        }
+      ],
+      "retrieved_sources": [],
+      "model_requested": "q",
+      "model_returned": "q",
+      "channel": "direct",
+      "protocol": "chat",
+      "search_requested": true,
+      "search_observed": true,
+      "raw_sha256": "synthetic-fixture-not-a-real-payload"
+    }
+  ],
+  "prompts": [
+    {
+      "text": "适合干燥肌肤的精华有哪些？"
+    },
+    {
+      "text": "旅行时怎样选择保湿产品？"
+    },
+    {
+      "text": "Northstar 有哪些产品？"
+    }
+  ],
+  "report": {
+    "samples": [
+      {
+        "id": "s1",
+        "provider": "p",
+        "question_index": 0,
+        "repeat": 1,
+        "prompt": "适合干燥肌肤的精华有哪些？",
+        "answer": "1. Northstar: Clear Serum 适合日常使用。\n2. Harbor: 另一种选择。",
+        "status": "complete",
+        "citations": [
+          {
+            "url": "https://northstar.example/serum"
+          }
+        ],
+        "retrieved_sources": [],
+        "model_requested": "p",
+        "model_returned": "p",
+        "channel": "direct",
+        "protocol": "chat",
+        "search_requested": true,
+        "search_observed": true,
+        "raw_sha256": "synthetic-fixture-not-a-real-payload",
+        "analysis": {
+          "eligible": true,
+          "family": "discovery",
+          "entities": [
+            {
+              "name": "Northstar",
+              "own": true,
+              "alias": "Northstar",
+              "prompted": false,
+              "rank": {
+                "position": 1,
+                "evidence": "1. Northstar: Clear Serum 适合日常使用。",
+                "basis": "explicit_numbered_item"
+              }
+            },
+            {
+              "name": "Harbor",
+              "own": false,
+              "alias": "Harbor",
+              "prompted": false,
+              "rank": {
+                "position": 2,
+                "evidence": "2. Harbor: 另一种选择。",
+                "basis": "explicit_numbered_item"
+              }
+            }
+          ],
+          "citations": [
+            {
+              "url": "https://northstar.example/serum",
+              "domain": "northstar.example",
+              "title": "",
+              "kind": "citation",
+              "owner": "Northstar",
+              "own": true
+            }
+          ],
+          "competitor_gap": false,
+          "winning_competitors": [
+            "Harbor"
+          ],
+          "skus": [
+            {
+              "name": "Clear Serum",
+              "alias": "Clear Serum",
+              "prompted": false,
+              "rank": null
+            }
+          ]
+        }
+      },
+      {
+        "id": "s2",
+        "provider": "p",
+        "question_index": 1,
+        "repeat": 1,
+        "prompt": "旅行时怎样选择保湿产品？",
+        "answer": "1. Harbor: 便携保湿产品。",
+        "status": "complete",
+        "citations": [
+          {
+            "url": "https://harbor.example/travel"
+          }
+        ],
+        "retrieved_sources": [],
+        "model_requested": "p",
+        "model_returned": "p",
+        "channel": "direct",
+        "protocol": "chat",
+        "search_requested": true,
+        "search_observed": true,
+        "raw_sha256": "synthetic-fixture-not-a-real-payload",
+        "analysis": {
+          "eligible": true,
+          "family": "discovery",
+          "entities": [
+            {
+              "name": "Northstar",
+              "own": true,
+              "alias": null,
+              "prompted": false,
+              "rank": null
+            },
+            {
+              "name": "Harbor",
+              "own": false,
+              "alias": "Harbor",
+              "prompted": false,
+              "rank": {
+                "position": 1,
+                "evidence": "1. Harbor: 便携保湿产品。",
+                "basis": "explicit_numbered_item"
+              }
+            }
+          ],
+          "citations": [
+            {
+              "url": "https://harbor.example/travel",
+              "domain": "harbor.example",
+              "title": "",
+              "kind": "citation",
+              "owner": "Harbor",
+              "own": false
+            }
+          ],
+          "competitor_gap": true,
+          "winning_competitors": [
+            "Harbor"
+          ],
+          "skus": [
+            {
+              "name": "Clear Serum",
+              "alias": null,
+              "prompted": false,
+              "rank": null
+            }
+          ]
+        }
+      },
+      {
+        "id": "s3",
+        "provider": "q",
+        "question_index": 0,
+        "repeat": 1,
+        "prompt": "适合干燥肌肤的精华有哪些？",
+        "answer": "Northstar 和 Clear Serum 可以作为候选。",
+        "status": "complete",
+        "citations": [],
+        "retrieved_sources": [],
+        "model_requested": "q",
+        "model_returned": "q",
+        "channel": "direct",
+        "protocol": "chat",
+        "search_requested": true,
+        "search_observed": false,
+        "raw_sha256": "synthetic-fixture-not-a-real-payload",
+        "analysis": {
+          "eligible": true,
+          "family": "discovery",
+          "entities": [
+            {
+              "name": "Northstar",
+              "own": true,
+              "alias": "Northstar",
+              "prompted": false,
+              "rank": null
+            },
+            {
+              "name": "Harbor",
+              "own": false,
+              "alias": null,
+              "prompted": false,
+              "rank": null
+            }
+          ],
+          "citations": [],
+          "competitor_gap": false,
+          "winning_competitors": [],
+          "skus": [
+            {
+              "name": "Clear Serum",
+              "alias": "Clear Serum",
+              "prompted": false,
+              "rank": null
+            }
+          ]
+        }
+      },
+      {
+        "id": "s4",
+        "provider": "q",
+        "question_index": 1,
+        "repeat": 1,
+        "prompt": "旅行时怎样选择保湿产品？",
+        "answer": "1. Harbor: 查看适用条件。",
+        "status": "complete",
+        "citations": [
+          {
+            "url": "https://harbor.example/travel"
+          }
+        ],
+        "retrieved_sources": [],
+        "model_requested": "q",
+        "model_returned": "q",
+        "channel": "direct",
+        "protocol": "chat",
+        "search_requested": true,
+        "search_observed": true,
+        "raw_sha256": "synthetic-fixture-not-a-real-payload",
+        "analysis": {
+          "eligible": true,
+          "family": "discovery",
+          "entities": [
+            {
+              "name": "Northstar",
+              "own": true,
+              "alias": null,
+              "prompted": false,
+              "rank": null
+            },
+            {
+              "name": "Harbor",
+              "own": false,
+              "alias": "Harbor",
+              "prompted": false,
+              "rank": {
+                "position": 1,
+                "evidence": "1. Harbor: 查看适用条件。",
+                "basis": "explicit_numbered_item"
+              }
+            }
+          ],
+          "citations": [
+            {
+              "url": "https://harbor.example/travel",
+              "domain": "harbor.example",
+              "title": "",
+              "kind": "citation",
+              "owner": "Harbor",
+              "own": false
+            }
+          ],
+          "competitor_gap": true,
+          "winning_competitors": [
+            "Harbor"
+          ],
+          "skus": [
+            {
+              "name": "Clear Serum",
+              "alias": null,
+              "prompted": false,
+              "rank": null
+            }
+          ]
+        }
+      },
+      {
+        "id": "failed",
+        "provider": "p",
+        "question_index": 1,
+        "repeat": 1,
+        "prompt": "旅行时怎样选择保湿产品？",
+        "answer": "",
+        "status": "failed",
+        "citations": [
+          {
+            "url": "https://hidden.example/failed"
+          }
+        ],
+        "retrieved_sources": [],
+        "model_requested": "p",
+        "model_returned": "p",
+        "channel": "direct",
+        "protocol": "chat",
+        "search_requested": true,
+        "search_observed": true,
+        "raw_sha256": "synthetic-fixture-not-a-real-payload",
+        "error": "HTTP 429",
+        "analysis": {
+          "eligible": false,
+          "family": "discovery",
+          "entities": [
+            {
+              "name": "Northstar",
+              "own": true,
+              "alias": null,
+              "prompted": false,
+              "rank": null
+            },
+            {
+              "name": "Harbor",
+              "own": false,
+              "alias": null,
+              "prompted": false,
+              "rank": null
+            }
+          ],
+          "citations": [
+            {
+              "url": "https://hidden.example/failed",
+              "domain": "hidden.example",
+              "title": "",
+              "kind": "citation",
+              "owner": "其他来源",
+              "own": false
+            }
+          ],
+          "competitor_gap": false,
+          "winning_competitors": [],
+          "skus": [
+            {
+              "name": "Clear Serum",
+              "alias": null,
+              "prompted": false,
+              "rank": null
+            }
+          ]
+        }
+      },
+      {
+        "id": "brand",
+        "provider": "q",
+        "question_index": 2,
+        "repeat": 1,
+        "prompt": "Northstar 有哪些产品？",
+        "answer": "Northstar 的产品介绍。",
+        "status": "complete",
+        "citations": [
+          {
+            "url": "https://hidden.example/brand"
+          }
+        ],
+        "retrieved_sources": [],
+        "model_requested": "q",
+        "model_returned": "q",
+        "channel": "direct",
+        "protocol": "chat",
+        "search_requested": true,
+        "search_observed": true,
+        "raw_sha256": "synthetic-fixture-not-a-real-payload",
+        "analysis": {
+          "eligible": false,
+          "family": "brand",
+          "entities": [
+            {
+              "name": "Northstar",
+              "own": true,
+              "alias": "Northstar",
+              "prompted": true,
+              "rank": null
+            },
+            {
+              "name": "Harbor",
+              "own": false,
+              "alias": null,
+              "prompted": false,
+              "rank": null
+            }
+          ],
+          "citations": [
+            {
+              "url": "https://hidden.example/brand",
+              "domain": "hidden.example",
+              "title": "",
+              "kind": "citation",
+              "owner": "其他来源",
+              "own": false
+            }
+          ],
+          "competitor_gap": false,
+          "winning_competitors": [],
+          "skus": [
+            {
+              "name": "Clear Serum",
+              "alias": null,
+              "prompted": false,
+              "rank": null
+            }
+          ]
+        }
+      }
+    ],
+    "models": [
+      {
+        "provider": "p",
+        "attempted": 3,
+        "complete": 2,
+        "eligible": 2,
+        "brands": [
+          {
+            "name": "Northstar",
+            "own": true,
+            "mentions": 1,
+            "denominator": 2,
+            "score": 50.0,
+            "average_rank": 1.0,
+            "ranked_samples": 1,
+            "top3": 1,
+            "citation_answers": 1
+          },
+          {
+            "name": "Harbor",
+            "own": false,
+            "mentions": 2,
+            "denominator": 2,
+            "score": 100.0,
+            "average_rank": 1.5,
+            "ranked_samples": 2,
+            "top3": 2,
+            "citation_answers": 1
+          }
+        ],
+        "skus": [
+          {
+            "name": "Clear Serum",
+            "mentions": 1,
+            "denominator": 2,
+            "score": 50.0,
+            "average_rank": null,
+            "ranked_samples": 0
+          }
+        ]
+      },
+      {
+        "provider": "q",
+        "attempted": 2,
+        "complete": 2,
+        "eligible": 2,
+        "brands": [
+          {
+            "name": "Northstar",
+            "own": true,
+            "mentions": 1,
+            "denominator": 2,
+            "score": 50.0,
+            "average_rank": null,
+            "ranked_samples": 0,
+            "top3": 0,
+            "citation_answers": 0
+          },
+          {
+            "name": "Harbor",
+            "own": false,
+            "mentions": 1,
+            "denominator": 2,
+            "score": 50.0,
+            "average_rank": 1.0,
+            "ranked_samples": 1,
+            "top3": 1,
+            "citation_answers": 1
+          }
+        ],
+        "skus": [
+          {
+            "name": "Clear Serum",
+            "mentions": 1,
+            "denominator": 2,
+            "score": 50.0,
+            "average_rank": null,
+            "ranked_samples": 0
+          }
+        ]
+      }
+    ],
+    "groups": {
+      "discovery": {
+        "question_count": 2,
+        "models": [
+          {
+            "provider": "p",
+            "attempted": 3,
+            "complete": 2,
+            "eligible": 2,
+            "brands": [
+              {
+                "name": "Northstar",
+                "own": true,
+                "mentions": 1,
+                "denominator": 2,
+                "score": 50.0,
+                "average_rank": 1.0,
+                "ranked_samples": 1,
+                "top3": 1,
+                "citation_answers": 1
+              },
+              {
+                "name": "Harbor",
+                "own": false,
+                "mentions": 2,
+                "denominator": 2,
+                "score": 100.0,
+                "average_rank": 1.5,
+                "ranked_samples": 2,
+                "top3": 2,
+                "citation_answers": 1
+              }
+            ],
+            "skus": [
+              {
+                "name": "Clear Serum",
+                "mentions": 1,
+                "denominator": 2,
+                "score": 50.0,
+                "average_rank": null,
+                "ranked_samples": 0
+              }
+            ]
+          },
+          {
+            "provider": "q",
+            "attempted": 2,
+            "complete": 2,
+            "eligible": 2,
+            "brands": [
+              {
+                "name": "Northstar",
+                "own": true,
+                "mentions": 1,
+                "denominator": 2,
+                "score": 50.0,
+                "average_rank": null,
+                "ranked_samples": 0,
+                "top3": 0,
+                "citation_answers": 0
+              },
+              {
+                "name": "Harbor",
+                "own": false,
+                "mentions": 1,
+                "denominator": 2,
+                "score": 50.0,
+                "average_rank": 1.0,
+                "ranked_samples": 1,
+                "top3": 1,
+                "citation_answers": 1
+              }
+            ],
+            "skus": [
+              {
+                "name": "Clear Serum",
+                "mentions": 1,
+                "denominator": 2,
+                "score": 50.0,
+                "average_rank": null,
+                "ranked_samples": 0
+              }
+            ]
+          }
+        ]
+      },
+      "brand": {
+        "question_count": 1,
+        "models": [
+          {
+            "provider": "p",
+            "attempted": 0,
+            "complete": 0,
+            "eligible": 0,
+            "brands": [
+              {
+                "name": "Northstar",
+                "own": true,
+                "mentions": 0,
+                "denominator": 0,
+                "score": null,
+                "average_rank": null,
+                "ranked_samples": 0,
+                "top3": 0,
+                "citation_answers": 0
+              },
+              {
+                "name": "Harbor",
+                "own": false,
+                "mentions": 0,
+                "denominator": 0,
+                "score": null,
+                "average_rank": null,
+                "ranked_samples": 0,
+                "top3": 0,
+                "citation_answers": 0
+              }
+            ],
+            "skus": [
+              {
+                "name": "Clear Serum",
+                "mentions": 0,
+                "denominator": 0,
+                "score": null,
+                "average_rank": null,
+                "ranked_samples": 0
+              }
+            ]
+          },
+          {
+            "provider": "q",
+            "attempted": 1,
+            "complete": 1,
+            "eligible": 1,
+            "brands": [
+              {
+                "name": "Northstar",
+                "own": true,
+                "mentions": 1,
+                "denominator": 1,
+                "score": 100.0,
+                "average_rank": null,
+                "ranked_samples": 0,
+                "top3": 0,
+                "citation_answers": 0
+              },
+              {
+                "name": "Harbor",
+                "own": false,
+                "mentions": 0,
+                "denominator": 1,
+                "score": 0.0,
+                "average_rank": null,
+                "ranked_samples": 0,
+                "top3": 0,
+                "citation_answers": 0
+              }
+            ],
+            "skus": [
+              {
+                "name": "Clear Serum",
+                "mentions": 0,
+                "denominator": 1,
+                "score": 0.0,
+                "average_rank": null,
+                "ranked_samples": 0
+              }
+            ]
+          }
+        ]
+      },
+      "comparison": {
+        "question_count": 0,
+        "models": [
+          {
+            "provider": "p",
+            "attempted": 0,
+            "complete": 0,
+            "eligible": 0,
+            "brands": [
+              {
+                "name": "Northstar",
+                "own": true,
+                "mentions": 0,
+                "denominator": 0,
+                "score": null,
+                "average_rank": null,
+                "ranked_samples": 0,
+                "top3": 0,
+                "citation_answers": 0
+              },
+              {
+                "name": "Harbor",
+                "own": false,
+                "mentions": 0,
+                "denominator": 0,
+                "score": null,
+                "average_rank": null,
+                "ranked_samples": 0,
+                "top3": 0,
+                "citation_answers": 0
+              }
+            ],
+            "skus": [
+              {
+                "name": "Clear Serum",
+                "mentions": 0,
+                "denominator": 0,
+                "score": null,
+                "average_rank": null,
+                "ranked_samples": 0
+              }
+            ]
+          },
+          {
+            "provider": "q",
+            "attempted": 0,
+            "complete": 0,
+            "eligible": 0,
+            "brands": [
+              {
+                "name": "Northstar",
+                "own": true,
+                "mentions": 0,
+                "denominator": 0,
+                "score": null,
+                "average_rank": null,
+                "ranked_samples": 0,
+                "top3": 0,
+                "citation_answers": 0
+              },
+              {
+                "name": "Harbor",
+                "own": false,
+                "mentions": 0,
+                "denominator": 0,
+                "score": null,
+                "average_rank": null,
+                "ranked_samples": 0,
+                "top3": 0,
+                "citation_answers": 0
+              }
+            ],
+            "skus": [
+              {
+                "name": "Clear Serum",
+                "mentions": 0,
+                "denominator": 0,
+                "score": null,
+                "average_rank": null,
+                "ranked_samples": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "dimensions": [
+      {
+        "dimension": "manual",
+        "label": "manual",
+        "questions": 0
+      }
+    ],
+    "stability": [
+      {
+        "provider": "p",
+        "question_index": 0,
+        "question": "适合干燥肌肤的精华有哪些？",
+        "family": "discovery",
+        "valid_repeats": 1,
+        "planned_repeats": 1,
+        "mentions": 1,
+        "mention_rate": 100.0,
+        "varied": false
+      },
+      {
+        "provider": "p",
+        "question_index": 1,
+        "question": "旅行时怎样选择保湿产品？",
+        "family": "discovery",
+        "valid_repeats": 1,
+        "planned_repeats": 1,
+        "mentions": 0,
+        "mention_rate": 0.0,
+        "varied": false
+      },
+      {
+        "provider": "p",
+        "question_index": 2,
+        "question": "Northstar 有哪些产品？",
+        "family": "brand",
+        "valid_repeats": 0,
+        "planned_repeats": 1,
+        "mentions": 0,
+        "mention_rate": null,
+        "varied": false
+      },
+      {
+        "provider": "q",
+        "question_index": 0,
+        "question": "适合干燥肌肤的精华有哪些？",
+        "family": "discovery",
+        "valid_repeats": 1,
+        "planned_repeats": 1,
+        "mentions": 1,
+        "mention_rate": 100.0,
+        "varied": false
+      },
+      {
+        "provider": "q",
+        "question_index": 1,
+        "question": "旅行时怎样选择保湿产品？",
+        "family": "discovery",
+        "valid_repeats": 1,
+        "planned_repeats": 1,
+        "mentions": 0,
+        "mention_rate": 0.0,
+        "varied": false
+      },
+      {
+        "provider": "q",
+        "question_index": 2,
+        "question": "Northstar 有哪些产品？",
+        "family": "brand",
+        "valid_repeats": 0,
+        "planned_repeats": 1,
+        "mentions": 0,
+        "mention_rate": null,
+        "varied": false
+      }
+    ],
+    "coverage": {
+      "planned_answers": 6,
+      "attempted": 6,
+      "complete": 5,
+      "questions": 3
+    },
+    "gaps": [
+      {
+        "sample_id": "s2",
+        "provider": "p",
+        "prompt": "旅行时怎样选择保湿产品？",
+        "competitors": [
+          "Harbor"
+        ]
+      },
+      {
+        "sample_id": "s4",
+        "provider": "q",
+        "prompt": "旅行时怎样选择保湿产品？",
+        "competitors": [
+          "Harbor"
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "domain": "northstar.example",
+        "kind": "citation",
+        "owner": "Northstar",
+        "urls": [
+          "https://northstar.example/serum"
+        ],
+        "sample_ids": [
+          "s1"
+        ],
+        "answer_count": 1
+      },
+      {
+        "domain": "harbor.example",
+        "kind": "citation",
+        "owner": "Harbor",
+        "urls": [
+          "https://harbor.example/travel"
+        ],
+        "sample_ids": [
+          "s2",
+          "s4"
+        ],
+        "answer_count": 2
+      },
+      {
+        "domain": "hidden.example",
+        "kind": "citation",
+        "owner": "其他来源",
+        "urls": [
+          "https://hidden.example/brand",
+          "https://hidden.example/failed"
+        ],
+        "sample_ids": [
+          "brand",
+          "failed"
+        ],
+        "answer_count": 2
+      }
+    ],
+    "methodology": {
+      "version": "geo-evidence-v2",
+      "score": "discovery: complete answers without any tracked name; brand/comparison metrics reported separately",
+      "rank": "explicit numbered item position, not inferred sentiment or market-wide rank",
+      "citations": "provider citations, retrieved sources, and answer links reported separately",
+      "demand": "model-generated candidate questions; no user frequency data",
+      "manufacturer": "One selected model per manufacturer; no claim to measure all models or consumer apps"
+    }
+  },
+  "planned_max_calls": 6,
+  "prompt_hash": "synthetic-fixture",
+  "plan": {
+    "answer_calls": 6,
+    "questions": 3
+  }
+}
