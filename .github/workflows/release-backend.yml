@@ -2,14 +2,46 @@ name: Publish released backend
 on:
   release:
     types: [published]
+  workflow_call:
+    inputs:
+      release_tag:
+        required: true
+        type: string
+      expected_revision:
+        required: true
+        type: string
 permissions:
   contents: read
 concurrency:
   group: signal-geo-production-release
   cancel-in-progress: false
 jobs:
+  resolve:
+    if: inputs.release_tag != '' || (github.event_name == 'release' && github.event.action == 'published' && github.event.release.draft == false && github.event.release.prerelease == false)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      revision: ${{ steps.resolve.outputs.revision }}
+      release_id: ${{ steps.resolve.outputs.release_id }}
+      published_at: ${{ steps.resolve.outputs.published_at }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.release_tag != '' && github.ref || github.event.release.tag_name }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Resolve published formal Release and independently dereference its tag
+        id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
+          EXPECTED_REVISION: ${{ inputs.expected_revision }}
+        run: python3 deploy/release_request.py resolve
   build:
-    if: github.event.release.draft == false && github.event.release.prerelease == false
+    needs: resolve
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -21,16 +53,24 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          ref: refs/tags/${{ github.event.release.tag_name }}
+          ref: ${{ needs.resolve.outputs.revision }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Recheck the exact formal identity before building
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
+          EXPECTED_REVISION: ${{ needs.resolve.outputs.revision }}
+          EXPECTED_RELEASE_ID: ${{ needs.resolve.outputs.release_id }}
+          EXPECTED_PUBLISHED_AT: ${{ needs.resolve.outputs.published_at }}
+        run: python3 deploy/release_request.py resolve
       - name: Build the exact released commit and publish its image
         id: image
         env:
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
-          RELEASE_ID: ${{ github.event.release.id }}
-          RELEASE_PUBLISHED_AT: ${{ github.event.release.published_at }}
+          RELEASE_TAG: ${{ needs.resolve.outputs.tag }}
+          RELEASE_ID: ${{ needs.resolve.outputs.release_id }}
+          RELEASE_PUBLISHED_AT: ${{ needs.resolve.outputs.published_at }}
         shell: bash
         run: |
           set -euo pipefail
@@ -57,18 +97,31 @@ jobs:
           PY_MANIFEST
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: backend-release-${{ github.event.release.id }}-${{ github.run_attempt }}
+          name: backend-release-${{ needs.resolve.outputs.release_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/release-manifest.json
           if-no-files-found: error
           retention-days: 90
   deploy:
-    needs: build
+    needs: [resolve, build]
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     environment: production
     permissions:
       contents: read
     steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ needs.resolve.outputs.revision }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Recheck the published formal identity immediately before deployment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
+          EXPECTED_REVISION: ${{ needs.resolve.outputs.revision }}
+          EXPECTED_RELEASE_ID: ${{ needs.resolve.outputs.release_id }}
+          EXPECTED_PUBLISHED_AT: ${{ needs.resolve.outputs.published_at }}
+        run: python3 deploy/release_request.py resolve
       - name: Deploy the digest through the verified SSH host
         env:
           DEPLOY_HOST: ${{ vars.SIGNAL_DEPLOY_HOST }}
@@ -77,10 +130,10 @@ jobs:
           DEPLOY_KEY: ${{ secrets.SIGNAL_DEPLOY_SSH_KEY }}
           DEPLOY_KNOWN_HOSTS: ${{ secrets.SIGNAL_DEPLOY_KNOWN_HOSTS }}
           RELEASE_IMAGE: ${{ needs.build.outputs.image }}
-          RELEASE_REVISION: ${{ needs.build.outputs.revision }}
-          RELEASE_ID: ${{ github.event.release.id }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
-          RELEASE_PUBLISHED_AT: ${{ github.event.release.published_at }}
+          RELEASE_REVISION: ${{ needs.resolve.outputs.revision }}
+          RELEASE_ID: ${{ needs.resolve.outputs.release_id }}
+          RELEASE_TAG: ${{ needs.resolve.outputs.tag }}
+          RELEASE_PUBLISHED_AT: ${{ needs.resolve.outputs.published_at }}
         shell: bash
         run: |
           set -euo pipefail

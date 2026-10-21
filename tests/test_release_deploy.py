@@ -113,10 +113,23 @@ class ReleaseDeployment(unittest.TestCase):
    for step in job['steps']:
     if 'run' in step:
      result=subprocess.run(['bash','-n'],input=step['run'],text=True,capture_output=True);self.assertEqual(result.returncode,0,result.stderr)
- def test_formal_release_workflow_only(self):
+ def test_formal_release_and_explicit_request_reuse(self):
   import yaml
   workflow=yaml.load((ROOT/'.github/workflows/release-backend.yml').read_text(),Loader=yaml.BaseLoader)
-  self.assertEqual(workflow['on'],{'release':{'types':['published']}})
-  self.assertEqual(workflow['jobs']['build']['steps'][0]['with']['ref'],'refs/tags/${{ github.event.release.tag_name }}');self.assertIn('draft == false',workflow['jobs']['build']['if']);self.assertIn('prerelease == false',workflow['jobs']['build']['if']);self.assertEqual(workflow['concurrency']['cancel-in-progress'],'false')
-  deploy=workflow['jobs']['deploy'];self.assertEqual(deploy['needs'],'build');self.assertEqual(deploy['environment'],'production')
+  caller=yaml.load((ROOT/'.github/workflows/request-release.yml').read_text(),Loader=yaml.BaseLoader)
+  self.assertEqual(set(workflow['on']),{'release','workflow_call'});self.assertEqual(workflow['on']['release'],{'types':['published']})
+  self.assertEqual(workflow['on']['workflow_call']['inputs'],{'release_tag':{'required':'true','type':'string'},'expected_revision':{'required':'true','type':'string'}})
+  resolve=workflow['jobs']['resolve'];self.assertIn('draft == false',resolve['if']);self.assertIn('prerelease == false',resolve['if']);self.assertIn("inputs.release_tag != ''",resolve['if']);self.assertNotIn("event_name == 'workflow_call'",str(workflow))
+  self.assertEqual(set(resolve['outputs']),{'tag','revision','release_id','published_at'});self.assertEqual(resolve['steps'][-1]['run'],'python3 deploy/release_request.py resolve')
+  build=workflow['jobs']['build'];self.assertEqual(build['needs'],'resolve');self.assertEqual(build['steps'][0]['with']['ref'],'${{ needs.resolve.outputs.revision }}')
+  deploy=workflow['jobs']['deploy'];self.assertEqual(deploy['needs'],['resolve','build']);self.assertEqual(deploy['environment'],'production')
+  for job in (build,deploy):
+   self.assertNotIn('github.event.release.',str(job));self.assertIn('python3 deploy/release_request.py resolve',str(job));self.assertIn('EXPECTED_RELEASE_ID',str(job));self.assertIn('EXPECTED_PUBLISHED_AT',str(job))
+  self.assertEqual(workflow['concurrency'],{'group':'signal-geo-production-release','cancel-in-progress':'false'})
+  self.assertNotEqual(caller['concurrency']['group'],workflow['concurrency']['group']);self.assertEqual(caller['on'],{'push':{'tags':['release-request/v*']}})
+  request=caller['jobs']['request'];self.assertIn('deleted == false',request['if']);self.assertIn('forced == false',request['if']);self.assertEqual(request['permissions'],{'contents':'write'})
+  reuse=caller['jobs']['deploy'];self.assertEqual(reuse['needs'],'request');self.assertEqual(reuse['uses'],'./.github/workflows/release-backend.yml');self.assertEqual(reuse['permissions'],{'contents':'read','packages':'write'});self.assertEqual(reuse['secrets'],'inherit');self.assertEqual(set(reuse['with']),{'release_tag','expected_revision'})
+  for job in caller['jobs'].values():
+   for step in job.get('steps',[]):
+    if 'run' in step:self.assertEqual(subprocess.run(['bash','-n'],input=step['run'],text=True,capture_output=True).returncode,0)
 if __name__=='__main__':unittest.main()
