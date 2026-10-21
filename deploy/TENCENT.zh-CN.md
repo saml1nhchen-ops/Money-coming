@@ -49,7 +49,7 @@ docker compose ps
 - 后台数据在 `signal-geo-runtime` 持久卷；容器重启后保留报告和预算。登录令牌在重启后失效，中断任务不自动续跑。
 - 在模型目录成功并明确点击开始前，不代表已完成 Cremo 真实分析；模拟测试不能作正式分数。
 - 更新先确认无分析运行，备份 runtime，再在服务器拉取已验收提交并 `docker compose up -d --build`。不要执行 `docker compose down -v`，它会删除数据。
-- 本轮未配置 GitHub Release 自动部署；只有 GitHub 提交不代表这台服务器已经更新。下一步可在有实际服务器后配置受保护的发布连接。
+- Release 自动部署文件已准备，尚需在服务器安装维护闸版本并配置 GitHub production 连接；详见 [Release 部署](RELEASE.zh-CN.md)。只有 GitHub 提交不代表腾讯云后台已更新。
 
 ## 迁移
 

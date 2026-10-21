@@ -93,3 +93,5 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 ## 在线团队后台（腾讯云 / 阿里云）
 
 已准备 Docker + HTTPS + 持久报告的团队后台，模型密钥只在服务器配置。独立入口 `dist/team.html#/w/demo/research`，保留现有浏览器直连入口。开通、密钥和真实 HTTPS 尚待目标云服务器配置；详见 [腾讯云部署说明](deploy/TENCENT.zh-CN.md)。
+
+正式 Release 自动更新后台的工作流与回滚脚本见 [Release 部署](deploy/RELEASE.zh-CN.md)。真实服务器安装和 Actions 连接尚待完成；Pages 前端发布仍独立于后台。

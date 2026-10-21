@@ -30,6 +30,9 @@ assert (dest / 'node_modules/tsx/dist/cli.mjs').is_file()
 PY
 
 FROM dependencies AS runtime
+ARG BUILD_REVISION=""
+ARG BUILD_VERSION=""
+ENV SIGNAL_BUILD_REVISION=${BUILD_REVISION} SIGNAL_BUILD_VERSION=${BUILD_VERSION}
 COPY tools /app/tools
 COPY dist /app/dist
 COPY server.py /app/server.py

@@ -60,12 +60,15 @@ class Workspace:
   if len(password)<16:raise ValueError('Workspace password must contain at least 16 characters')
   parts=host.split(':')
   if len(parts)>2 or len(parts)==2 and (not parts[1].isdigit() or not 1<=int(parts[1])<=65535) or len(parts[0])>253 or any(not re.fullmatch(r'[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?',label) for label in parts[0].split('.')):raise ValueError('Invalid public host')
-  self.digest=hashlib.sha256(password.encode()).digest();self.host=host.lower();self.budget=budget;self.api=api or LocalAPI();self.lock=threading.RLock();self.sessions={};self.attempts=collections.defaultdict(collections.deque);self.global_attempts=collections.deque();self.ready=False;self.reason='missing_bai_key';self.profiles=[];self.closing=False;self.active=None;self.shutdown_requested=threading.Event()
+  self.digest=hashlib.sha256(password.encode()).digest();self.host=host.lower();self.budget=budget;self.api=api or LocalAPI();self.lock=threading.RLock();self.sessions={};self.attempts=collections.defaultdict(collections.deque);self.global_attempts=collections.deque();self.ready=False;self.reason='missing_bai_key';self.profiles=[];self.closing=False;self.active=None;self.shutdown_requested=threading.Event();self.maintenance_requested=threading.Event()
  def begin_shutdown(self):
   self.shutdown_requested.set()
   # Serialize shutdown with the complete reserve/submit/active publication.
   with self.lock:self.closing=True
  def stopping(self):return self.closing or self.shutdown_requested.is_set()
+ def require_admission(self):
+  if self.maintenance_requested.is_set():raise Failure(503,'maintenance')
+  if not self.ready or self.stopping():raise Failure(503,self.reason or 'backend_unavailable')
  def login(self,password,source):
   with self.lock:
    now=time.time()
@@ -126,14 +129,25 @@ class Workspace:
   d['count']=30;d['repeats']=1
  def dispatch(self,path,d=None):
   if path=='state':
-   s=self.api.call('geo','state');s['runner']['profiles']=self.profiles;s['runner']['configured']=self.ready;s['runner']['fetched_at']=getattr(self,'fetched_at',None)
-   s['remote']={'mode':'shared_team','shared_reports':True,'ready':self.ready and not self.stopping(),'reason':self.reason,'limits':{'count':30,'max_models':2,'repeats':1},'budget':self.budget.state()};return s,200
+   # Same lock as reservation/submission/publication. Once maintenance+idle is
+   # observable, no earlier admitted POST can still publish a queued task.
+   with self.lock:
+    s=self.api.call('geo','state')
+    if self.active and not s['busy']:
+     previous=self.api.call('geo','run?id='+self.active)
+     if previous.get('status') in ('queued','running'):s['busy']=True
+     else:self.active=None
+    maintenance=self.maintenance_requested.is_set()
+    s['runner']['profiles']=self.profiles;s['runner']['configured']=self.ready;s['runner']['fetched_at']=getattr(self,'fetched_at',None)
+    s['remote']={'mode':'shared_team','shared_reports':True,'ready':self.ready and not self.stopping() and not maintenance,'model_ready':self.ready,'maintenance':maintenance,'deployment_gate':'signals-v1','reason':'maintenance' if maintenance else self.reason,'limits':{'count':30,'max_models':2,'repeats':1},'budget':self.budget.state()};return s,200
   if d is None:return self.api.call('geo',path),200
   name=path;self.validate(name,d)
-  if name in ('start','sample','plan') and (not self.ready or self.stopping()):raise Failure(503,self.reason or 'backend_unavailable')
+  if name=='plan':
+   with self.lock:
+    self.require_admission();result=self.api.call('geo',name,d);self.require_admission();return result,200
   if name in ('start','sample'):
    with self.lock:
-    if self.stopping():raise Failure(503,'backend_unavailable')
+    self.require_admission()
     s=self.api.call('geo','state')
     if s['busy']:raise Failure(409,'busy')
     if self.active:
@@ -143,9 +157,9 @@ class Workspace:
     plan=self.api.call('geo','plan',{**d,'manual':name=='sample',**({'generate_only':False} if name=='sample' else {})})
     expected=(0 if name=='sample' else 3)+(0 if d.get('generate_only') else 30*len(d['providers']))
     if plan.get('maximum_calls')!=expected:raise Failure(503,'backend_unavailable')
-    if self.stopping():raise Failure(503,'backend_unavailable')
+    self.require_admission()
     self.budget.reserve(expected)
-    if self.stopping():raise Failure(503,'backend_unavailable')
+    self.require_admission()
     result=self.api.call('geo',name,d);self.active=result['id'];return result,202
   return self.api.call('geo',name,d),201 if name=='analyze' else 200
 class Server(http.server.ThreadingHTTPServer):
@@ -184,7 +198,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
    if self.command=='OPTIONS':
     if u.path not in get|post or not origins or self.headers.get('Access-Control-Request-Method') not in ('GET','POST') or any(h.strip().lower() not in ('content-type','authorization') for h in self.headers.get('Access-Control-Request-Headers','').split(',') if h.strip()):raise Failure(403,'origin_forbidden')
     return self.reply({},204)
-   if u.path=='/healthz' and self.command=='GET' and not u.query:return self.reply({'ok':True},200 if not w.closing else 503)
+   if u.path=='/healthz' and self.command=='GET' and not u.query:
+    revision=os.environ.get('SIGNAL_BUILD_REVISION','unknown');version=os.environ.get('SIGNAL_BUILD_VERSION','unknown')
+    if not re.fullmatch(r'[0-9a-f]{40}',revision):revision='unknown'
+    if not re.fullmatch(r'[A-Za-z0-9._+-]{1,128}',version):version='unknown'
+    metadata={k:v for k,v in (('revision',revision),('version',version)) if v!='unknown'}
+    return self.reply({'ok':not w.stopping(),**metadata},200 if not w.stopping() else 503)
    if u.path not in (get if self.command=='GET' else post):raise Failure(404,'not_found')
    if u.path in ('/api/geo/run','/api/geo/export'):
     q=urllib.parse.parse_qs(u.query,keep_blank_values=True,strict_parsing=True)

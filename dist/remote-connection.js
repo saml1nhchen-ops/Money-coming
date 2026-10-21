@@ -10,6 +10,7 @@
   const pending = new Set();
   const error = (message, code = 'request_failed') => Object.assign(new Error(message), {code});
   const messages = {
+    maintenance:'后台正在更新，已暂停新分析；已有任务和报告会保留。',
     invalid_request:'参数不符合后台要求，请核对官网、30 道题目及已选模型。', unauthorized:'团队密码错误或登录已失效，请重新登录。',
     origin_forbidden:'后台未允许当前页面来源，请管理员核对 Pages 跨域设置。', not_found:'接口或任务不存在，请刷新列表。',
     busy:'团队已有分析正在运行，请等待结束或明确停止后再开始。', request_too_large:'内容过长，请缩短背景或题目。',

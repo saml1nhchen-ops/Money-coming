@@ -53,11 +53,33 @@ class Services:
    try:child.wait(timeout=5)
    except subprocess.TimeoutExpired:child.kill();child.wait()
  def healthy(self):return bool(self.children) and all(c.poll() is None for c in self.children)
+def should_hold_maintenance(environ,receipt=None):
+ if environ.get('SIGNAL_DEPLOY_MAINTENANCE')!='1':return False
+ nonce=environ.get('SIGNAL_DEPLOY_NONCE','')
+ if not re.fullmatch(r'[0-9a-f]{32}',nonce):return True
+ revision=environ.get('SIGNAL_BUILD_REVISION','unknown')
+ if not re.fullmatch(r'[0-9a-f]{40}',revision):revision='unknown'
+ return not (isinstance(receipt,dict) and receipt.get('status')=='healthy' and receipt.get('nonce')==nonce and receipt.get('revision')==revision)
+def read_deployment_receipt():
+ # Fixed read-only deployment mount; never follow an alternate receipt path.
+ try:
+  with pathlib.Path('/run/signal-deploy/healthy.json').open('rb') as stream:raw=stream.read(4096)
+  if len(raw)>=4096:return None
+  return json.loads(raw)
+ except (OSError,ValueError):return None
+def install_maintenance_signals(w,environ=os.environ):
+ if environ.get('SIGNAL_DEPLOY_MAINTENANCE')=='1':
+  w.maintenance_requested.set()
+  if not should_hold_maintenance(environ,read_deployment_receipt()):w.maintenance_requested.clear()
+ # Signal handlers never wait for the admission lock or perform I/O.
+ signal.signal(signal.SIGUSR1,lambda *_:w.maintenance_requested.set())
+ signal.signal(signal.SIGUSR2,lambda *_:w.maintenance_requested.clear())
 def main():
  host=os.environ.get('SIGNAL_PUBLIC_HOST') or os.environ.get('RENDER_EXTERNAL_HOSTNAME','')
  limit=os.environ.get('SIGNAL_DAILY_CALL_LIMIT','126')
  if not re.fullmatch(r'[0-9]+',limit):raise ValueError('Invalid daily limit')
  w=Workspace(os.environ.get('SIGNAL_WORKSPACE_PASSWORD',''),host,Budget(ROOT/'runtime/remote-budget.json',int(limit)))
+ install_maintenance_signals(w)
  w.budget.state() # Fail closed on a damaged persistent ledger before any model connection.
  prepare_dependencies();services=Services();services.start();w.api=services.api
  server=None

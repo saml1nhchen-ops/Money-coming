@@ -102,6 +102,36 @@ class HTTPTests(unittest.TestCase):
   self.assertEqual(status,200);text=json.dumps(d)
   for value in variants:self.assertNotIn(value.lower(),text.lower())
   self.assertNotIn('apiKey',d['raw_evidence']);self.assertNotIn('AUTHORIZATION',d['raw_evidence']);self.assertNotIn('request-headers',d['raw_evidence']);self.assertEqual(d['usage']['prompt_tokens'],3)
+ def test_maintenance_blocks_admission_but_keeps_running_task(self):
+  t=self.login();self.w.maintenance_requested.set()
+  status,state,_=self.request('/api/geo/state',token=t);remote=state['remote']
+  self.assertEqual(status,200);self.assertEqual(remote['deployment_gate'],'signals-v1');self.assertTrue(remote['model_ready']);self.assertFalse(remote['ready']);self.assertTrue(remote['maintenance']);self.assertEqual(remote['reason'],'maintenance')
+  for path in ('start','plan','sample'):
+   payload=self.payload()
+   if path=='sample':payload['prompts']=['question '+str(i) for i in range(30)]
+   self.assertEqual(self.request('/api/geo/'+path,payload,t)[0],503)
+  self.assertEqual(self.w.budget.state()['reserved'],0);self.assertEqual(self.api.starts,0)
+  self.w.maintenance_requested.clear();self.assertEqual(self.request('/api/geo/start',self.payload(),t)[0],202)
+  self.w.maintenance_requested.set();state=self.request('/api/geo/state',token=t)[1];self.assertTrue(state['busy']);self.assertTrue(state['remote']['maintenance']);self.assertEqual(self.api.starts,1)
+ def test_maintenance_state_waits_for_plan_and_submit_publication(self):
+  t=self.login()
+  for blocking in ('plan','start'):
+   with self.subTest(blocking=blocking):
+    self.w.maintenance_requested.clear();self.api.busy=False;self.w.active=None
+    entered=threading.Event();release=threading.Event();state_done=threading.Event();original=self.api.call
+    def blocked(service,path,body=None):
+     if path==blocking:entered.set();self.assertTrue(release.wait(2))
+     return original(service,path,body)
+    self.api.call=blocked;results=[];states=[]
+    request=threading.Thread(target=lambda:results.append(self.request('/api/geo/start',self.payload(),t)[0]));request.start();self.assertTrue(entered.wait(2));self.w.maintenance_requested.set()
+    def read_state():states.append(self.request('/api/geo/state',token=t)[1]);state_done.set()
+    reader=threading.Thread(target=read_state);reader.start();self.assertFalse(state_done.wait(.05));release.set();request.join(2);reader.join(2);self.api.call=original
+    self.assertTrue(states[0]['remote']['maintenance'])
+    if blocking=='plan':self.assertEqual(results,[503]);self.assertFalse(states[0]['busy']);self.assertEqual(self.w.budget.state()['reserved'],0)
+    else:self.assertEqual(results,[202]);self.assertTrue(states[0]['busy']);self.assertIsNotNone(self.w.active);self.assertEqual(self.w.budget.state()['reserved'],63)
+ def test_health_metadata_is_optional_and_safe(self):
+  with patch.dict(os.environ,{'SIGNAL_BUILD_REVISION':'','SIGNAL_BUILD_VERSION':''}):self.assertEqual(self.request('/healthz')[1],{'ok':True})
+  with patch.dict(os.environ,{'SIGNAL_BUILD_REVISION':'a'*40,'SIGNAL_BUILD_VERSION':'v1.2.3'}):self.assertEqual(self.request('/healthz')[1],{'ok':True,'revision':'a'*40,'version':'v1.2.3'})
  def test_body_and_session_cap(self):
   self.assertEqual(self.request('/api/workspace/login',{'password':'x'*5000})[0],413)
   self.assertEqual(self.request('/api/workspace/login',[],extra={})[0],400)

@@ -26,3 +26,6 @@ node_modules/
 *.zip
 .vscode/
 .idea/
+
+# Local release status and admission receipts
+.deploy/

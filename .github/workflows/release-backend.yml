@@ -1,0 +1,107 @@
+name: Publish released backend
+on:
+  release:
+    types: [published]
+permissions:
+  contents: read
+concurrency:
+  group: signal-geo-production-release
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.event.release.draft == false && github.event.release.prerelease == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      revision: ${{ steps.image.outputs.revision }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: refs/tags/${{ github.event.release.tag_name }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Build the exact released commit and publish its image
+        id: image
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_ID: ${{ github.event.release.id }}
+          RELEASE_PUBLISHED_AT: ${{ github.event.release.published_at }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          revision=$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")
+          [[ "$(git rev-parse HEAD)" == "$revision" ]]
+          [[ "$revision" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$RELEASE_TAG" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]]
+          repository=${GITHUB_REPOSITORY,,}
+          image="ghcr.io/${repository}/backend:release-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
+          docker buildx build --push --metadata-file "$RUNNER_TEMP/image-metadata.json" \
+            --build-arg "BUILD_REVISION=$revision" --build-arg "BUILD_VERSION=$RELEASE_TAG" \
+            --label "org.opencontainers.image.revision=$revision" \
+            --label "org.opencontainers.image.version=$RELEASE_TAG" \
+            --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+            --tag "$image" .
+          digest=$(jq -er '."containerimage.digest" | select(test("^sha256:[a-f0-9]{64}$"))' "$RUNNER_TEMP/image-metadata.json")
+          printf 'image=ghcr.io/%s/backend@%s\nrevision=%s\n' "$repository" "$digest" "$revision" >> "$GITHUB_OUTPUT"
+          python3 - "$repository" "$digest" "$revision" <<'PY_MANIFEST'
+          import json,os,pathlib,sys
+          manifest={'schema':1,'image':'ghcr.io/'+sys.argv[1]+'/backend@'+sys.argv[2],'revision':sys.argv[3],'release_id':int(os.environ['RELEASE_ID']),'tag':os.environ['RELEASE_TAG'],'published_at':os.environ['RELEASE_PUBLISHED_AT']}
+          pathlib.Path(os.environ['RUNNER_TEMP'],'release-manifest.json').write_text(json.dumps(manifest,sort_keys=True))
+          PY_MANIFEST
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: backend-release-${{ github.event.release.id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/release-manifest.json
+          if-no-files-found: error
+          retention-days: 90
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - name: Deploy the digest through the verified SSH host
+        env:
+          DEPLOY_HOST: ${{ vars.SIGNAL_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.SIGNAL_DEPLOY_USER }}
+          DEPLOY_PORT: ${{ vars.SIGNAL_DEPLOY_PORT }}
+          DEPLOY_KEY: ${{ secrets.SIGNAL_DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.SIGNAL_DEPLOY_KNOWN_HOSTS }}
+          RELEASE_IMAGE: ${{ needs.build.outputs.image }}
+          RELEASE_REVISION: ${{ needs.build.outputs.revision }}
+          RELEASE_ID: ${{ github.event.release.id }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_PUBLISHED_AT: ${{ github.event.release.published_at }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${DEPLOY_HOST:?Configure production SIGNAL_DEPLOY_HOST}"
+          : "${DEPLOY_USER:?Configure production SIGNAL_DEPLOY_USER}"
+          : "${DEPLOY_KEY:?Configure production SIGNAL_DEPLOY_SSH_KEY}"
+          : "${DEPLOY_KNOWN_HOSTS:?Configure production SIGNAL_DEPLOY_KNOWN_HOSTS}"
+          DEPLOY_PORT=${DEPLOY_PORT:-22}
+          [[ "$DEPLOY_HOST" =~ ^[A-Za-z0-9][A-Za-z0-9.-]*$ ]]
+          [[ "$DEPLOY_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]
+          [[ "$DEPLOY_PORT" =~ ^[0-9]+$ ]] && ((DEPLOY_PORT >= 1 && DEPLOY_PORT <= 65535))
+          [[ "$RELEASE_IMAGE" =~ ^ghcr\.io/saml1nhchen-ops/money-coming/backend@sha256:[a-f0-9]{64}$ ]]
+          [[ "$RELEASE_REVISION" =~ ^[a-f0-9]{40}$ ]]
+          umask 077
+          keyfile=$(mktemp "$RUNNER_TEMP/signal-ssh.XXXXXX")
+          hostfile=$(mktemp "$RUNNER_TEMP/signal-hosts.XXXXXX")
+          trap 'rm -f "$keyfile" "$hostfile"' EXIT
+          printf '%s\n' "$DEPLOY_KEY" > "$keyfile"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$hostfile"
+          printf -v remote 'sudo -n /usr/local/sbin/signal-geo-deploy %q %q %q %q %q' "$RELEASE_IMAGE" "$RELEASE_REVISION" "$RELEASE_ID" "$RELEASE_PUBLISHED_AT" "$RELEASE_TAG"
+          ssh -F /dev/null -i "$keyfile" -p "$DEPLOY_PORT" \
+            -o BatchMode=yes -o IdentitiesOnly=yes -o ForwardAgent=no -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$hostfile" \
+            -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=5 \
+            "$DEPLOY_USER@$DEPLOY_HOST" "$remote"
