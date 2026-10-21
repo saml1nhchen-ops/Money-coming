@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Signal GEO · 工作台</title>
+<script>
+(() => {
+  const validRoute = /^#\/w\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+(?:\?[^#]*)?$/.test(location.hash);
+  const hash = validRoute ? location.hash : '#/w/demo/overview';
+  location.replace('./dist/' + location.search + hash);
+})();
+</script>
+</head>
+<body><p>正在打开工作台…</p></body>
+</html>
