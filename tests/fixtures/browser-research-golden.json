@@ -1,0 +1,1023 @@
+{
+  "config": {
+    "website": "https://cremocompany.com/",
+    "brand_aliases": [
+      "Cremo"
+    ],
+    "providers": [
+      "gpt",
+      "gemini"
+    ],
+    "skus": [
+      {
+        "name": "Cremo Cream",
+        "aliases": [
+          "Cremo Cream"
+        ]
+      }
+    ],
+    "competitors": [
+      {
+        "name": "Rival",
+        "aliases": [
+          "Rival"
+        ],
+        "domains": [
+          "rival.example"
+        ]
+      }
+    ],
+    "repeats": 1
+  },
+  "samples": [
+    {
+      "id": "s0",
+      "provider": "gpt",
+      "prompt": "Best shaving cream?",
+      "answer": "1. Cremo Cream: smooth\n2. Rival: available",
+      "status": "complete",
+      "citations": [],
+      "retrieved_sources": [],
+      "question_index": 0,
+      "repeat": 1
+    },
+    {
+      "id": "s1",
+      "provider": "gpt",
+      "prompt": "Sensitive skin options?",
+      "answer": "Rival. https://cremocompany.com/plain",
+      "status": "complete",
+      "citations": [],
+      "retrieved_sources": [],
+      "question_index": 1,
+      "repeat": 1
+    },
+    {
+      "id": "s2",
+      "provider": "gpt",
+      "prompt": "Other options?",
+      "answer": "Cremo fragment",
+      "status": "incomplete",
+      "citations": [],
+      "retrieved_sources": [],
+      "question_index": 2,
+      "repeat": 1
+    },
+    {
+      "id": "s3",
+      "provider": "gpt",
+      "prompt": "What is Cremo?",
+      "answer": "Cremo is a shaving brand",
+      "status": "complete",
+      "citations": [],
+      "retrieved_sources": [],
+      "question_index": 3,
+      "repeat": 1
+    },
+    {
+      "id": "s4",
+      "provider": "gpt",
+      "prompt": "Cremo vs Rival?",
+      "answer": "2. Rival: option\n3. Cremo: option",
+      "status": "complete",
+      "citations": [],
+      "retrieved_sources": [],
+      "question_index": 4,
+      "repeat": 1
+    },
+    {
+      "id": "s5",
+      "provider": "gemini",
+      "prompt": "Best shaving cream?",
+      "answer": "No brand mention",
+      "status": "complete",
+      "citations": [
+        {
+          "url": "https://cremocompany.com/source",
+          "title": "Official"
+        }
+      ],
+      "retrieved_sources": [
+        {
+          "url": "https://rival.example/retrieved",
+          "title": "Retrieved"
+        }
+      ],
+      "question_index": 0,
+      "repeat": 1
+    },
+    {
+      "id": "s6",
+      "provider": "gemini",
+      "prompt": "Sensitive skin options?",
+      "answer": "",
+      "status": "failed",
+      "citations": [],
+      "retrieved_sources": [],
+      "question_index": 1,
+      "repeat": 1
+    }
+  ],
+  "prompts": [
+    {
+      "text": "Best shaving cream?",
+      "dimension": "manual"
+    },
+    {
+      "text": "Sensitive skin options?",
+      "dimension": "manual"
+    },
+    {
+      "text": "Other options?",
+      "dimension": "manual"
+    },
+    {
+      "text": "What is Cremo?",
+      "dimension": "manual"
+    },
+    {
+      "text": "Cremo vs Rival?",
+      "dimension": "manual"
+    }
+  ],
+  "expected": {
+    "samples": [
+      {
+        "id": "s0",
+        "provider": "gpt",
+        "prompt": "Best shaving cream?",
+        "answer": "1. Cremo Cream: smooth\n2. Rival: available",
+        "status": "complete",
+        "citations": [],
+        "retrieved_sources": [],
+        "question_index": 0,
+        "repeat": 1,
+        "analysis": {
+          "eligible": true,
+          "family": "discovery",
+          "entities": [
+            {
+              "name": "Cremo",
+              "own": true,
+              "alias": "Cremo",
+              "prompted": false,
+              "rank": {
+                "position": 1,
+                "evidence": "1. Cremo Cream: smooth",
+                "basis": "explicit_numbered_item"
+              }
+            },
+            {
+              "name": "Rival",
+              "own": false,
+              "alias": "Rival",
+              "prompted": false,
+              "rank": {
+                "position": 2,
+                "evidence": "2. Rival: available",
+                "basis": "explicit_numbered_item"
+              }
+            }
+          ],
+          "citations": [],
+          "competitor_gap": false,
+          "winning_competitors": [
+            "Rival"
+          ],
+          "skus": [
+            {
+              "name": "Cremo Cream",
+              "alias": "Cremo Cream",
+              "prompted": false,
+              "rank": {
+                "position": 1,
+                "evidence": "1. Cremo Cream: smooth",
+                "basis": "explicit_numbered_item"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "s1",
+        "provider": "gpt",
+        "prompt": "Sensitive skin options?",
+        "answer": "Rival. https://cremocompany.com/plain",
+        "status": "complete",
+        "citations": [],
+        "retrieved_sources": [],
+        "question_index": 1,
+        "repeat": 1,
+        "analysis": {
+          "eligible": true,
+          "family": "discovery",
+          "entities": [
+            {
+              "name": "Cremo",
+              "own": true,
+              "alias": null,
+              "prompted": false,
+              "rank": null
+            },
+            {
+              "name": "Rival",
+              "own": false,
+              "alias": "Rival",
+              "prompted": false,
+              "rank": null
+            }
+          ],
+          "citations": [
+            {
+              "url": "https://cremocompany.com/plain",
+              "domain": "cremocompany.com",
+              "title": "",
+              "kind": "answer_link",
+              "owner": "未分类",
+              "own": false
+            }
+          ],
+          "competitor_gap": true,
+          "winning_competitors": [
+            "Rival"
+          ],
+          "skus": [
+            {
+              "name": "Cremo Cream",
+              "alias": null,
+              "prompted": false,
+              "rank": null
+            }
+          ]
+        }
+      },
+      {
+        "id": "s2",
+        "provider": "gpt",
+        "prompt": "Other options?",
+        "answer": "Cremo fragment",
+        "status": "incomplete",
+        "citations": [],
+        "retrieved_sources": [],
+        "question_index": 2,
+        "repeat": 1,
+        "analysis": {
+          "eligible": false,
+          "family": "discovery",
+          "entities": [
+            {
+              "name": "Cremo",
+              "own": true,
+              "alias": "Cremo",
+              "prompted": false,
+              "rank": null
+            },
+            {
+              "name": "Rival",
+              "own": false,
+              "alias": null,
+              "prompted": false,
+              "rank": null
+            }
+          ],
+          "citations": [],
+          "competitor_gap": false,
+          "winning_competitors": [],
+          "skus": [
+            {
+              "name": "Cremo Cream",
+              "alias": null,
+              "prompted": false,
+              "rank": null
+            }
+          ]
+        }
+      },
+      {
+        "id": "s3",
+        "provider": "gpt",
+        "prompt": "What is Cremo?",
+        "answer": "Cremo is a shaving brand",
+        "status": "complete",
+        "citations": [],
+        "retrieved_sources": [],
+        "question_index": 3,
+        "repeat": 1,
+        "analysis": {
+          "eligible": false,
+          "family": "brand",
+          "entities": [
+            {
+              "name": "Cremo",
+              "own": true,
+              "alias": "Cremo",
+              "prompted": true,
+              "rank": null
+            },
+            {
+              "name": "Rival",
+              "own": false,
+              "alias": null,
+              "prompted": false,
+              "rank": null
+            }
+          ],
+          "citations": [],
+          "competitor_gap": false,
+          "winning_competitors": [],
+          "skus": [
+            {
+              "name": "Cremo Cream",
+              "alias": null,
+              "prompted": false,
+              "rank": null
+            }
+          ]
+        }
+      },
+      {
+        "id": "s4",
+        "provider": "gpt",
+        "prompt": "Cremo vs Rival?",
+        "answer": "2. Rival: option\n3. Cremo: option",
+        "status": "complete",
+        "citations": [],
+        "retrieved_sources": [],
+        "question_index": 4,
+        "repeat": 1,
+        "analysis": {
+          "eligible": false,
+          "family": "comparison",
+          "entities": [
+            {
+              "name": "Cremo",
+              "own": true,
+              "alias": "Cremo",
+              "prompted": true,
+              "rank": {
+                "position": 3,
+                "evidence": "3. Cremo: option",
+                "basis": "explicit_numbered_item"
+              }
+            },
+            {
+              "name": "Rival",
+              "own": false,
+              "alias": "Rival",
+              "prompted": true,
+              "rank": {
+                "position": 2,
+                "evidence": "2. Rival: option",
+                "basis": "explicit_numbered_item"
+              }
+            }
+          ],
+          "citations": [],
+          "competitor_gap": false,
+          "winning_competitors": [
+            "Rival"
+          ],
+          "skus": [
+            {
+              "name": "Cremo Cream",
+              "alias": null,
+              "prompted": false,
+              "rank": null
+            }
+          ]
+        }
+      },
+      {
+        "id": "s5",
+        "provider": "gemini",
+        "prompt": "Best shaving cream?",
+        "answer": "No brand mention",
+        "status": "complete",
+        "citations": [
+          {
+            "url": "https://cremocompany.com/source",
+            "title": "Official"
+          }
+        ],
+        "retrieved_sources": [
+          {
+            "url": "https://rival.example/retrieved",
+            "title": "Retrieved"
+          }
+        ],
+        "question_index": 0,
+        "repeat": 1,
+        "analysis": {
+          "eligible": true,
+          "family": "discovery",
+          "entities": [
+            {
+              "name": "Cremo",
+              "own": true,
+              "alias": null,
+              "prompted": false,
+              "rank": null
+            },
+            {
+              "name": "Rival",
+              "own": false,
+              "alias": null,
+              "prompted": false,
+              "rank": null
+            }
+          ],
+          "citations": [
+            {
+              "url": "https://cremocompany.com/source",
+              "domain": "cremocompany.com",
+              "title": "Official",
+              "kind": "citation",
+              "owner": "Cremo",
+              "own": true
+            },
+            {
+              "url": "https://rival.example/retrieved",
+              "domain": "rival.example",
+              "title": "Retrieved",
+              "kind": "retrieved_source",
+              "owner": "Rival",
+              "own": false
+            }
+          ],
+          "competitor_gap": false,
+          "winning_competitors": [],
+          "skus": [
+            {
+              "name": "Cremo Cream",
+              "alias": null,
+              "prompted": false,
+              "rank": null
+            }
+          ]
+        }
+      },
+      {
+        "id": "s6",
+        "provider": "gemini",
+        "prompt": "Sensitive skin options?",
+        "answer": "",
+        "status": "failed",
+        "citations": [],
+        "retrieved_sources": [],
+        "question_index": 1,
+        "repeat": 1,
+        "analysis": {
+          "eligible": false,
+          "family": "discovery",
+          "entities": [
+            {
+              "name": "Cremo",
+              "own": true,
+              "alias": null,
+              "prompted": false,
+              "rank": null
+            },
+            {
+              "name": "Rival",
+              "own": false,
+              "alias": null,
+              "prompted": false,
+              "rank": null
+            }
+          ],
+          "citations": [],
+          "competitor_gap": false,
+          "winning_competitors": [],
+          "skus": [
+            {
+              "name": "Cremo Cream",
+              "alias": null,
+              "prompted": false,
+              "rank": null
+            }
+          ]
+        }
+      }
+    ],
+    "models": [
+      {
+        "provider": "gpt",
+        "attempted": 3,
+        "complete": 2,
+        "eligible": 2,
+        "brands": [
+          {
+            "name": "Cremo",
+            "own": true,
+            "mentions": 1,
+            "denominator": 2,
+            "score": 50.0,
+            "average_rank": 1.0,
+            "ranked_samples": 1,
+            "top3": 1,
+            "citation_answers": 0
+          },
+          {
+            "name": "Rival",
+            "own": false,
+            "mentions": 2,
+            "denominator": 2,
+            "score": 100.0,
+            "average_rank": 2.0,
+            "ranked_samples": 1,
+            "top3": 1,
+            "citation_answers": 0
+          }
+        ],
+        "skus": [
+          {
+            "name": "Cremo Cream",
+            "mentions": 1,
+            "denominator": 2,
+            "score": 50.0,
+            "average_rank": 1.0,
+            "ranked_samples": 1
+          }
+        ]
+      },
+      {
+        "provider": "gemini",
+        "attempted": 2,
+        "complete": 1,
+        "eligible": 1,
+        "brands": [
+          {
+            "name": "Cremo",
+            "own": true,
+            "mentions": 0,
+            "denominator": 1,
+            "score": 0.0,
+            "average_rank": null,
+            "ranked_samples": 0,
+            "top3": 0,
+            "citation_answers": 1
+          },
+          {
+            "name": "Rival",
+            "own": false,
+            "mentions": 0,
+            "denominator": 1,
+            "score": 0.0,
+            "average_rank": null,
+            "ranked_samples": 0,
+            "top3": 0,
+            "citation_answers": 0
+          }
+        ],
+        "skus": [
+          {
+            "name": "Cremo Cream",
+            "mentions": 0,
+            "denominator": 1,
+            "score": 0.0,
+            "average_rank": null,
+            "ranked_samples": 0
+          }
+        ]
+      }
+    ],
+    "groups": {
+      "discovery": {
+        "question_count": 3,
+        "models": [
+          {
+            "provider": "gpt",
+            "attempted": 3,
+            "complete": 2,
+            "eligible": 2,
+            "brands": [
+              {
+                "name": "Cremo",
+                "own": true,
+                "mentions": 1,
+                "denominator": 2,
+                "score": 50.0,
+                "average_rank": 1.0,
+                "ranked_samples": 1,
+                "top3": 1,
+                "citation_answers": 0
+              },
+              {
+                "name": "Rival",
+                "own": false,
+                "mentions": 2,
+                "denominator": 2,
+                "score": 100.0,
+                "average_rank": 2.0,
+                "ranked_samples": 1,
+                "top3": 1,
+                "citation_answers": 0
+              }
+            ],
+            "skus": [
+              {
+                "name": "Cremo Cream",
+                "mentions": 1,
+                "denominator": 2,
+                "score": 50.0,
+                "average_rank": 1.0,
+                "ranked_samples": 1
+              }
+            ]
+          },
+          {
+            "provider": "gemini",
+            "attempted": 2,
+            "complete": 1,
+            "eligible": 1,
+            "brands": [
+              {
+                "name": "Cremo",
+                "own": true,
+                "mentions": 0,
+                "denominator": 1,
+                "score": 0.0,
+                "average_rank": null,
+                "ranked_samples": 0,
+                "top3": 0,
+                "citation_answers": 1
+              },
+              {
+                "name": "Rival",
+                "own": false,
+                "mentions": 0,
+                "denominator": 1,
+                "score": 0.0,
+                "average_rank": null,
+                "ranked_samples": 0,
+                "top3": 0,
+                "citation_answers": 0
+              }
+            ],
+            "skus": [
+              {
+                "name": "Cremo Cream",
+                "mentions": 0,
+                "denominator": 1,
+                "score": 0.0,
+                "average_rank": null,
+                "ranked_samples": 0
+              }
+            ]
+          }
+        ]
+      },
+      "brand": {
+        "question_count": 1,
+        "models": [
+          {
+            "provider": "gpt",
+            "attempted": 1,
+            "complete": 1,
+            "eligible": 1,
+            "brands": [
+              {
+                "name": "Cremo",
+                "own": true,
+                "mentions": 1,
+                "denominator": 1,
+                "score": 100.0,
+                "average_rank": null,
+                "ranked_samples": 0,
+                "top3": 0,
+                "citation_answers": 0
+              },
+              {
+                "name": "Rival",
+                "own": false,
+                "mentions": 0,
+                "denominator": 1,
+                "score": 0.0,
+                "average_rank": null,
+                "ranked_samples": 0,
+                "top3": 0,
+                "citation_answers": 0
+              }
+            ],
+            "skus": [
+              {
+                "name": "Cremo Cream",
+                "mentions": 0,
+                "denominator": 1,
+                "score": 0.0,
+                "average_rank": null,
+                "ranked_samples": 0
+              }
+            ]
+          },
+          {
+            "provider": "gemini",
+            "attempted": 0,
+            "complete": 0,
+            "eligible": 0,
+            "brands": [
+              {
+                "name": "Cremo",
+                "own": true,
+                "mentions": 0,
+                "denominator": 0,
+                "score": null,
+                "average_rank": null,
+                "ranked_samples": 0,
+                "top3": 0,
+                "citation_answers": 0
+              },
+              {
+                "name": "Rival",
+                "own": false,
+                "mentions": 0,
+                "denominator": 0,
+                "score": null,
+                "average_rank": null,
+                "ranked_samples": 0,
+                "top3": 0,
+                "citation_answers": 0
+              }
+            ],
+            "skus": [
+              {
+                "name": "Cremo Cream",
+                "mentions": 0,
+                "denominator": 0,
+                "score": null,
+                "average_rank": null,
+                "ranked_samples": 0
+              }
+            ]
+          }
+        ]
+      },
+      "comparison": {
+        "question_count": 1,
+        "models": [
+          {
+            "provider": "gpt",
+            "attempted": 1,
+            "complete": 1,
+            "eligible": 1,
+            "brands": [
+              {
+                "name": "Cremo",
+                "own": true,
+                "mentions": 1,
+                "denominator": 1,
+                "score": 100.0,
+                "average_rank": 3.0,
+                "ranked_samples": 1,
+                "top3": 1,
+                "citation_answers": 0
+              },
+              {
+                "name": "Rival",
+                "own": false,
+                "mentions": 1,
+                "denominator": 1,
+                "score": 100.0,
+                "average_rank": 2.0,
+                "ranked_samples": 1,
+                "top3": 1,
+                "citation_answers": 0
+              }
+            ],
+            "skus": [
+              {
+                "name": "Cremo Cream",
+                "mentions": 0,
+                "denominator": 1,
+                "score": 0.0,
+                "average_rank": null,
+                "ranked_samples": 0
+              }
+            ]
+          },
+          {
+            "provider": "gemini",
+            "attempted": 0,
+            "complete": 0,
+            "eligible": 0,
+            "brands": [
+              {
+                "name": "Cremo",
+                "own": true,
+                "mentions": 0,
+                "denominator": 0,
+                "score": null,
+                "average_rank": null,
+                "ranked_samples": 0,
+                "top3": 0,
+                "citation_answers": 0
+              },
+              {
+                "name": "Rival",
+                "own": false,
+                "mentions": 0,
+                "denominator": 0,
+                "score": null,
+                "average_rank": null,
+                "ranked_samples": 0,
+                "top3": 0,
+                "citation_answers": 0
+              }
+            ],
+            "skus": [
+              {
+                "name": "Cremo Cream",
+                "mentions": 0,
+                "denominator": 0,
+                "score": null,
+                "average_rank": null,
+                "ranked_samples": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "dimensions": [
+      {
+        "dimension": "manual",
+        "label": "manual",
+        "questions": 5
+      }
+    ],
+    "stability": [
+      {
+        "provider": "gpt",
+        "question_index": 0,
+        "question": "Best shaving cream?",
+        "family": "discovery",
+        "valid_repeats": 1,
+        "planned_repeats": 1,
+        "mentions": 1,
+        "mention_rate": 100.0,
+        "varied": false
+      },
+      {
+        "provider": "gpt",
+        "question_index": 1,
+        "question": "Sensitive skin options?",
+        "family": "discovery",
+        "valid_repeats": 1,
+        "planned_repeats": 1,
+        "mentions": 0,
+        "mention_rate": 0.0,
+        "varied": false
+      },
+      {
+        "provider": "gpt",
+        "question_index": 2,
+        "question": "Other options?",
+        "family": "discovery",
+        "valid_repeats": 0,
+        "planned_repeats": 1,
+        "mentions": 0,
+        "mention_rate": null,
+        "varied": false
+      },
+      {
+        "provider": "gpt",
+        "question_index": 3,
+        "question": "What is Cremo?",
+        "family": "brand",
+        "valid_repeats": 0,
+        "planned_repeats": 1,
+        "mentions": 0,
+        "mention_rate": null,
+        "varied": false
+      },
+      {
+        "provider": "gpt",
+        "question_index": 4,
+        "question": "Cremo vs Rival?",
+        "family": "comparison",
+        "valid_repeats": 0,
+        "planned_repeats": 1,
+        "mentions": 0,
+        "mention_rate": null,
+        "varied": false
+      },
+      {
+        "provider": "gemini",
+        "question_index": 0,
+        "question": "Best shaving cream?",
+        "family": "discovery",
+        "valid_repeats": 1,
+        "planned_repeats": 1,
+        "mentions": 0,
+        "mention_rate": 0.0,
+        "varied": false
+      },
+      {
+        "provider": "gemini",
+        "question_index": 1,
+        "question": "Sensitive skin options?",
+        "family": "discovery",
+        "valid_repeats": 0,
+        "planned_repeats": 1,
+        "mentions": 0,
+        "mention_rate": null,
+        "varied": false
+      },
+      {
+        "provider": "gemini",
+        "question_index": 2,
+        "question": "Other options?",
+        "family": "discovery",
+        "valid_repeats": 0,
+        "planned_repeats": 1,
+        "mentions": 0,
+        "mention_rate": null,
+        "varied": false
+      },
+      {
+        "provider": "gemini",
+        "question_index": 3,
+        "question": "What is Cremo?",
+        "family": "brand",
+        "valid_repeats": 0,
+        "planned_repeats": 1,
+        "mentions": 0,
+        "mention_rate": null,
+        "varied": false
+      },
+      {
+        "provider": "gemini",
+        "question_index": 4,
+        "question": "Cremo vs Rival?",
+        "family": "comparison",
+        "valid_repeats": 0,
+        "planned_repeats": 1,
+        "mentions": 0,
+        "mention_rate": null,
+        "varied": false
+      }
+    ],
+    "coverage": {
+      "planned_answers": 10,
+      "attempted": 7,
+      "complete": 5,
+      "questions": 5
+    },
+    "gaps": [
+      {
+        "sample_id": "s1",
+        "provider": "gpt",
+        "prompt": "Sensitive skin options?",
+        "competitors": [
+          "Rival"
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "domain": "cremocompany.com",
+        "kind": "answer_link",
+        "owner": "未分类",
+        "urls": [
+          "https://cremocompany.com/plain"
+        ],
+        "sample_ids": [
+          "s1"
+        ],
+        "answer_count": 1
+      },
+      {
+        "domain": "cremocompany.com",
+        "kind": "citation",
+        "owner": "Cremo",
+        "urls": [
+          "https://cremocompany.com/source"
+        ],
+        "sample_ids": [
+          "s5"
+        ],
+        "answer_count": 1
+      },
+      {
+        "domain": "rival.example",
+        "kind": "retrieved_source",
+        "owner": "Rival",
+        "urls": [
+          "https://rival.example/retrieved"
+        ],
+        "sample_ids": [
+          "s5"
+        ],
+        "answer_count": 1
+      }
+    ],
+    "methodology": {
+      "version": "geo-evidence-v2",
+      "score": "discovery: complete answers without any tracked name; brand/comparison metrics reported separately",
+      "rank": "explicit numbered item position, not inferred sentiment or market-wide rank",
+      "citations": "provider citations, retrieved sources, and answer links reported separately",
+      "demand": "model-generated candidate questions; no user frequency data",
+      "manufacturer": "One selected model per manufacturer; no claim to measure all models or consumer apps"
+    }
+  }
+}

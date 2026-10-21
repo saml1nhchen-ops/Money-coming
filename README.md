@@ -1,6 +1,6 @@
 # Signal GEO · 证据与诊断工作台 v0.3
 
-浏览器直连 B.AI：在“多模型聚合采样”页面输入密钥并读取模型目录，无需本机后台；用法与跨域限制见 [直连说明](deploy/BROWSER-DIRECT.zh-CN.md)。
+浏览器直连 B.AI：在原“品牌分析”三步页面同页连接、选择真实固定模型，自动生成 30 道题并展示回答与证据；官网仅作对象标识。用法、费用上限与验证边界见 [直连说明](deploy/BROWSER-DIRECT.zh-CN.md)。
 
 新增“开源工具与执行”：18 个原始仓库固定版本、420 份原始 Skill 文档和许可证、10 组原生 CLI/脚本适配、OpenSEO/Elmo/SE Ranking MCP 适配，以及本机任务日志、原生文件下载和证据交接。使用 `start-tools.ps1` 启动本机执行服务。完整能力、已验证路径与缺失环境见 [tools/INTEGRATION.md](tools/INTEGRATION.md)。完整应用栈、账号登录和所有付费实时采样尚未运行，不能将“源码已导入”视为“全部功能已上线”。
 

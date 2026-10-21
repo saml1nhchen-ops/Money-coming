@@ -8,15 +8,20 @@
   const nativeRender = render;
   let direct = !baiLocal(), key = '', epoch = 0, connecting = false, running = false;
   let models = [], profiles = new Map(), runs = new Map(), fetchedAt = null, notice = '';
-  const cremo = {gpt: '', gemini: '', picked: {gpt: false, gemini: false}, busy: false, message: ''};
+  let catalogProfiles = [], researchOwner = null;
+  const listeners = new Set();
+  function emit(type = 'state', reason) { for (const listener of listeners) { try { listener({type, reason}); } catch {} } }
   const pending = new Set();
   const clone = value => JSON.parse(JSON.stringify(value));
   const stamp = () => new Date().toISOString();
   const failure = (message, code = 'request_failed') => Object.assign(new Error(message), {code});
   function current(generation) { if (generation !== epoch) throw failure('连接已更改或已退出，旧请求结果已忽略。', 'cancelled'); }
-  function paint() { if (page === 'bai') { baiCapture(); render(); } else if (page === 'apis') { apiCapture(); render(); } }
+  function paint() { if (page === 'bai') { baiCapture(); render(); } else if (page === 'apis') { apiCapture(); render(); } else if (page === 'research') { geoCapture(); render(); } }
   function scrub(value, secret = key) {
-    if (typeof value === 'string') return secret ? value.split(secret).join('[REDACTED]') : value;
+    if (typeof value === 'string') {
+      for (const form of credentialForms(secret)) { const escaped = form.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); value = value.replace(new RegExp(escaped, 'gi'), '[REDACTED]'); }
+      return value;
+    }
     if (Array.isArray(value)) return value.map(item => scrub(item, secret));
     if (value && typeof value === 'object') {
       return Object.fromEntries(Object.entries(value)
@@ -27,7 +32,7 @@
   }
   function snapshot() {
     return clone({configured: Boolean(key), models, profiles: [...profiles.values()], fetched_at: fetchedAt,
-      base_url: BASE, browser_direct: true, busy: running || connecting,
+      base_url: BASE, browser_direct: true, busy: running || connecting || Boolean(researchOwner),
       billing: '浏览器直连 · 按 API 实际用量计费 · 无自动重试或模型切换'});
   }
   function sync() {
@@ -42,7 +47,7 @@
     for (const controller of pending) controller.abort();
     pending.clear();
     key = ''; connecting = false; running = false;
-    cremo.gpt = ''; cremo.gemini = ''; cremo.picked = {gpt: false, gemini: false}; cremo.busy = false; cremo.message = '';
+    researchOwner = null; catalogProfiles = [];
     models = []; profiles.clear(); runs.clear(); fetchedAt = null; notice = message;
     clearTimeout(baiTimer);
     if (direct) {
@@ -51,6 +56,7 @@
     }
     const input = document.getElementById('bai-key');
     if (input) input.value = '';
+    emit('reset', message);
   }
   async function readJSON(response) {
     if (Number(response.headers.get('content-length')) > MAX_BYTES) {
@@ -127,10 +133,11 @@
     const requestId = safeDiagnosticId(response.headers.get('x-request-id') || response.headers.get('request-id'), credential, 128);
     return {code: '', message: '', requestId};
   }
-  async function request(path, body, credential, generation) {
+  async function request(path, body, credential, generation, validate, ownedPending) {
     if (!['/models', '/chat/completions'].includes(path)) throw failure('浏览器直连只支持模型目录和 Chat Completions。');
-    current(generation);
-    const controller = new AbortController(); pending.add(controller);
+    const guard = () => { current(generation); if (validate) validate(); };
+    guard();
+    const controller = new AbortController(); pending.add(controller); ownedPending?.add(controller);
     let timedOut = false;
     const timer = setTimeout(() => { timedOut = true; controller.abort(); }, path === '/models' ? MODEL_TIMEOUT : CHAT_TIMEOUT);
     try {
@@ -140,10 +147,10 @@
         headers: {Authorization: 'Bearer ' + credential, ...(body === undefined ? {} : {'Content-Type': 'application/json'})},
         ...(body === undefined ? {} : {body: JSON.stringify(body)})
       });
-      current(generation);
+      guard();
       if (!response.ok) {
         const diagnostics = await serverErrorDiagnostics(response, credential);
-        current(generation);
+        guard();
         const messages = {
           401: '身份验证未通过（HTTP 401），仅凭此响应不能确定是密钥、访问权限还是接入方式的问题。',
           403: 'B.AI 拒绝访问，请检查账号权限、模型权限或服务访问限制。',
@@ -155,15 +162,15 @@
           (diagnostics.requestId ? ' 请求编号：' + diagnostics.requestId : ''), 'http_' + response.status);
       }
       const result = await readJSON(response);
-      current(generation);
+      guard();
       if (result.error || result.success === false) throw failure('B.AI 返回接口错误，请检查密钥、额度及所选模型的 Chat Completions 支持情况。', 'provider_error');
       return result;
     } catch (error) {
-      current(generation);
+      guard();
       if (timedOut) throw failure('B.AI 请求超过 ' + (path === '/models' ? '20' : '120') + ' 秒，已取消等待并停止后续请求；已提交的请求仍可能计费，请勿自动重试。', 'timeout');
       if (error.code) throw error;
       throw failure('浏览器未能完成 B.AI 请求，可能是网络、跨域（CORS）、服务访问限制或连接中断。请检查网络和浏览器提示后再手动操作。', 'network');
-    } finally { clearTimeout(timer); pending.delete(controller); }
+    } finally { clearTimeout(timer); pending.delete(controller); ownedPending?.delete(controller); }
   }
   async function digest(text) {
     if (!crypto.subtle) throw failure('当前页面不支持安全摘要，请使用 HTTPS 页面或本机浏览器服务。', 'runtime');
@@ -198,22 +205,30 @@
       if (!Array.isArray(raw.data)) throw failure('B.AI 模型目录格式无效，请检查接口状态后重新连接。', 'invalid_response');
       const found = new Map();
       for (const item of raw.data) {
-        if (typeof item?.id !== 'string' || !item.id.trim() || item.id.length > 200 || item.id.includes(candidate) || /[\r\n]/.test(item.id)) continue;
+        if (typeof item?.id !== 'string' || !item.id.trim() || item.id.length > 200 || hasSecret(item.id, candidate) || /[\r\n]/.test(item.id)) continue;
         found.set(item.id, {id: item.id, name: scrub(String(item.name || item.id).slice(0, 200), candidate)});
       }
       if (!found.size) throw failure('当前密钥未返回可选择的模型，请检查模型权限后重新连接。');
       current(generation);
-      key = candidate; models = [...found.values()]; fetchedAt = stamp();
+      const nextModels = [...found.values()], projected = [];
+      for (const model of nextModels) {
+        const manufacturer = catalogManufacturer(model.id);
+        if (!manufacturer) continue;
+        const id = 'browser-bai-' + (await digest(model.id + '|chat|false')).slice(0, 16);
+        current(generation);
+        projected.push({id, name: model.id, model: model.id, manufacturer, provider: 'bai', channel: 'bai', protocol: 'chat', markets: ['CN','US'], search: false, base_url: BASE, capability_verified: false});
+      }
+      key = candidate; models = nextModels; catalogProfiles = projected; fetchedAt = stamp();
       notice = '模型目录已读取。请选择支持 Chat Completions 的聊天模型，再明确提交题目；目录可见不代表调用已验证。';
       return snapshot();
     } finally {
       candidate = '';
-      if (generation === epoch) { connecting = false; sync(); paint(); }
+      if (generation === epoch) { connecting = false; sync(); emit(); paint(); }
     }
   }
   async function profile(payload) {
     if (!key) throw failure('请先连接 B.AI 并读取模型目录。');
-    if (running) throw failure('本批正在运行，请完成或退出连接后再修改模型。');
+    if (running || connecting || researchOwner) throw failure('已有任务或连接正在运行，请完成或退出连接后再修改模型。', 'busy');
     if (payload.protocol !== 'chat' || payload.search) throw failure('浏览器直连仅支持 Chat Completions 文本接口，不支持 Responses、Messages 或联网工具。');
     if (!models.some(model => model.id === payload.model)) throw failure('请选择此密钥实际返回的模型 ID。');
     if (/(^|[/:._-])(auto|router|latest|dynamic)(?=$|[/:._-])/i.test(payload.model)) throw failure('请选择固定聊天模型，不使用 Auto、Router、Latest 或 Dynamic 路由别名。');
@@ -224,6 +239,7 @@
     const generation = epoch;
     const id = 'browser-bai-' + (await digest(payload.model + '|chat|false')).slice(0, 16);
     current(generation);
+    if (running || connecting || researchOwner) throw failure('已有任务或连接正在运行，未修改模型配置。', 'busy');
     profiles.set(id, {id, name, model: payload.model, protocol: 'chat', markets: [...new Set(markets)].sort(), search: false, provider: 'bai', base_url: BASE});
     return snapshot();
   }
@@ -277,7 +293,7 @@
   }
   function prepare(payload) {
     if (!key) throw failure('请先连接 B.AI 密钥。');
-    if (running || connecting) throw failure('已有请求正在运行，请等待或先退出连接。');
+    if (running || connecting || researchOwner) throw failure('已有请求正在运行，请等待或先退出连接。', 'busy');
     const {market, providers: ids, prompts, brand_aliases: aliases, skus = []} = payload;
     if (!['CN', 'US'].includes(market)) throw failure('请选择中国或美国市场。');
     if (!Array.isArray(ids) || !ids.length || ids.length > 16 || new Set(ids).size !== ids.length) throw failure('请选择 1–16 个不同模型。');
@@ -332,18 +348,17 @@
         if (stop) {
           run.status = run.samples.some(s => s.status === 'complete' || s.status === 'incomplete') ? 'partial' : 'failed';
           run.error = '本批已停止，剩余 ' + (run.planned - run.samples.length) + ' 次未发送。' + sample.error;
-          run.finished_at = stamp(); running = false; sync(); paint(); return;
+          run.finished_at = stamp(); running = false; sync(); emit(); paint(); return;
         }
         sync(); paint();
       }
     }
     if (generation !== epoch) return;
     run.status = run.samples.some(s => s.status !== 'complete') ? 'partial' : 'finished';
-    run.finished_at = stamp(); running = false; sync(); paint();
+    run.finished_at = stamp(); running = false; sync(); emit(); paint();
   }
-  async function adapter(path, body, preset = false) {
+  async function adapter(path, body) {
     const endpoint = path.split('?')[0];
-    if (cremo.busy && body && ['run', 'profile'].includes(endpoint) && !preset) throw failure('正在准备 Cremo 采样，请等待或退出连接。');
     if (endpoint === 'connect' && body) return connect(body);
     if (endpoint === 'clear') { reset(); return snapshot(); }
     if (endpoint === 'state' && !body) return snapshot();
@@ -362,17 +377,61 @@
         planned: prepared.providers.length * prepared.prompts.length, samples: [], summary: [], raw_evidence: {},
         methodology: 'api-mention-v1; complete unprompted exact-alias mention rate; failed/incomplete excluded; no recommendation or market-population claim',
         evidence_note: 'Raw provider JSON is credential-redacted before in-memory retention/export; SHA256 is over redacted JSON with two-space indentation. No request headers or credentials are exported.'};
-      run.summary = aggregate(run); runs.set(id, run); running = true;
+      run.summary = aggregate(run); runs.set(id, run); running = true; emit();
       // Only this explicit run action starts paid calls. Each request is awaited once.
       void execute(run, epoch).catch(() => {
         if (!runs.has(id)) return;
         run.status = 'failed'; run.error = '本页处理被中断，后续请求已停止；已完成证据保留。';
-        running = false; sync(); paint();
+        running = false; sync(); emit(); paint();
       });
       return {id, status: run.status, planned: run.planned};
     }
     throw failure('浏览器直连不支持此操作，仅支持 Chat Completions 手动题集采样。');
   }
+  function catalogManufacturer(id) {
+    if (/[\s\p{Cc}\p{Cf}]/u.test(id) || /(^|[/:._-])(auto|router|latest|dynamic)(?=$|[/:._-])/i.test(id)
+      || /(image|audio|embed|speech|transcri|whisper|realtime|video|vision|dall.?e|imagen|veo|tts)/i.test(id)) return null;
+    const leaf = id.toLowerCase().replace(/^(?:openai|google|anthropic|deepseek|qwen)[/:]/, '');
+    for (const [pattern, name] of [[/^gpt(?:[._-]|\d)/,'OpenAI'],[/^gemini(?:[._-]|\d)/,'Google'],[/^claude(?:[._-]|\d)/,'Anthropic'],[/^deepseek(?:[._-]|\d)/,'DeepSeek'],[/^qwen(?:[._-]|\d)/,'阿里千问'],[/^glm(?:[._-]|\d)/,'智谱'],[/^kimi(?:[._-]|\d)/,'月之暗面'],[/^hunyuan(?:[._-]|\d)/,'腾讯混元'],[/^mimo(?:[._-]|\d)/,'小米'],[/^minimax(?:[._-]|\d)/,'MiniMax']]) if (pattern.test(leaf)) return name;
+    return null;
+  }
+  function frozen(value) { if (value && typeof value === 'object') { for (const item of Object.values(value)) frozen(item); Object.freeze(value); } return value; }
+  window.browserBaiResearchBroker = Object.freeze({
+    snapshot() { return clone({configured: Boolean(key), browser_direct: true, busy: running || connecting || Boolean(researchOwner), owner: researchOwner ? 'research' : running ? 'bai' : null, fetched_at: fetchedAt, profiles: catalogProfiles, billing: '按实际 API 用量计费；调用数上限不等于金额封顶。'}); },
+    safeDraft(value) { return clone(scrub(value)); },
+    subscribe(listener) { if (typeof listener !== 'function') throw failure('无效的状态订阅。', 'invalid_request'); listeners.add(listener); return () => listeners.delete(listener); },
+    acquire({owner, profileIds, market, maxCalls} = {}) {
+      if (!key) throw failure('请先在本页连接 B.AI。', 'not_connected');
+      if (running || connecting || researchOwner) throw failure('本页已有生成或采样任务，请等待完成或先停止。', 'busy');
+      if (owner !== 'research' || !['CN','US'].includes(market) || !Number.isInteger(maxCalls) || maxCalls < 1 || maxCalls > 63 || !Array.isArray(profileIds) || profileIds.length < 1 || profileIds.length > 2 || new Set(profileIds).size !== profileIds.length) throw failure('研究调用计划无效。', 'invalid_request');
+      const selected = profileIds.map(id => catalogProfiles.find(p => p.id === id && p.markets.includes(market)));
+      if (selected.some(p => !p) || new Set(selected.map(p => p.manufacturer)).size !== selected.length) throw failure('请从真实目录选择最多两家厂商，每家一个固定模型。', 'unknown_profile');
+      const record = {generation: epoch, active: true, inflight: false, calls: 0, controllers: new Set()};
+      researchOwner = record;
+      const valid = () => record.active && !record.releasing && record.generation === epoch && researchOwner === record && Boolean(key);
+      const check = () => { if (!valid()) throw failure('连接或任务已取消，旧任务不会继续调用。', 'cancelled'); };
+      const finish = cancel => {
+        if (!record.active) return;
+        if (record.inflight && !cancel) { record.releasing = true; return; }
+        record.active = false;
+        if (cancel) for (const controller of record.controllers) controller.abort();
+        if (researchOwner === record && record.generation === epoch) { researchOwner = null; sync(); emit(); paint(); }
+      };
+      const lease = Object.freeze({profiles: frozen(clone(selected)), isCurrent: valid,
+        async chat({profileId, prompt, maxOutputTokens} = {}) {
+          check();
+          if (record.inflight) throw failure('本页仅允许一个在途请求。', 'busy');
+          const p = selected.find(profile => profile.id === profileId);
+          if (!p || typeof prompt !== 'string' || !prompt.trim() || prompt.length > 20000 || !Number.isInteger(maxOutputTokens) || maxOutputTokens < 1 || maxOutputTokens > 4096) throw failure('模型或题目参数无效。', 'invalid_request');
+          if (credentialForms(key).some(secret => prompt.toLowerCase().includes(secret.toLowerCase()))) throw failure('题目内容包含当前密钥，请移除后再开始。', 'invalid_request');
+          if (record.calls >= maxCalls) throw failure('已达到本次调用计划上限，不再发送请求。', 'budget_exceeded');
+          record.inflight = true; record.calls++;
+          try { const raw = await request('/chat/completions', {model: p.model, messages: [{role: 'user', content: prompt}], stream: false, max_tokens: maxOutputTokens}, key, record.generation, check, record.controllers); check(); return scrub(raw); }
+          finally { record.inflight = false; if (record.releasing) finish(false); }
+        }, cancel() { finish(true); }, release() { finish(false); }});
+      sync(); emit(); paint(); return lease;
+    }
+  });
   baiFetch = async function(path, body) { return direct ? adapter(path, body) : nativeFetch(path, body); };
   window.browserBaiOpen = function() {
     if (!direct) { clearTimeout(baiTimer); direct = true; reset('浏览器直连已启用，请填写 B.AI 密钥。'); }
@@ -387,8 +446,8 @@
   window.browserBaiClear = function() { if (!direct) return; reset(); closeOverlay(); paint(); };
   baiConnectModal = function() {
     if (!direct) return nativeConnectModal();
-    baiCapture();
-    modal(head('浏览器直接连接 B.AI') + `<p>密钥仅保存在当前页面内存，不写入浏览器存储、URL 或导出。刷新、离开页面或退出会清除密钥和本页证据。</p><p>连接只读取模型目录，不发送聊天请求。随后请添加固定聊天模型，手动填写 1–10 道题目并点击运行；这不是 30 题官网自动诊断。</p>${input('B.AI API Key','bai-key','','password')}<p class="mono">${BASE}/models</p><button class="primary" id="bai-connect" onclick="baiConnect()">连接并读取模型</button><button onclick="browserBaiClear()">取消并清除连接</button><p id="bai-connect-error" class="error" role="alert"></p>`);
+    if (page === 'research') geoCapture(); else baiCapture();
+    modal(head('浏览器直接连接 B.AI') + `<p>密钥仅保存在当前页面内存，不写入浏览器存储、URL 或导出。刷新、离开页面或退出会清除密钥和本页证据。</p><p>连接只读取模型目录，不发送聊天请求。品牌分析页可直接选择目录中的固定模型，明确开始后生成 30 道题并采样；独立采样页仍支持手动 1–10 题。浏览器不会抓取官网。</p>${input('B.AI API Key','bai-key','','password')}<p class="mono">${BASE}/models</p><button class="primary" id="bai-connect" onclick="baiConnect()">连接并读取模型</button><button onclick="browserBaiClear()">取消并清除连接</button><p id="bai-connect-error" class="error" role="alert"></p>`);
     $('#bai-key').autocomplete = 'off';
     $('#bai-key').spellcheck = false;
     $('#bai-key').focus();
@@ -401,7 +460,7 @@
     if (button) button.disabled = true;
     try {
       await adapter('connect', {key: candidate}); candidate = '';
-      closeOverlay(); sync(); paint(); toast('模型目录已读取，请添加固定聊天模型并手动提交题目。');
+      closeOverlay(); sync(); paint(); toast(page === 'research' ? '模型目录已读取，可在本页选择 AI 开始分析。' : '模型目录已读取，请添加固定聊天模型并手动提交题目。');
     } catch (error) {
       if (error.code === 'cancelled') return;
       notice = error.code ? error.message : '连接未完成，请检查网络和服务访问条件后手动重试。';
@@ -413,7 +472,7 @@
   const nativeAddModel = baiAddModel;
   baiAddModel = async function() {
     if (!direct) return nativeAddModel();
-    if (cremo.busy) return;
+    if (researchOwner) return;
     const generation = epoch;
     try {
       await adapter('profile', {model: $('#bai-model')?.value, name: $('#bai-name')?.value, protocol: $('#bai-protocol')?.value,
@@ -429,101 +488,11 @@
     baiCapture();
     modal(head('添加固定聊天模型') + `<p>仅支持 Chat Completions 文本聊天。请选择账号目录中的固定聊天模型；目录可见不代表接口协议已验证。</p><label for="bai-model">账号实际返回的模型 ID</label><select id="bai-model" style="width:100%">${models.map(m => `<option value="${esc(m.id)}">${esc(m.name)} · ${esc(m.id)}</option>`).join('')}</select>${input('显示名称（可留空，使用完整模型 ID）','bai-name','')}<input id="bai-protocol" type="hidden" value="chat"><input id="bai-search" type="checkbox" hidden><p>Chat Completions · 不请求联网工具 · 每次最多 2048 输出 token</p><label><input id="bai-cn" type="checkbox" ${baiMarket === 'CN' ? 'checked' : ''}> 中国市场</label><label><input id="bai-us" type="checkbox" ${baiMarket === 'US' ? 'checked' : ''}> 美国市场</label><button class="primary" onclick="baiAddModel()">添加到采样列表</button><p id="bai-model-error" class="error" role="alert"></p>`);
   };
-  const CREMO_QUESTIONS = Object.freeze([
-    'Which shaving creams are worth comparing for a close, comfortable shave in the United States? Name specific products and explain differences for sensitive skin.',
-    'What shaving creams or shave gels should men with razor irritation compare in the United States? Explain benefits, drawbacks, and who each option suits.',
-    'Which affordable shaving products work well for coarse facial hair in the United States? Compare specific products, comfort, and value.',
-    'What are the best body washes to compare for dry skin in the United States? Name specific products and discuss cleansing ingredients and fragrance.',
-    'Which mens body washes offer a long-lasting scent without feeling overly drying? Compare specific options available in the United States.',
-    'Which body washes should someone with sensitive skin consider in the United States? Compare specific products and explain limitations.',
-    'What beard grooming products should a beginner compare for a simple daily routine in the United States? Name specific beard oils, balms, or washes and explain their uses.',
-    'Which mens grooming brands and products offer good value for a basic shaving and body-care routine in the United States? Compare specific options and explain trade-offs.'
-  ]);
-  function cremoModels(family) {
-    const preferences = family === 'gpt' ? ['gpt-4.1-mini', 'gpt-5-mini'] : ['gemini-2.5-flash-lite', 'gemini-2.5-flash'];
-    const familyPattern = family === 'gpt' ? /^(?:openai[/:._-])?gpt(?:[/:._-]|\d)/i : /^(?:google[/:._-])?gemini(?:[/:._-]|\d)/i;
-    const rank = id => {
-      const leaf = id.toLowerCase().replace(/^(?:openai|google)[/:._-]/, '');
-      const index = preferences.findIndex(name => leaf === name || leaf.startsWith(name + '-'));
-      return index < 0 ? preferences.length : index;
-    };
-    return models.filter(model => familyPattern.test(model.id)
-      && !/[\s\p{Cc}\p{Cf}]/u.test(model.id)
-      && !/(^|[/:._-])(auto|router|latest|dynamic)(?=$|[/:._-])/i.test(model.id)
-      && !/(image|audio|embed|speech|transcri|whisper|realtime|video|vision|dall.?e|imagen|veo|tts)/i.test(model.id))
-      .sort((a, b) => rank(a.id) - rank(b.id) || a.id.localeCompare(b.id, 'en'));
-  }
-  function cremoOptions() {
-    const gpt = cremoModels('gpt'), gemini = cremoModels('gemini');
-    const initial = choices => {
-      const existing = [...profiles.values()].filter(p => p.protocol === 'chat' && !p.search && choices.some(model => model.id === p.model));
-      return existing.find(p => baiSelected.has(p.id))?.model || existing.find(p => p.markets.includes('US'))?.model || choices[0]?.id || '';
-    };
-    if (!cremo.picked.gpt || !gpt.some(model => model.id === cremo.gpt)) cremo.gpt = initial(gpt);
-    if (!cremo.picked.gemini || !gemini.some(model => model.id === cremo.gemini)) cremo.gemini = initial(gemini);
-    return {gpt, gemini};
-  }
-  function cremoMarkup() {
-    const choices = cremoOptions(), disabled = !key || connecting || running || cremo.busy || !cremo.gpt || !cremo.gemini;
-    const dropdown = family => `<label for="cremo-${family}">${family === 'gpt' ? 'GPT' : 'Gemini'} · 当前账号真实模型 ID</label><select id="cremo-${family}" style="width:100%" onchange="browserCremoSelect('${family}',this.value)" ${!key || connecting || running || cremo.busy || !choices[family].length ? 'disabled' : ''}>${choices[family].length ? choices[family].map(model => `<option value="${esc(model.id)}" ${cremo[family] === model.id ? 'selected' : ''}>${esc(model.id)}</option>`).join('') : '<option value="">当前目录暂无匹配的固定文本模型</option>'}</select>`;
-    return `<section class="card" id="cremo-quick-sampling"><div class="card-head"><h2>Cremo 快速采样</h2><span class="tag">US · 8 题 × 2 模型 = 16 次调用</span></div><p>预设题集的快速采样，不是官网自动诊断或 30 题全报告。测量品牌 Cremo；官网 https://cremocompany.com/ 仅记录测量对象，不抓取网页；SKU 留空。</p><p>8 道英文购买比较题涵盖剃须、沐浴与男士护理，题目不提示 Cremo。GPT 与 Gemini 各回答同一组题；只采用本次账号目录实际返回的模型 ID，目录可见不代表调用已验证。</p><div class="grid"><div>${dropdown('gpt')}</div><div>${dropdown('gemini')}</div></div><p>点击开始后最多发送 16 次聊天请求，每次最多 2048 输出 token，按实际用量计费。请求串行发送；不自动重试、不换模型，遇到接口错误会停止剩余请求。</p><button class="primary" id="cremo-start" onclick="browserCremoStart()" ${disabled ? 'disabled' : ''}>${cremo.busy ? '正在准备 Cremo 采样…' : '开始 Cremo 采样'}</button>${!key ? '<p class="muted">先连接 B.AI 并读取模型目录。</p>' : !cremo.gpt || !cremo.gemini ? '<p class="error" role="status">当前目录缺少固定 GPT 或 Gemini 文本模型，不能开始；不会编造模型 ID 或改用其他厂商。</p>' : ''}${cremo.message ? `<p role="status">${esc(cremo.message)}</p>` : ''}<details><summary>查看 8 道预设英文题目</summary><ol>${CREMO_QUESTIONS.map(question => `<li>${esc(question)}</li>`).join('')}</ol></details></section>`;
-  }
-  window.browserCremoSelect = function(family, id) {
-    if (!['gpt', 'gemini'].includes(family) || cremo.busy || running || connecting) return;
-    if (cremoModels(family).some(model => model.id === id)) { cremo[family] = id; cremo.picked[family] = true; }
-  };
-  window.browserCremoStart = async function() {
-    if (!direct || !key || connecting || running || cremo.busy) return;
-    const choices = cremoOptions();
-    if (!choices.gpt.some(model => model.id === cremo.gpt) || !choices.gemini.some(model => model.id === cremo.gemini)) {
-      cremo.message = '当前目录缺少可用的 GPT 或 Gemini 固定文本模型，未发送聊天请求。'; paint(); return;
-    }
-    const generation = epoch, selected = [cremo.gpt, cremo.gemini];
-    cremo.busy = true; cremo.message = '正在准备两个 US 文本模型；准备完成后将开始 16 次预设题集采样。'; paint();
-    try {
-      const ids = [];
-      for (const model of selected) {
-        current(generation);
-        if (running || connecting) throw failure('连接或任务状态已改变，未继续提交 Cremo 采样。');
-        const existing = [...profiles.values()].find(p => p.model === model && p.protocol === 'chat' && !p.search);
-        const state = await profile({model, name: existing?.name || model, protocol: 'chat', search: false, markets: [...new Set([...(existing?.markets || []), 'US'])]});
-        current(generation);
-        const configured = state.profiles.find(p => p.model === model && p.protocol === 'chat' && !p.search && p.markets.includes('US'));
-        if (!configured) throw failure('未能准备固定模型，未提交 Cremo 采样。');
-        ids.push(configured.id);
-      }
-      current(generation);
-      if (running || connecting) throw failure('已有任务或连接正在运行，未提交 Cremo 采样。');
-      const body = {market: 'US', website: 'https://cremocompany.com/', brand_aliases: ['Cremo'], skus: [], prompts: [...CREMO_QUESTIONS], providers: ids};
-      baiCapture(); clearTimeout(baiTimer); baiMarket = 'US'; baiActive = null;
-      baiDraft.US = {...baiDraft.US, website: body.website, brand: 'Cremo', skus: '', questions: CREMO_QUESTIONS.join('\n')};
-      baiSelected = new Set(ids);
-      render();
-      current(generation);
-      if (running || connecting) throw failure('已有任务或连接正在运行，未提交 Cremo 采样。');
-      const run = await adapter('run', body, true);
-      current(generation);
-      cremo.message = 'Cremo 预设题集采样已提交，以下结果区显示本次真实返回的进度与证据；未完成回答不计为零分。';
-      await baiOpen(run.id);
-      current(generation);
-      document.getElementById('bai-start')?.closest('section')?.nextElementSibling?.scrollIntoView({behavior: 'smooth', block: 'start'});
-    } catch (error) {
-      if (generation !== epoch) return;
-      cremo.message = error.code ? error.message : 'Cremo 采样未能提交；请检查连接状态后再手动开始。';
-    } finally {
-      if (generation === epoch) { cremo.busy = false; sync(); paint(); }
-    }
-  };
-  const nativeStart = baiStart;
-  baiStart = async function() {
-    if (direct && cremo.busy) { toast('正在准备 Cremo 采样，请等待或退出连接。'); return; }
-    return nativeStart();
-  };
   baiPage = function() {
     const html = nativePage();
     const banner = `<section class="card" id="browser-bai-connection"><div class="card-head"><h2>网页直接连接 B.AI</h2><span class="tag">${direct ? '浏览器直连' : '可选直连'}</span></div><p>使用现有手动题集采样：1–10 道问题，每批最多 64 次请求；不是 30 题官网自动诊断。仅请求固定的 ${BASE}，不会抓取品牌官网。</p><p>密钥和本页任务证据只在当前页面内存；刷新、离开或退出后清除。请先导出需要保留的证据。</p><div class="actions"><button class="primary" onclick="browserBaiOpen()" ${connecting ? 'disabled' : ''}>${key ? '更换密钥 / 重新连接' : '填写密钥并连接'}</button>${direct ? '<button onclick="browserBaiClear()">退出并清除本页数据</button>' : ''}</div>${notice ? `<p class="${key ? 'notice' : 'error'}" role="status">${esc(notice)}</p>` : ''}</section>`;
     if (!direct) return banner + html;
-    return banner + cremoMarkup() + html.replace(/<a class="primary button" href="http:\/\/127\.0\.0\.1:8771[^>]*>[^<]*<\/a>/, '')
+    return banner + html.replace(/<a class="primary button" href="http:\/\/127\.0\.0\.1:8771[^>]*>[^<]*<\/a>/, '')
       .replace(/<div class="notice">[\s\S]*?<\/div>/, '<div class="notice">浏览器直连 · 聊天请求串行发送 · 不自动重试、不换模型。网络失败或接口拒绝后停止剩余请求；取消等待不保证撤销服务端已提交调用。</div>');
   };
   apiPage = function() {
@@ -533,8 +502,8 @@
     if (direct) sync();
     nativeRender();
     if (!direct || page !== 'bai') return;
-    const start = $('#bai-start'); if (start) start.disabled = !key || running || connecting || cremo.busy;
-    const add = document.querySelector('button[onclick="baiModelModal()"]'); if (add) add.disabled = !key || running || connecting || cremo.busy;
+    const start = $('#bai-start'); if (start) start.disabled = !key || running || connecting || Boolean(researchOwner);
+    const add = document.querySelector('button[onclick="baiModelModal()"]'); if (add) add.disabled = !key || running || connecting || Boolean(researchOwner);
     if (baiActive?.error) {
       const error = document.createElement('p'); error.className = 'error'; error.setAttribute('role', 'alert'); error.textContent = baiActive.error;
       start?.parentElement?.appendChild(error);
@@ -544,5 +513,5 @@
   window.addEventListener('pagehide', () => { reset('页面已离开，密钥与本页证据已清除。'); });
   window.addEventListener('pageshow', event => { if (event.persisted) paint(); });
   if (direct) sync();
-  if (page === 'bai' || page === 'apis') paint();
+  if (page === 'bai' || page === 'apis' || page === 'research') paint();
 })();
