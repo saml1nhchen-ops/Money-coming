@@ -1,0 +1,22 @@
+name: Read-only backend connection diagnostics
+on:
+  push:
+    branches: ['diagnose/connection-*']
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    if: github.event.deleted == false && github.event.forced == false && startsWith(github.ref, 'refs/heads/diagnose/connection-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Probe public DNS TLS and CORS without logging in
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 deploy/connection_diagnostics.py
