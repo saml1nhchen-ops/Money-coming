@@ -105,7 +105,7 @@ function reportActionSection(r, j, m, gaps, sources) {
 function researchReport(r, j) {
   const m = researchMetrics(r), gaps = reportGapGroups(r), sources = reportCitedSources(r);
   return `<nav class="rr-nav" aria-label="报告章节">${[['overview','总分与结论'],['gaps','竞品差距'],['sources','引用证据'],['actions','下一步行动']].map(([key, title]) => `<button onclick="reportScrollTo('${key}')">${title}</button>`).join('')}</nav>
-    ${reportOverview(r, j, m, gaps, sources)}${reportGapSection(r, j, m, gaps)}${reportSourceSection(r, sources)}${reportActionSection(r, j, m, gaps, sources)}
+    ${reportOverview(r, j, m, gaps, sources)}${typeof questionCards === 'function' ? questionCards(j) : ''}${reportGapSection(r, j, m, gaps)}${reportSourceSection(r, sources)}${reportActionSection(r, j, m, gaps, sources)}
     <section class="rr-section" id="report-details"><div class="rr-section-heading"><div><span class="ru-kicker">继续查看</span><h2>报告明细</h2><p>保留各家 AI、产品和每条原始回答，方便进一步核对。</p></div></div><div class="ru-result-tabs">${[['overview','各家 AI 表现'],['products','产品表现'],['gaps','全部差距回答'],['sources','全部引用与链接'],['answers','回答明细']].map(([k, v]) => `<button class="${researchResultTab === k ? 'active' : ''}" aria-pressed="${researchResultTab === k}" onclick="researchResultTab='${k}';render();reportScrollTo('details')">${v}</button>`).join('')}</div>${researchResultBody(r, j, m)}</section>`;
 }
 

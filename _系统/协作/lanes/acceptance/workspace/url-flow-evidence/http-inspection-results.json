@@ -1,0 +1,101 @@
+[
+  {
+    "name": "no auth",
+    "status": 401,
+    "body": {
+      "error": "请打开本机自动诊断工作台"
+    }
+  },
+  {
+    "name": "normal inspect",
+    "status": 200,
+    "body": {
+      "website": {
+        "url": "https://cremocompany.com/",
+        "captured_at": "2026-10-21T03:02:14.052351+00:00",
+        "content_sha256": "3da2501b2da9bcefbb451a94b1e51739f736bf1cee2c1d49436df2bf67624b0d",
+        "bytes": 514
+      },
+      "brand": {
+        "name": "Cremo",
+        "aliases": [
+          "Cremo"
+        ],
+        "source": "meta[property=\"og:site_name\"]",
+        "needs_confirmation": false
+      },
+      "diagnosis": {
+        "scope": "website_readiness",
+        "score": 100,
+        "checks": [
+          {
+            "id": "title",
+            "label": "页面标题",
+            "status": "pass",
+            "evidence": "Cremo | Synthetic test page",
+            "action": "保留并核对页面内容是否准确。"
+          },
+          {
+            "id": "meta_description",
+            "label": "页面描述",
+            "status": "pass",
+            "evidence": "Synthetic fixture for workflow testing, not the real Cremo website.",
+            "action": "保留并核对页面内容是否准确。"
+          },
+          {
+            "id": "h1",
+            "label": "主标题",
+            "status": "pass",
+            "evidence": "Cremo fixture",
+            "action": "保留并核对页面内容是否准确。"
+          },
+          {
+            "id": "readable_text",
+            "label": "可读正文",
+            "status": "pass",
+            "evidence": "响应中可读正文 251 字符；阈值为 100 字符。",
+            "action": "人工复核正文的准确性与适用市场。"
+          }
+        ],
+        "methodology": "website-readiness-v1；市场 US。title、meta_description、h1、readable_text 各占 25 分；前三项检查非空，正文检查至少 100 字符。仅全部结构可观察且正文达到阈值时计算通过项之和，否则 score=null；unknown 不计作零分。单次抓取页面的有限基础准备度，不是完整六维 GEO 评分、AI 可见度、推荐率或外部模型实测。未核验语义正确性、其他页面或 JavaScript 渲染结果。"
+      },
+      "context": "Cremo | Synthetic test page\nCremo fixture\nSYNTHETIC TEST EVIDENCE. This local HTML tests page extraction, brand detection and diagnostic presentation. It is not a snapshot of the Cremo website, nor evidence of its product quality, discoverability, or performance in any AI model.",
+      "warnings": []
+    }
+  },
+  {
+    "name": "blocked scheme",
+    "status": 400,
+    "body": {
+      "error": "请输入公开官网的 HTTP(S) 地址"
+    }
+  },
+  {
+    "name": "credentials URL",
+    "status": 400,
+    "body": {
+      "error": "请输入公开官网的 HTTP(S) 地址"
+    }
+  },
+  {
+    "name": "port",
+    "status": 400,
+    "body": {
+      "error": "请输入公开官网的 HTTP(S) 地址"
+    }
+  },
+  {
+    "name": "fetch failure",
+    "status": 400,
+    "body": {
+      "error": "Fixture only supports the Cremo test URL"
+    }
+  },
+  {
+    "name": "invalid market",
+    "status": 400,
+    "body": {
+      "error": "请选择中国或美国市场"
+    }
+  }
+]

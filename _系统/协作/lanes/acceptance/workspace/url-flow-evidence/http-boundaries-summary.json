@@ -1,0 +1,214 @@
+{
+  "synthetic": true,
+  "real_loopback_http": true,
+  "no_model_transport_called": true,
+  "results": [
+    {
+      "name": "sparse null",
+      "status": 200,
+      "body": {
+        "website": {
+          "url": "https://sparse.example/",
+          "captured_at": "2026-10-21T03:01:34.636488+00:00",
+          "content_sha256": "f5eb5a4350c66b453a96bf8819d0c4509e6a238cb33026eccd03418e7523a569",
+          "bytes": 34
+        },
+        "brand": {
+          "name": "Sparse Brand",
+          "aliases": [
+            "Sparse Brand"
+          ],
+          "source": "title",
+          "needs_confirmation": true
+        },
+        "diagnosis": {
+          "scope": "website_readiness",
+          "score": null,
+          "checks": [
+            {
+              "id": "title",
+              "label": "页面标题",
+              "status": "pass",
+              "evidence": "Sparse Brand | Shop",
+              "action": "保留并核对页面内容是否准确。"
+            },
+            {
+              "id": "meta_description",
+              "label": "页面描述",
+              "status": "fail",
+              "evidence": "已读取 HTML，未观察到此字段。",
+              "action": "为此页面补充准确的 meta description。"
+            },
+            {
+              "id": "h1",
+              "label": "主标题",
+              "status": "fail",
+              "evidence": "已读取 HTML，未观察到此字段。",
+              "action": "为此页面设置清晰的 H1 主标题。"
+            },
+            {
+              "id": "readable_text",
+              "label": "可读正文",
+              "status": "fail",
+              "evidence": "响应中可读正文 0 字符；阈值为 100 字符。",
+              "action": "补充可读取正文；若页面依赖 JavaScript，请提供服务端可读页面。"
+            }
+          ],
+          "methodology": "website-readiness-v1；市场 US。title、meta_description、h1、readable_text 各占 25 分；前三项检查非空，正文检查至少 100 字符。仅全部结构可观察且正文达到阈值时计算通过项之和，否则 score=null；unknown 不计作零分。单次抓取页面的有限基础准备度，不是完整六维 GEO 评分、AI 可见度、推荐率或外部模型实测。未核验语义正确性、其他页面或 JavaScript 渲染结果。"
+        },
+        "context": "Sparse Brand | Shop",
+        "warnings": [
+          "品牌为页面元信息候选或域名回退，请确认名称与别名后再采样。",
+          "可读正文不足 100 字符，证据不足以给出总分；未执行 JavaScript。"
+        ]
+      }
+    },
+    {
+      "name": "no brand metadata",
+      "status": 200,
+      "body": {
+        "website": {
+          "url": "https://unbranded.example/",
+          "captured_at": "2026-10-21T03:01:34.638209+00:00",
+          "content_sha256": "98f7b0051c020fcbe5010842dbc1e533ba631d0112601723d3ee8c693c6dd8f6",
+          "bytes": 486
+        },
+        "brand": {
+          "name": "unbranded.example",
+          "aliases": [
+            "unbranded.example"
+          ],
+          "source": "domain_fallback",
+          "needs_confirmation": true
+        },
+        "diagnosis": {
+          "scope": "website_readiness",
+          "score": 25,
+          "checks": [
+            {
+              "id": "title",
+              "label": "页面标题",
+              "status": "fail",
+              "evidence": "已读取 HTML，未观察到此字段。",
+              "action": "为此页面提供描述业务主题的 title。"
+            },
+            {
+              "id": "meta_description",
+              "label": "页面描述",
+              "status": "fail",
+              "evidence": "已读取 HTML，未观察到此字段。",
+              "action": "为此页面补充准确的 meta description。"
+            },
+            {
+              "id": "h1",
+              "label": "主标题",
+              "status": "fail",
+              "evidence": "已读取 HTML，未观察到此字段。",
+              "action": "为此页面设置清晰的 H1 主标题。"
+            },
+            {
+              "id": "readable_text",
+              "label": "可读正文",
+              "status": "pass",
+              "evidence": "响应中可读正文 459 字符；阈值为 100 字符。",
+              "action": "人工复核正文的准确性与适用市场。"
+            }
+          ],
+          "methodology": "website-readiness-v1；市场 US。title、meta_description、h1、readable_text 各占 25 分；前三项检查非空，正文检查至少 100 字符。仅全部结构可观察且正文达到阈值时计算通过项之和，否则 score=null；unknown 不计作零分。单次抓取页面的有限基础准备度，不是完整六维 GEO 评分、AI 可见度、推荐率或外部模型实测。未核验语义正确性、其他页面或 JavaScript 渲染结果。"
+        },
+        "context": "SYNTHETIC body details SYNTHETIC body details SYNTHETIC body details SYNTHETIC body details SYNTHETIC body details SYNTHETIC body details SYNTHETIC body details SYNTHETIC body details SYNTHETIC body details SYNTHETIC body details SYNTHETIC body details SYNTHETIC body details SYNTHETIC body details SYNTHETIC body details SYNTHETIC body details SYNTHETIC body details SYNTHETIC body details SYNTHETIC body details SYNTHETIC body details SYNTHETIC body details",
+        "warnings": [
+          "品牌为页面元信息候选或域名回退，请确认名称与别名后再采样。"
+        ]
+      }
+    },
+    {
+      "name": "plain unknown",
+      "status": 200,
+      "body": {
+        "website": {
+          "url": "https://plain.example/",
+          "captured_at": "2026-10-21T03:01:34.639506+00:00",
+          "content_sha256": "237a84eef182705cba70831fb779c24ca9deee648827434c38c2deeb80984815",
+          "bytes": 480
+        },
+        "brand": {
+          "name": "plain.example",
+          "aliases": [
+            "plain.example"
+          ],
+          "source": "domain_fallback",
+          "needs_confirmation": true
+        },
+        "diagnosis": {
+          "scope": "website_readiness",
+          "score": null,
+          "checks": [
+            {
+              "id": "title",
+              "label": "页面标题",
+              "status": "unknown",
+              "evidence": "当前响应不是 HTML，无法判断此结构。",
+              "action": "使用可读取的 HTML 页面复查。"
+            },
+            {
+              "id": "meta_description",
+              "label": "页面描述",
+              "status": "unknown",
+              "evidence": "当前响应不是 HTML，无法判断此结构。",
+              "action": "使用可读取的 HTML 页面复查。"
+            },
+            {
+              "id": "h1",
+              "label": "主标题",
+              "status": "unknown",
+              "evidence": "当前响应不是 HTML，无法判断此结构。",
+              "action": "使用可读取的 HTML 页面复查。"
+            },
+            {
+              "id": "readable_text",
+              "label": "可读正文",
+              "status": "pass",
+              "evidence": "响应中可读正文 479 字符；阈值为 100 字符。",
+              "action": "人工复核正文的准确性与适用市场。"
+            }
+          ],
+          "methodology": "website-readiness-v1；市场 US。title、meta_description、h1、readable_text 各占 25 分；前三项检查非空，正文检查至少 100 字符。仅全部结构可观察且正文达到阈值时计算通过项之和，否则 score=null；unknown 不计作零分。单次抓取页面的有限基础准备度，不是完整六维 GEO 评分、AI 可见度、推荐率或外部模型实测。未核验语义正确性、其他页面或 JavaScript 渲染结果。"
+        },
+        "context": "SYNTHETIC plain details SYNTHETIC plain details SYNTHETIC plain details SYNTHETIC plain details SYNTHETIC plain details SYNTHETIC plain details SYNTHETIC plain details SYNTHETIC plain details SYNTHETIC plain details SYNTHETIC plain details SYNTHETIC plain details SYNTHETIC plain details SYNTHETIC plain details SYNTHETIC plain details SYNTHETIC plain details SYNTHETIC plain details SYNTHETIC plain details SYNTHETIC plain details SYNTHETIC plain details SYNTHETIC plain details ",
+        "warnings": [
+          "品牌为页面元信息候选或域名回退，请确认名称与别名后再采样。",
+          "响应为纯文本，HTML 结构检查保留 unknown，总分不可用。"
+        ]
+      }
+    },
+    {
+      "name": "private DNS denied",
+      "status": 400,
+      "body": {
+        "error": "官网必须解析为公开网络地址"
+      }
+    },
+    {
+      "name": "origin denied",
+      "status": 401,
+      "body": {
+        "error": "请打开本机自动诊断工作台"
+      }
+    },
+    {
+      "name": "no token denied",
+      "status": 401,
+      "body": {
+        "error": "请打开本机自动诊断工作台"
+      }
+    },
+    {
+      "name": "remote error sanitized",
+      "status": 400,
+      "body": {
+        "error": "官网连接失败或超时，请检查网址与网络后重试；未生成分数"
+      }
+    }
+  ]
+}

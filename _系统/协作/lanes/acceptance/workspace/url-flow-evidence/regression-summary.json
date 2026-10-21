@@ -1,0 +1,107 @@
+[
+  {
+    "command": [
+      "node",
+      "tests/test_frontend.cjs"
+    ],
+    "exit": 0,
+    "log": "01-regression.log",
+    "tail": [
+      "Frontend: metrics denominator, repeated mentions, URL deduplication, CSV quoting and escaping passed."
+    ]
+  },
+  {
+    "command": [
+      "node",
+      "tests/test_diagnostic.cjs"
+    ],
+    "exit": 0,
+    "log": "02-regression.log",
+    "tail": [
+      "Diagnostic scoring, unknown/N/A, empty/unsupported citations, domain boundary, truncation/cache, references, retest and render checks passed."
+    ]
+  },
+  {
+    "command": [
+      "node",
+      "tests/test_report_summary.cjs"
+    ],
+    "exit": 0,
+    "log": "03-regression.log",
+    "tail": [
+      "Report: denominator, grouped competitor gaps, citation scope, missing/zero scores, section order and evidence escaping passed."
+    ]
+  },
+  {
+    "command": [
+      "node",
+      "tests/test_question_cards.cjs"
+    ],
+    "exit": 0,
+    "log": "04-regression.log",
+    "tail": [
+      "URL inspection and question cards: confirmation, context preservation, null scores, complete bank, model gaps, repeats, raw evidence and escaping passed."
+    ]
+  },
+  {
+    "command": [
+      "node",
+      "--check",
+      "dist/website-inspect.js"
+    ],
+    "exit": 0,
+    "log": "05-regression.log",
+    "tail": []
+  },
+  {
+    "command": [
+      "node",
+      "--check",
+      "dist/question-cards.js"
+    ],
+    "exit": 0,
+    "log": "06-regression.log",
+    "tail": []
+  },
+  {
+    "command": [
+      "node",
+      "--check",
+      "dist/research-ui.js"
+    ],
+    "exit": 0,
+    "log": "07-regression.log",
+    "tail": []
+  },
+  {
+    "command": [
+      "node",
+      "--check",
+      "dist/report-summary.js"
+    ],
+    "exit": 0,
+    "log": "08-regression.log",
+    "tail": []
+  },
+  {
+    "command": [
+      "python3",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tests",
+      "-p",
+      "test_*.py",
+      "-v"
+    ],
+    "exit": 0,
+    "log": "09-regression.log",
+    "tail": [
+      "----------------------------------------------------------------------",
+      "Ran 54 tests in 2.071s",
+      "",
+      "OK"
+    ]
+  }
+]

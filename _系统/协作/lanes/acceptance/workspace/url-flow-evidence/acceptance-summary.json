@@ -1,0 +1,45 @@
+{
+  "scope": "deterministic synthetic HTTP/browser functionality only",
+  "regression": {
+    "cjs": 4,
+    "javascript_syntax": 4,
+    "python": 54,
+    "all_passed": true
+  },
+  "browser_modes": {
+    "partial": {
+      "questions": 30,
+      "samples": 33,
+      "independently_repeated_after_focus_fix": true
+    },
+    "complete": {
+      "questions": 30,
+      "samples": 60
+    },
+    "no_models": {
+      "configured": 0,
+      "inspection_works": true,
+      "analysis_disabled": true
+    }
+  },
+  "boundary_checks": {
+    "browser": {
+      "passed": 30,
+      "total": 30
+    },
+    "real_loopback_http": {
+      "passed": 7,
+      "total": 7
+    },
+    "shared_overlay_chromium": "modal/drawer/empty dialog pass"
+  },
+  "defect": {
+    "id": "GEO-URL-01",
+    "status": "closed after independent verification"
+  },
+  "real_cremo": "blocked: coordinator observed network 403, not retried by acceptance",
+  "real_models": "blocked: no credentials reported; fixtures not live model evidence",
+  "online_deployment": "not verified",
+  "raw_local_evidence": "/tmp/geo-url-acceptance-raw",
+  "fixture_service": "stopped; port 8772 released"
+}

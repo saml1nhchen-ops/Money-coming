@@ -1,0 +1,279 @@
+{
+  "synthetic": true,
+  "ui_variants_explicitly_injected": true,
+  "checks": [
+    {
+      "name": "HTTP fixture partial 30 prompts/33 samples",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "Selected providers retained including direct prefix",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "Brand/comparison excluded by backend analysis",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "Backend complete zero mention sample exists",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "HTTP inspect success",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "HTTP auth/error responses honest",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "Enter opens and focus enters",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "Tab focus stays in dialog",
+      "pass": true,
+      "detail": [
+        {
+          "inside": true,
+          "tag": "BUTTON",
+          "text": "×"
+        },
+        {
+          "inside": true,
+          "tag": "SUMMARY",
+          "text": "查看引用、链接与原始记录"
+        },
+        {
+          "inside": true,
+          "tag": "SUMMARY",
+          "text": "查看引用、链接与原始记录"
+        },
+        {
+          "inside": true,
+          "tag": "BUTTON",
+          "text": "×"
+        },
+        {
+          "inside": true,
+          "tag": "SUMMARY",
+          "text": "查看引用、链接与原始记录"
+        },
+        {
+          "inside": true,
+          "tag": "SUMMARY",
+          "text": "查看引用、链接与原始记录"
+        },
+        {
+          "inside": true,
+          "tag": "BUTTON",
+          "text": "×"
+        },
+        {
+          "inside": true,
+          "tag": "SUMMARY",
+          "text": "查看引用、链接与原始记录"
+        },
+        {
+          "inside": true,
+          "tag": "SUMMARY",
+          "text": "查看引用、链接与原始记录"
+        },
+        {
+          "inside": true,
+          "tag": "BUTTON",
+          "text": "×"
+        },
+        {
+          "inside": true,
+          "tag": "SUMMARY",
+          "text": "查看引用、链接与原始记录"
+        },
+        {
+          "inside": true,
+          "tag": "SUMMARY",
+          "text": "查看引用、链接与原始记录"
+        },
+        {
+          "inside": true,
+          "tag": "BUTTON",
+          "text": "×"
+        },
+        {
+          "inside": true,
+          "tag": "SUMMARY",
+          "text": "查看引用、链接与原始记录"
+        },
+        {
+          "inside": true,
+          "tag": "SUMMARY",
+          "text": "查看引用、链接与原始记录"
+        },
+        {
+          "inside": true,
+          "tag": "BUTTON",
+          "text": "×"
+        },
+        {
+          "inside": true,
+          "tag": "SUMMARY",
+          "text": "查看引用、链接与原始记录"
+        },
+        {
+          "inside": true,
+          "tag": "SUMMARY",
+          "text": "查看引用、链接与原始记录"
+        }
+      ]
+    },
+    {
+      "name": "Shift Tab focus stays in closed-details dialog",
+      "pass": true,
+      "detail": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "name": "Open-details dynamic focus remains inside",
+      "pass": true,
+      "detail": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "name": "External focus redirected into dialog",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "Escape restores trigger",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "Space opens/close button restores",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "Complete zero shown as not mentioned",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "Actual HTTP 429 shown",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "Missing selected model still shown as unrun",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "report=null running retains full bank",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "Running missing samples waiting not zero",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "Empty generating bank does not invent cards",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "Repeats/truncated unknown retained",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "Frozen/request/returned model and rank evidence",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "All three citation types distinct",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "Unsafe link and text not executed",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "Long dialog mobile no overflow",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "Unconfirmed candidate blocks AI next",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "Final alias confirmation preserves exact aliases",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "Edited background preserved",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "Website unknown score and escaped metadata",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "Inspect failure removes score",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "No browser page errors",
+      "pass": true,
+      "detail": []
+    }
+  ]
+}
