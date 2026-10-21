@@ -79,18 +79,51 @@
       return data;
     } catch { throw failure('B.AI 返回了无法解析的响应，已停止本批后续请求。', 'invalid_response'); }
   }
-  async function serverErrorCode(response, credential) {
+  function credentialForms(credential) {
+    if (!credential) return [];
+    const forms = [credential];
+    try {
+      forms.push(encodeURIComponent(credential), encodeURI(credential));
+      forms.push(new URLSearchParams({value: credential}).toString().slice('value='.length));
+    } catch {}
+    return [...new Set(forms.filter(Boolean))];
+  }
+  function hasSecret(value, credential) {
+    const lower = value.toLowerCase();
+    if (credentialForms(credential).some(secret => lower.includes(secret.toLowerCase()))) return true;
+    return /\bbearer\s+[^\s,;'"<>]+|\bsk-[a-z0-9._~-]+|\bghp_[a-z0-9_]+|\bgithub_pat_[a-z0-9_]+|\bgh[ours]_[a-z0-9_]+|\bxox[baprs]-[a-z0-9-]+/i.test(value);
+  }
+  function redactDiagnostic(value, credential) {
+    let safe = value.replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ');
+    for (const secret of credentialForms(credential)) {
+      const escaped = secret.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      safe = safe.replace(new RegExp(escaped, 'gi'), '[REDACTED]');
+    }
+    safe = safe
+      .replace(/\bbearer\s+[^\s,;'"<>]+/gi, '[REDACTED]')
+      .replace(/\b(?:authorization|api[_-]?key|token|key)\s*[:=]\s*["']?[^\s,;'"<>]+/gi, '[REDACTED]')
+      .replace(/\bsk-[a-z0-9._~-]+|\bghp_[a-z0-9_]+|\bgithub_pat_[a-z0-9_]+|\bgh[ours]_[a-z0-9_]+|\bxox[baprs]-[a-z0-9-]+/gi, '[REDACTED]');
+    return safe.slice(0, 600).trim();
+  }
+  function safeDiagnosticId(value, credential, maxLength) {
+    return typeof value === 'string' && value.length <= maxLength && /^[A-Za-z0-9_.:-]+$/.test(value) && !hasSecret(value, credential) ? value : '';
+  }
+  async function serverErrorDiagnostics(response, credential) {
     try {
       const data = await readJSON(response);
       const values = [data.error?.code, data.error?.type, data.code];
+      let code = '';
       for (const value of values) {
-        if (typeof value !== 'string' || value.length > 64 || !/^[A-Za-z0-9_.:-]+$/.test(value)) continue;
-        const lower = value.toLowerCase();
-        if ((credential && lower.includes(credential.toLowerCase())) || /sk-|bearer|ghp_|github_pat_|gh[ours]_/.test(lower)) continue;
-        return value;
+        code = safeDiagnosticId(value, credential, 64);
+        if (code) break;
       }
+      const rawMessage = typeof data.error?.message === 'string' ? data.error.message : data.message;
+      const message = typeof rawMessage === 'string' ? redactDiagnostic(rawMessage, credential) : '';
+      const requestId = safeDiagnosticId(response.headers.get('x-request-id') || response.headers.get('request-id'), credential, 128);
+      return {code, message, requestId};
     } catch { /* A body read or parse failure must leave the HTTP status intact. */ }
-    return '';
+    const requestId = safeDiagnosticId(response.headers.get('x-request-id') || response.headers.get('request-id'), credential, 128);
+    return {code: '', message: '', requestId};
   }
   async function request(path, body, credential, generation) {
     if (!['/models', '/chat/completions'].includes(path)) throw failure('浏览器直连只支持模型目录和 Chat Completions。');
@@ -102,12 +135,12 @@
       const response = await fetch(BASE + path, {
         method: body === undefined ? 'GET' : 'POST', credentials: 'omit', redirect: 'error', cache: 'no-store',
         signal: controller.signal,
-        headers: {Authorization: 'Bearer ' + credential, 'Content-Type': 'application/json'},
+        headers: {Authorization: 'Bearer ' + credential, ...(body === undefined ? {} : {'Content-Type': 'application/json'})},
         ...(body === undefined ? {} : {body: JSON.stringify(body)})
       });
       current(generation);
       if (!response.ok) {
-        const errorCode = await serverErrorCode(response, credential);
+        const diagnostics = await serverErrorDiagnostics(response, credential);
         current(generation);
         const messages = {
           401: '身份验证未通过（HTTP 401），仅凭此响应不能确定是密钥、访问权限还是接入方式的问题。',
@@ -115,7 +148,9 @@
           429: 'B.AI 触发限流或额度限制，请检查余额和调用限制后再手动开始。'
         };
         const message = messages[response.status] || 'B.AI 请求未成功（HTTP ' + response.status + '），请检查所选模型和 Chat Completions 支持情况。';
-        throw failure(message + (errorCode ? ' 服务端错误码：' + errorCode : ''), 'http_' + response.status);
+        throw failure(message + (diagnostics.code ? ' 服务端错误码：' + diagnostics.code : '') +
+          (diagnostics.message ? ' 服务端说明：' + diagnostics.message : '') +
+          (diagnostics.requestId ? ' 请求编号：' + diagnostics.requestId : ''), 'http_' + response.status);
       }
       const result = await readJSON(response);
       current(generation);
