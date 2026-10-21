@@ -1,0 +1,17 @@
+git status --short
+ M README.md
+?? .agents/
+?? .claude/
+?? .codex/
+?? .obsidian/
+?? .starwork/
+?? AGENTS.md
+?? CLAUDE.md
+?? "_\347\263\273\347\273\237/"
+?? "\345\217\202\350\200\203\350\265\204\346\226\231/"
+?? "\350\276\223\345\207\272/"
+
+git diff --exit-code HEAD -- dist server.py tools tests
+exit_code=0
+
+untracked business files

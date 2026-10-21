@@ -1,0 +1,20 @@
+# Four reusable project agent roles. Requires project trust and a supporting Codex client.
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 5
+
+[agents.product]
+description = "产品负责人：规划、拆分任务、领导前后端协作，验收后汇总交付。"
+config_file = "agents/product.toml"
+
+[agents.frontend]
+description = "前端工程师：修改 Signal GEO 界面、交互、样式和前端测试。"
+config_file = "agents/frontend.toml"
+
+[agents.backend]
+description = "后端工程师：修改接口、数据处理、分析逻辑及后端测试。"
+config_file = "agents/backend.toml"
+
+[agents.acceptance]
+description = "验收工程师：等待前后端交付后独立验证，报告问题并推动返修。"
+config_file = "agents/acceptance.toml"

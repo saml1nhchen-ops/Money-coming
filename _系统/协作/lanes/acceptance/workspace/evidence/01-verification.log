@@ -1,0 +1,3 @@
+$ node tests/test_frontend.cjs
+exit_code=0
+Frontend: metrics denominator, repeated mentions, URL deduplication, CSV quoting and escaping passed.

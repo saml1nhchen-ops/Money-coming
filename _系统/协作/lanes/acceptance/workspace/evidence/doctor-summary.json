@@ -1,0 +1,243 @@
+{
+  "schema": "starwork.doctor.result.v0.1",
+  "ok": true,
+  "strict_ok": true,
+  "target": "/workspace/GEO",
+  "summary": {
+    "pass": 29,
+    "info": 5,
+    "warn": 0,
+    "fail": 0
+  },
+  "multiagent": {
+    "status": "pass",
+    "lanes_count": 4,
+    "compatibility": {
+      "status": "current",
+      "structure_version": 1,
+      "target_structure_version": 1,
+      "legacy_classes": [
+        "state_v1_current"
+      ],
+      "read_sources": [
+        ".starwork/agent-lanes/state.json",
+        "_系统/协作/agent-lanes.md",
+        "_系统/协作/shared.md"
+      ],
+      "required_for_write": false,
+      "migration": {
+        "required_for_write": false,
+        "available": true,
+        "dry_run_command": "starwork multiagent upgrade --target /workspace/GEO --dry-run"
+      },
+      "conflicts": [],
+      "warnings": []
+    }
+  },
+  "checks": [
+    {
+      "id": "workspace.state.exists",
+      "level": "pass",
+      "message": ".starwork/workspace.json exists",
+      "path": ".starwork/workspace.json"
+    },
+    {
+      "id": "workspace.state.schema",
+      "level": "pass",
+      "message": "workspace schema is starwork.workspace.v0.1",
+      "path": ".starwork/workspace.json"
+    },
+    {
+      "id": "workspace.state.core",
+      "level": "pass",
+      "message": "Core version is 0.1",
+      "path": ".starwork/workspace.json"
+    },
+    {
+      "id": "workspace.state.type",
+      "level": "pass",
+      "message": "workspace_type is project",
+      "path": ".starwork/workspace.json"
+    },
+    {
+      "id": "workspace.state.kit",
+      "level": "pass",
+      "message": "kit is project",
+      "path": ".starwork/workspace.json"
+    },
+    {
+      "id": "workspace.state.language",
+      "level": "pass",
+      "message": "language is zh",
+      "path": ".starwork/workspace.json"
+    },
+    {
+      "id": "workspace.state.packs",
+      "level": "pass",
+      "message": "packs count is 1",
+      "path": ".starwork/workspace.json"
+    },
+    {
+      "id": "workspace.state.formal_source",
+      "level": "pass",
+      "message": "formal source is 输出/确认成果/",
+      "path": ".starwork/workspace.json"
+    },
+    {
+      "id": "workspace.state.business_work_area",
+      "level": "pass",
+      "message": "business work area is 输出/草稿/",
+      "path": ".starwork/workspace.json"
+    },
+    {
+      "id": "kit.source.exists",
+      "level": "pass",
+      "message": "Kit source exists: project",
+      "path": null
+    },
+    {
+      "id": "kit.workspace_type.match",
+      "level": "pass",
+      "message": "project maps to project for project",
+      "path": null
+    },
+    {
+      "id": "kit.files.complete",
+      "level": "pass",
+      "message": "Kit files are complete: project",
+      "path": null
+    },
+    {
+      "id": "core.entry_rules.exists",
+      "level": "pass",
+      "message": "Agent entry rules exist",
+      "path": "AGENTS.md"
+    },
+    {
+      "id": "core.project_status.exists",
+      "level": "pass",
+      "message": "Project status exists",
+      "path": "_系统/上下文/当前项目.md"
+    },
+    {
+      "id": "core.current_work.exists",
+      "level": "pass",
+      "message": "Current work exists",
+      "path": "_系统/任务/当前工作.md"
+    },
+    {
+      "id": "core.formal_source.exists",
+      "level": "pass",
+      "message": "Formal source exists",
+      "path": "输出/确认成果/"
+    },
+    {
+      "id": "core.business_work_area.exists",
+      "level": "pass",
+      "message": "Business work area exists",
+      "path": "输出/草稿/"
+    },
+    {
+      "id": "knowledge.optional.not_enabled",
+      "level": "info",
+      "message": "项目未开启知识库；这不是结构问题。",
+      "path": null
+    },
+    {
+      "id": "pack.source.exists",
+      "level": "pass",
+      "message": "Pack source exists: general",
+      "path": null
+    },
+    {
+      "id": "pack.core.compatible",
+      "level": "pass",
+      "message": "general is compatible with Core 0.1",
+      "path": null
+    },
+    {
+      "id": "pack.workspace_type.supported",
+      "level": "pass",
+      "message": "general supports project",
+      "path": null
+    },
+    {
+      "id": "pack.paths.exist",
+      "level": "pass",
+      "message": "Pack path exists: 参考资料/",
+      "path": "参考资料/"
+    },
+    {
+      "id": "pack.paths.exist",
+      "level": "pass",
+      "message": "Pack path exists: 输出/草稿/",
+      "path": "输出/草稿/"
+    },
+    {
+      "id": "pack.paths.exist",
+      "level": "pass",
+      "message": "Pack path exists: 输出/确认成果/",
+      "path": "输出/确认成果/"
+    },
+    {
+      "id": "skills.project_manifest.exists",
+      "level": "pass",
+      "message": "Project skill manifest exists",
+      "path": ".starwork/skills.json"
+    },
+    {
+      "id": "skills.project_manifest.schema",
+      "level": "pass",
+      "message": "Project skill manifest schema is valid",
+      "path": ".starwork/skills.json"
+    },
+    {
+      "id": "skills.mount.exists",
+      "level": "pass",
+      "message": "Skill mount exists: neat-freak",
+      "path": ".agents/skills/neat-freak"
+    },
+    {
+      "id": "skills.mount.exists",
+      "level": "pass",
+      "message": "Skill mount exists: neat-freak",
+      "path": ".claude/skills/neat-freak"
+    },
+    {
+      "id": "agents.references.existing_paths",
+      "level": "pass",
+      "message": "Agent rules only reference existing workspace paths",
+      "path": null
+    },
+    {
+      "id": "adapter.codex.enabled",
+      "level": "info",
+      "message": "Codex 尚未启用 Host Adapter；这不是 Core 结构问题。",
+      "path": null
+    },
+    {
+      "id": "adapter.claude-code.enabled",
+      "level": "info",
+      "message": "Claude Code 尚未启用 Host Adapter；这不是 Core 结构问题。",
+      "path": null
+    },
+    {
+      "id": "adapter.cursor.enabled",
+      "level": "info",
+      "message": "Cursor 尚未启用 Host Adapter；这不是 Core 结构问题。",
+      "path": null
+    },
+    {
+      "id": "adapter.trae.enabled",
+      "level": "info",
+      "message": "Trae 尚未启用 Host Adapter；这不是 Core 结构问题。",
+      "path": null
+    },
+    {
+      "id": "multiagent.compatibility.current",
+      "level": "pass",
+      "message": "MultiAgent 协作记录为当前结构。",
+      "path": ".starwork/agent-lanes/state.json"
+    }
+  ]
+}

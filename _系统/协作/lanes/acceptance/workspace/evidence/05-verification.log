@@ -1,0 +1,2 @@
+$ node --check dist/report-summary.js
+exit_code=0

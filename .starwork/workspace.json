@@ -1,0 +1,24 @@
+{
+  "schema": "starwork.workspace.v0.1",
+  "core": "0.1",
+  "workspace_type": "project",
+  "kit": "project",
+  "packs": [
+    {
+      "id": "general",
+      "version": "0.1.0",
+      "paths": {
+        "references": "参考资料/",
+        "drafts": "输出/草稿/",
+        "final": "输出/确认成果/"
+      },
+      "installed_at": "2026-10-21T02:22:15.280Z"
+    }
+  ],
+  "language": "zh",
+  "paths": {
+    "formal_source": "输出/确认成果/",
+    "business_work_area": "输出/草稿/"
+  },
+  "created_by": "starwork init"
+}

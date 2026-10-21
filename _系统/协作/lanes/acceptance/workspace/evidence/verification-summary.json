@@ -1,0 +1,114 @@
+{
+  "date": "2026-10-21T02:30:58.621531+00:00",
+  "commands": [
+    {
+      "command": [
+        "node",
+        "tests/test_frontend.cjs"
+      ],
+      "exit_code": 0,
+      "log": "_系统/协作/lanes/acceptance/workspace/evidence/01-verification.log",
+      "tail": [
+        "Frontend: metrics denominator, repeated mentions, URL deduplication, CSV quoting and escaping passed."
+      ]
+    },
+    {
+      "command": [
+        "node",
+        "tests/test_diagnostic.cjs"
+      ],
+      "exit_code": 0,
+      "log": "_系统/协作/lanes/acceptance/workspace/evidence/02-verification.log",
+      "tail": [
+        "Diagnostic scoring, unknown/N/A, empty/unsupported citations, domain boundary, truncation/cache, references, retest and render checks passed."
+      ]
+    },
+    {
+      "command": [
+        "node",
+        "tests/test_report_summary.cjs"
+      ],
+      "exit_code": 0,
+      "log": "_系统/协作/lanes/acceptance/workspace/evidence/03-verification.log",
+      "tail": [
+        "Report: denominator, grouped competitor gaps, citation scope, missing/zero scores, section order and evidence escaping passed."
+      ]
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "dist/research-ui.js"
+      ],
+      "exit_code": 0,
+      "log": "_系统/协作/lanes/acceptance/workspace/evidence/04-verification.log",
+      "tail": []
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "dist/report-summary.js"
+      ],
+      "exit_code": 0,
+      "log": "_系统/协作/lanes/acceptance/workspace/evidence/05-verification.log",
+      "tail": []
+    },
+    {
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "log": "_系统/协作/lanes/acceptance/workspace/evidence/06-verification.log",
+      "tail": [
+        "----------------------------------------------------------------------",
+        "Ran 47 tests in 1.450s",
+        "",
+        "OK"
+      ]
+    }
+  ],
+  "schema": [
+    {
+      "path": ".codex/config.toml",
+      "schema_valid": true,
+      "sha256": "b727a47c2f525990c2026b14d6c9bd0c65ae8cc9f05074aca36afda4fe52a360"
+    },
+    {
+      "path": ".codex/agents/acceptance.toml",
+      "schema_valid": true,
+      "sha256": "f47bf0c013b967289ce4b97a91c66395fe6a77b762c6b57a0e0bf0b1406e30dc"
+    },
+    {
+      "path": ".codex/agents/backend.toml",
+      "schema_valid": true,
+      "sha256": "0f6d15f50ecdeb3d76ee8ecf914cde45654bec1a24d6adf0fd105936101ded18"
+    },
+    {
+      "path": ".codex/agents/frontend.toml",
+      "schema_valid": true,
+      "sha256": "0ec215c2700b4eb96153cd20dc96c1ec89506a1c26cb1939bcfb0bcf50170361"
+    },
+    {
+      "path": ".codex/agents/product.toml",
+      "schema_valid": true,
+      "sha256": "617ba50fc485d18014e0eeb35e611057c995c3e98501c46a23f67b21503aaa70"
+    }
+  ],
+  "config_refs": {
+    "product": "/workspace/GEO/.codex/agents/product.toml",
+    "frontend": "/workspace/GEO/.codex/agents/frontend.toml",
+    "backend": "/workspace/GEO/.codex/agents/backend.toml",
+    "acceptance": "/workspace/GEO/.codex/agents/acceptance.toml"
+  },
+  "business_files_hashed": 41,
+  "changed_during_verification": []
+}

@@ -1,0 +1,3 @@
+$ node tests/test_report_summary.cjs
+exit_code=0
+Report: denominator, grouped competitor gaps, citation scope, missing/zero scores, section order and evidence escaping passed.

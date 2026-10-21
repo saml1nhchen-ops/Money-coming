@@ -1,0 +1,41 @@
+{
+  "role_paths": [
+    {
+      "role": "product",
+      "paths": {
+        "_系统/协作/lanes/product/launch.md": true,
+        "_系统/协作/lanes/product/worklog.md": true,
+        "_系统/协作/lanes/product/workspace": true
+      }
+    },
+    {
+      "role": "frontend",
+      "paths": {
+        "_系统/协作/lanes/frontend/launch.md": true,
+        "_系统/协作/lanes/frontend/worklog.md": true,
+        "_系统/协作/lanes/frontend/workspace": true
+      }
+    },
+    {
+      "role": "backend",
+      "paths": {
+        "_系统/协作/lanes/backend/launch.md": true,
+        "_系统/协作/lanes/backend/worklog.md": true,
+        "_系统/协作/lanes/backend/workspace": true
+      }
+    },
+    {
+      "role": "acceptance",
+      "paths": {
+        "_系统/协作/lanes/acceptance/launch.md": true,
+        "_系统/协作/lanes/acceptance/worklog.md": true,
+        "_系统/协作/lanes/acceptance/workspace": true
+      }
+    }
+  ],
+  "registry_source": "/workspace/StarWork-skills-source/cli/src/cli.js:7720 readLanesRegistry reads agent-lanes.md",
+  "state_bindings_empty": true,
+  "schema_sha256": "bda4339e8e881245d00998b1756ce4017cadd4cfc192f411e377ca92bb2174df",
+  "business_diff_exit_code": 0,
+  "business_untracked": []
+}

@@ -1,0 +1,3 @@
+$ node tests/test_diagnostic.cjs
+exit_code=0
+Diagnostic scoring, unknown/N/A, empty/unsupported citations, domain boundary, truncation/cache, references, retest and render checks passed.

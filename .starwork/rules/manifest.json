@@ -1,0 +1,17 @@
+{
+  "schema": "starwork.agent_rules.v0.1",
+  "slots": [
+    {
+      "slot": "pack.general.overview",
+      "title": "通用工作场景",
+      "group": "场景规则",
+      "file": ".starwork/rules/pack.general.overview.md"
+    },
+    {
+      "slot": "pack.general.workflow",
+      "title": "通用工作流",
+      "group": "场景规则",
+      "file": ".starwork/rules/pack.general.workflow.md"
+    }
+  ]
+}

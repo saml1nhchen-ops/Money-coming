@@ -1,0 +1,54 @@
+$ python3 -m unittest discover -s tests -p test_*.py -v
+exit_code=0
+test_all_native_response_formats (test_ai_api.APIContracts.test_all_native_response_formats) ... ok
+test_atomic_batch_preflight_and_evidence (test_ai_api.APIContracts.test_atomic_batch_preflight_and_evidence) ... ok
+test_catalog_and_request_contracts (test_ai_api.APIContracts.test_catalog_and_request_contracts) ... ok
+test_endpoint_and_key_security (test_ai_api.APIContracts.test_endpoint_and_key_security) ... ok
+test_mentions_and_score_denominators (test_ai_api.APIContracts.test_mentions_and_score_denominators) ... ok
+test_native_search_contracts (test_ai_api.APIContracts.test_native_search_contracts) ... ok
+test_parsers_and_incomplete_answers (test_ai_api.APIContracts.test_parsers_and_incomplete_answers) ... ok
+test_provider_failure_stays_unscored (test_ai_api.APIContracts.test_provider_failure_stays_unscored) ... ok
+test_approval_edit_invalidation_and_evidence (test_backend.BackendTests.test_approval_edit_invalidation_and_evidence) ... ok
+test_import_dedup_and_scope (test_backend.BackendTests.test_import_dedup_and_scope) ... ok
+test_prompt_version (test_backend.BackendTests.test_prompt_version) ... ok
+test_auth_and_read_only_model_discovery (test_bai_service.BaiTests.test_auth_and_read_only_model_discovery) ... ok
+test_batch_protocols_are_separate_and_secret_free (test_bai_service.BaiTests.test_batch_protocols_are_separate_and_secret_free) ... ok
+test_failures_and_truncation_do_not_become_zero_scores (test_bai_service.BaiTests.test_failures_and_truncation_do_not_become_zero_scores) ... ok
+test_fixed_models_and_market_constraints (test_bai_service.BaiTests.test_fixed_models_and_market_constraints) ... ok
+test_key_is_private_and_failed_refresh_preserves_state (test_bai_service.BaiTests.test_key_is_private_and_failed_refresh_preserves_state) ... ok
+test_path_and_endpoint_confinement (test_bai_service.BaiTests.test_path_and_endpoint_confinement) ... ok
+test_blocked_model_stops_remaining_questions (test_geo_baseline.BaselineTests.test_blocked_model_stops_remaining_questions) ... ok
+test_duplicate_generated_bank_not_silently_sampled (test_geo_baseline.BaselineTests.test_duplicate_generated_bank_not_silently_sampled) ... ok
+test_group_scores_separate_discovery_from_prompted_brand (test_geo_baseline.BaselineTests.test_group_scores_separate_discovery_from_prompted_brand) ... ok
+test_normalized_duplicate_questions_are_equal (test_geo_baseline.BaselineTests.test_normalized_duplicate_questions_are_equal) ... ok
+test_real_upstream_build_fits_old_runner_input_budget (test_geo_baseline.BaselineTests.test_real_upstream_build_fits_old_runner_input_budget) ... ok
+test_repeat_rejected_for_new_jobs (test_geo_baseline.BaselineTests.test_repeat_rejected_for_new_jobs) ... ok
+test_same_manufacturer_cannot_be_double_counted (test_geo_baseline.BaselineTests.test_same_manufacturer_cannot_be_double_counted) ... ok
+test_thirty_distinct_questions_one_call_each (test_geo_baseline.BaselineTests.test_thirty_distinct_questions_one_call_each) ... ok
+test_citation_gap_and_provenance_not_answer_links (test_geo_flow.AnalysisTests.test_citation_gap_and_provenance_not_answer_links) ... ok
+test_prompted_competitor_and_sku_excluded (test_geo_flow.AnalysisTests.test_prompted_competitor_and_sku_excluded) ... ok
+test_rank_requires_numbered_lead_and_not_body_or_negative (test_geo_flow.AnalysisTests.test_rank_requires_numbered_lead_and_not_body_or_negative) ... ok
+test_sources_count_answers_not_duplicate_links (test_geo_flow.AnalysisTests.test_sources_count_answers_not_duplicate_links) ... ok
+test_unknown_rank_and_failed_answers_do_not_become_zero (test_geo_flow.AnalysisTests.test_unknown_rank_and_failed_answers_do_not_become_zero) ... ok
+test_unsafe_urls_and_similar_domains_not_own (test_geo_flow.AnalysisTests.test_unsafe_urls_and_similar_domains_not_own) ... ok
+test_answer_failure_retained_and_cancellation_prevents_new_calls (test_geo_flow.PipelineTests.test_answer_failure_retained_and_cancellation_prevents_new_calls) ... ok
+test_generation_only_never_samples (test_geo_flow.PipelineTests.test_generation_only_never_samples) ... ok
+test_generator_parse_failure_no_answer_calls (test_geo_flow.PipelineTests.test_generator_parse_failure_no_answer_calls) ... ok
+test_local_website_blocked_before_network_request (test_geo_flow.PipelineTests.test_local_website_blocked_before_network_request) ... ok
+test_real_upstream_generator_and_parser (test_geo_flow.PipelineTests.test_real_upstream_generator_and_parser) ... ok
+test_reanalysis_preserves_original_and_never_calls_models (test_geo_flow.PipelineTests.test_reanalysis_preserves_original_and_never_calls_models) ... ok
+test_validation_market_budget_and_overlap (test_geo_flow.PipelineTests.test_validation_market_budget_and_overlap) ... ok
+test_ai_api_auth_and_no_key_state (test_native_service.Tests.test_ai_api_auth_and_no_key_state) ... ok
+test_auth_required (test_native_service.Tests.test_auth_required) ... ok
+test_bad_origin_rejected (test_native_service.Tests.test_bad_origin_rejected) ... ok
+test_file_confinement (test_native_service.Tests.test_file_confinement) ... ok
+test_health (test_native_service.Tests.test_health) ... ok
+test_no_local_target (test_native_service.Tests.test_no_local_target) ... ok
+test_real_source_and_licenses (test_native_service.Tests.test_real_source_and_licenses) ... ok
+test_session_not_public (test_native_service.Tests.test_session_not_public) ... ok
+test_unknown_tool_rejected (test_native_service.Tests.test_unknown_tool_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 47 tests in 1.450s
+
+OK

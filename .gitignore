@@ -26,3 +26,6 @@ node_modules/
 *.zip
 .vscode/
 .idea/
+
+# Versioned, credential-free AI team acceptance evidence
+!_系统/协作/lanes/acceptance/workspace/evidence/*.log

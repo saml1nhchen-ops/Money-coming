@@ -1,0 +1,24 @@
+{
+  "schema": "starwork.agent_docs_plan.v0.1",
+  "generated_at": "2026-10-21T02:22:15.280Z",
+  "target": "/workspace/GEO",
+  "context": "init",
+  "status": "integrated",
+  "entries": [
+    {
+      "kind": "readme",
+      "target_path": "README.md",
+      "target_exists": true,
+      "draft_path": ".starwork/drafts/README.proposed.md",
+      "action": "merge_required",
+      "reason": "Existing README.md must be preserved and semantically integrated.",
+      "required_topics": [
+        "StarWork read-first files",
+        "workspace write boundaries",
+        "project Skill directories",
+        "MultiAgent lane workflow"
+      ]
+    }
+  ],
+  "integration": "README retains existing application instructions and adds team navigation; AGENTS entry retained and extended."
+}
