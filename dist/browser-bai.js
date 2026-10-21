@@ -8,6 +8,7 @@
   const nativeRender = render;
   let direct = !baiLocal(), key = '', epoch = 0, connecting = false, running = false;
   let models = [], profiles = new Map(), runs = new Map(), fetchedAt = null, notice = '';
+  const cremo = {gpt: '', gemini: '', picked: {gpt: false, gemini: false}, busy: false, message: ''};
   const pending = new Set();
   const clone = value => JSON.parse(JSON.stringify(value));
   const stamp = () => new Date().toISOString();
@@ -41,6 +42,7 @@
     for (const controller of pending) controller.abort();
     pending.clear();
     key = ''; connecting = false; running = false;
+    cremo.gpt = ''; cremo.gemini = ''; cremo.picked = {gpt: false, gemini: false}; cremo.busy = false; cremo.message = '';
     models = []; profiles.clear(); runs.clear(); fetchedAt = null; notice = message;
     clearTimeout(baiTimer);
     if (direct) {
@@ -339,8 +341,9 @@
     run.status = run.samples.some(s => s.status !== 'complete') ? 'partial' : 'finished';
     run.finished_at = stamp(); running = false; sync(); paint();
   }
-  async function adapter(path, body) {
+  async function adapter(path, body, preset = false) {
     const endpoint = path.split('?')[0];
+    if (cremo.busy && body && ['run', 'profile'].includes(endpoint) && !preset) throw failure('正在准备 Cremo 采样，请等待或退出连接。');
     if (endpoint === 'connect' && body) return connect(body);
     if (endpoint === 'clear') { reset(); return snapshot(); }
     if (endpoint === 'state' && !body) return snapshot();
@@ -410,6 +413,7 @@
   const nativeAddModel = baiAddModel;
   baiAddModel = async function() {
     if (!direct) return nativeAddModel();
+    if (cremo.busy) return;
     const generation = epoch;
     try {
       await adapter('profile', {model: $('#bai-model')?.value, name: $('#bai-name')?.value, protocol: $('#bai-protocol')?.value,
@@ -425,11 +429,101 @@
     baiCapture();
     modal(head('添加固定聊天模型') + `<p>仅支持 Chat Completions 文本聊天。请选择账号目录中的固定聊天模型；目录可见不代表接口协议已验证。</p><label for="bai-model">账号实际返回的模型 ID</label><select id="bai-model" style="width:100%">${models.map(m => `<option value="${esc(m.id)}">${esc(m.name)} · ${esc(m.id)}</option>`).join('')}</select>${input('显示名称（可留空，使用完整模型 ID）','bai-name','')}<input id="bai-protocol" type="hidden" value="chat"><input id="bai-search" type="checkbox" hidden><p>Chat Completions · 不请求联网工具 · 每次最多 2048 输出 token</p><label><input id="bai-cn" type="checkbox" ${baiMarket === 'CN' ? 'checked' : ''}> 中国市场</label><label><input id="bai-us" type="checkbox" ${baiMarket === 'US' ? 'checked' : ''}> 美国市场</label><button class="primary" onclick="baiAddModel()">添加到采样列表</button><p id="bai-model-error" class="error" role="alert"></p>`);
   };
+  const CREMO_QUESTIONS = Object.freeze([
+    'Which shaving creams are worth comparing for a close, comfortable shave in the United States? Name specific products and explain differences for sensitive skin.',
+    'What shaving creams or shave gels should men with razor irritation compare in the United States? Explain benefits, drawbacks, and who each option suits.',
+    'Which affordable shaving products work well for coarse facial hair in the United States? Compare specific products, comfort, and value.',
+    'What are the best body washes to compare for dry skin in the United States? Name specific products and discuss cleansing ingredients and fragrance.',
+    'Which mens body washes offer a long-lasting scent without feeling overly drying? Compare specific options available in the United States.',
+    'Which body washes should someone with sensitive skin consider in the United States? Compare specific products and explain limitations.',
+    'What beard grooming products should a beginner compare for a simple daily routine in the United States? Name specific beard oils, balms, or washes and explain their uses.',
+    'Which mens grooming brands and products offer good value for a basic shaving and body-care routine in the United States? Compare specific options and explain trade-offs.'
+  ]);
+  function cremoModels(family) {
+    const preferences = family === 'gpt' ? ['gpt-4.1-mini', 'gpt-5-mini'] : ['gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+    const familyPattern = family === 'gpt' ? /^(?:openai[/:._-])?gpt(?:[/:._-]|\d)/i : /^(?:google[/:._-])?gemini(?:[/:._-]|\d)/i;
+    const rank = id => {
+      const leaf = id.toLowerCase().replace(/^(?:openai|google)[/:._-]/, '');
+      const index = preferences.findIndex(name => leaf === name || leaf.startsWith(name + '-'));
+      return index < 0 ? preferences.length : index;
+    };
+    return models.filter(model => familyPattern.test(model.id)
+      && !/[\s\p{Cc}\p{Cf}]/u.test(model.id)
+      && !/(^|[/:._-])(auto|router|latest|dynamic)(?=$|[/:._-])/i.test(model.id)
+      && !/(image|audio|embed|speech|transcri|whisper|realtime|video|vision|dall.?e|imagen|veo|tts)/i.test(model.id))
+      .sort((a, b) => rank(a.id) - rank(b.id) || a.id.localeCompare(b.id, 'en'));
+  }
+  function cremoOptions() {
+    const gpt = cremoModels('gpt'), gemini = cremoModels('gemini');
+    const initial = choices => {
+      const existing = [...profiles.values()].filter(p => p.protocol === 'chat' && !p.search && choices.some(model => model.id === p.model));
+      return existing.find(p => baiSelected.has(p.id))?.model || existing.find(p => p.markets.includes('US'))?.model || choices[0]?.id || '';
+    };
+    if (!cremo.picked.gpt || !gpt.some(model => model.id === cremo.gpt)) cremo.gpt = initial(gpt);
+    if (!cremo.picked.gemini || !gemini.some(model => model.id === cremo.gemini)) cremo.gemini = initial(gemini);
+    return {gpt, gemini};
+  }
+  function cremoMarkup() {
+    const choices = cremoOptions(), disabled = !key || connecting || running || cremo.busy || !cremo.gpt || !cremo.gemini;
+    const dropdown = family => `<label for="cremo-${family}">${family === 'gpt' ? 'GPT' : 'Gemini'} · 当前账号真实模型 ID</label><select id="cremo-${family}" style="width:100%" onchange="browserCremoSelect('${family}',this.value)" ${!key || connecting || running || cremo.busy || !choices[family].length ? 'disabled' : ''}>${choices[family].length ? choices[family].map(model => `<option value="${esc(model.id)}" ${cremo[family] === model.id ? 'selected' : ''}>${esc(model.id)}</option>`).join('') : '<option value="">当前目录暂无匹配的固定文本模型</option>'}</select>`;
+    return `<section class="card" id="cremo-quick-sampling"><div class="card-head"><h2>Cremo 快速采样</h2><span class="tag">US · 8 题 × 2 模型 = 16 次调用</span></div><p>预设题集的快速采样，不是官网自动诊断或 30 题全报告。测量品牌 Cremo；官网 https://cremocompany.com/ 仅记录测量对象，不抓取网页；SKU 留空。</p><p>8 道英文购买比较题涵盖剃须、沐浴与男士护理，题目不提示 Cremo。GPT 与 Gemini 各回答同一组题；只采用本次账号目录实际返回的模型 ID，目录可见不代表调用已验证。</p><div class="grid"><div>${dropdown('gpt')}</div><div>${dropdown('gemini')}</div></div><p>点击开始后最多发送 16 次聊天请求，每次最多 2048 输出 token，按实际用量计费。请求串行发送；不自动重试、不换模型，遇到接口错误会停止剩余请求。</p><button class="primary" id="cremo-start" onclick="browserCremoStart()" ${disabled ? 'disabled' : ''}>${cremo.busy ? '正在准备 Cremo 采样…' : '开始 Cremo 采样'}</button>${!key ? '<p class="muted">先连接 B.AI 并读取模型目录。</p>' : !cremo.gpt || !cremo.gemini ? '<p class="error" role="status">当前目录缺少固定 GPT 或 Gemini 文本模型，不能开始；不会编造模型 ID 或改用其他厂商。</p>' : ''}${cremo.message ? `<p role="status">${esc(cremo.message)}</p>` : ''}<details><summary>查看 8 道预设英文题目</summary><ol>${CREMO_QUESTIONS.map(question => `<li>${esc(question)}</li>`).join('')}</ol></details></section>`;
+  }
+  window.browserCremoSelect = function(family, id) {
+    if (!['gpt', 'gemini'].includes(family) || cremo.busy || running || connecting) return;
+    if (cremoModels(family).some(model => model.id === id)) { cremo[family] = id; cremo.picked[family] = true; }
+  };
+  window.browserCremoStart = async function() {
+    if (!direct || !key || connecting || running || cremo.busy) return;
+    const choices = cremoOptions();
+    if (!choices.gpt.some(model => model.id === cremo.gpt) || !choices.gemini.some(model => model.id === cremo.gemini)) {
+      cremo.message = '当前目录缺少可用的 GPT 或 Gemini 固定文本模型，未发送聊天请求。'; paint(); return;
+    }
+    const generation = epoch, selected = [cremo.gpt, cremo.gemini];
+    cremo.busy = true; cremo.message = '正在准备两个 US 文本模型；准备完成后将开始 16 次预设题集采样。'; paint();
+    try {
+      const ids = [];
+      for (const model of selected) {
+        current(generation);
+        if (running || connecting) throw failure('连接或任务状态已改变，未继续提交 Cremo 采样。');
+        const existing = [...profiles.values()].find(p => p.model === model && p.protocol === 'chat' && !p.search);
+        const state = await profile({model, name: existing?.name || model, protocol: 'chat', search: false, markets: [...new Set([...(existing?.markets || []), 'US'])]});
+        current(generation);
+        const configured = state.profiles.find(p => p.model === model && p.protocol === 'chat' && !p.search && p.markets.includes('US'));
+        if (!configured) throw failure('未能准备固定模型，未提交 Cremo 采样。');
+        ids.push(configured.id);
+      }
+      current(generation);
+      if (running || connecting) throw failure('已有任务或连接正在运行，未提交 Cremo 采样。');
+      const body = {market: 'US', website: 'https://cremocompany.com/', brand_aliases: ['Cremo'], skus: [], prompts: [...CREMO_QUESTIONS], providers: ids};
+      baiCapture(); clearTimeout(baiTimer); baiMarket = 'US'; baiActive = null;
+      baiDraft.US = {...baiDraft.US, website: body.website, brand: 'Cremo', skus: '', questions: CREMO_QUESTIONS.join('\n')};
+      baiSelected = new Set(ids);
+      render();
+      current(generation);
+      if (running || connecting) throw failure('已有任务或连接正在运行，未提交 Cremo 采样。');
+      const run = await adapter('run', body, true);
+      current(generation);
+      cremo.message = 'Cremo 预设题集采样已提交，以下结果区显示本次真实返回的进度与证据；未完成回答不计为零分。';
+      await baiOpen(run.id);
+      current(generation);
+      document.getElementById('bai-start')?.closest('section')?.nextElementSibling?.scrollIntoView({behavior: 'smooth', block: 'start'});
+    } catch (error) {
+      if (generation !== epoch) return;
+      cremo.message = error.code ? error.message : 'Cremo 采样未能提交；请检查连接状态后再手动开始。';
+    } finally {
+      if (generation === epoch) { cremo.busy = false; sync(); paint(); }
+    }
+  };
+  const nativeStart = baiStart;
+  baiStart = async function() {
+    if (direct && cremo.busy) { toast('正在准备 Cremo 采样，请等待或退出连接。'); return; }
+    return nativeStart();
+  };
   baiPage = function() {
     const html = nativePage();
     const banner = `<section class="card" id="browser-bai-connection"><div class="card-head"><h2>网页直接连接 B.AI</h2><span class="tag">${direct ? '浏览器直连' : '可选直连'}</span></div><p>使用现有手动题集采样：1–10 道问题，每批最多 64 次请求；不是 30 题官网自动诊断。仅请求固定的 ${BASE}，不会抓取品牌官网。</p><p>密钥和本页任务证据只在当前页面内存；刷新、离开或退出后清除。请先导出需要保留的证据。</p><div class="actions"><button class="primary" onclick="browserBaiOpen()" ${connecting ? 'disabled' : ''}>${key ? '更换密钥 / 重新连接' : '填写密钥并连接'}</button>${direct ? '<button onclick="browserBaiClear()">退出并清除本页数据</button>' : ''}</div>${notice ? `<p class="${key ? 'notice' : 'error'}" role="status">${esc(notice)}</p>` : ''}</section>`;
     if (!direct) return banner + html;
-    return banner + html.replace(/<a class="primary button" href="http:\/\/127\.0\.0\.1:8771[^>]*>[^<]*<\/a>/, '')
+    return banner + cremoMarkup() + html.replace(/<a class="primary button" href="http:\/\/127\.0\.0\.1:8771[^>]*>[^<]*<\/a>/, '')
       .replace(/<div class="notice">[\s\S]*?<\/div>/, '<div class="notice">浏览器直连 · 聊天请求串行发送 · 不自动重试、不换模型。网络失败或接口拒绝后停止剩余请求；取消等待不保证撤销服务端已提交调用。</div>');
   };
   apiPage = function() {
@@ -439,8 +533,8 @@
     if (direct) sync();
     nativeRender();
     if (!direct || page !== 'bai') return;
-    const start = $('#bai-start'); if (start) start.disabled = !key || running || connecting;
-    const add = document.querySelector('button[onclick="baiModelModal()"]'); if (add) add.disabled = !key || running || connecting;
+    const start = $('#bai-start'); if (start) start.disabled = !key || running || connecting || cremo.busy;
+    const add = document.querySelector('button[onclick="baiModelModal()"]'); if (add) add.disabled = !key || running || connecting || cremo.busy;
     if (baiActive?.error) {
       const error = document.createElement('p'); error.className = 'error'; error.setAttribute('role', 'alert'); error.textContent = baiActive.error;
       start?.parentElement?.appendChild(error);
