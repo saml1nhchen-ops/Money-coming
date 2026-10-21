@@ -1,6 +1,7 @@
 """Container entry point. Owns its children; never attaches to existing listeners."""
 import json, os, pathlib, re, shutil, signal, socket, subprocess, sys, threading, time
 from remote_gateway import Budget, Failure, LocalAPI, Server, Workspace
+from device_sessions import DeviceSessions
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 def choose_models(models,environ=os.environ):
  ids={m['id'] for m in models if isinstance(m,dict) and isinstance(m.get('id'),str)};selected=[]
@@ -78,7 +79,11 @@ def main():
  host=os.environ.get('SIGNAL_PUBLIC_HOST') or os.environ.get('RENDER_EXTERNAL_HOSTNAME','')
  limit=os.environ.get('SIGNAL_DAILY_CALL_LIMIT','126')
  if not re.fullmatch(r'[0-9]+',limit):raise ValueError('Invalid daily limit')
- w=Workspace(os.environ.get('SIGNAL_WORKSPACE_PASSWORD',''),host,Budget(ROOT/'runtime/remote-budget.json',int(limit)))
+ password=os.environ.get('SIGNAL_WORKSPACE_PASSWORD','')
+ if len(password)<16:raise ValueError('Workspace password must contain at least 16 characters')
+ store=DeviceSessions(ROOT/'runtime/device-sessions.sqlite3',password)
+ w=Workspace(password,host,Budget(ROOT/'runtime/remote-budget.json',int(limit)),session_store=store)
+ password=None
  install_maintenance_signals(w)
  w.budget.state() # Fail closed on a damaged persistent ledger before any model connection.
  prepare_dependencies();services=Services();services.start();w.api=services.api

@@ -8,7 +8,7 @@
 (() => {
   const validRoute = /^#\/w\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+(?:\?[^#]*)?$/.test(location.hash);
   const hash = validRoute ? location.hash : '#/w/demo/overview';
-  location.replace('./dist/' + location.search + hash);
+  location.replace('./dist/team.html' + location.search + hash);
 })();
 </script>
 </head>

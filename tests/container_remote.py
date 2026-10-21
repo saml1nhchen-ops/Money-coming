@@ -12,7 +12,12 @@ def request(path,body=None,token=None):
  try:
   with urllib.request.urlopen(req,timeout=5) as r:return r.status,json.load(r)
  except urllib.error.HTTPError as e:return e.code,json.load(e)
-def login():return request('/api/workspace/login',{'password':env['SIGNAL_WORKSPACE_PASSWORD']})[1]['token']
+def login(remember=None):
+ body={'password':env['SIGNAL_WORKSPACE_PASSWORD']}
+ if remember is not None:body['remember']=remember
+ status,result=request('/api/workspace/login',body)
+ assert status==200 and result['remembered']==bool(remember)
+ return result['token']
 try:
  docker('run','-d','--name',name,'--network','bridge','-p','127.0.0.1:18880:8080','--mount','type=volume,src='+volume+',dst=/app/runtime','-e','SIGNAL_WORKSPACE_PASSWORD','-e','SIGNAL_PUBLIC_HOST=backend.test','-e','SIGNAL_BAI_API_KEY=',os.environ.get('SIGNAL_TEST_IMAGE','signal-geo-backend:team'))
  for _ in range(60):
@@ -21,8 +26,11 @@ try:
   except OSError:pass
   time.sleep(.2)
  else:raise AssertionError('Container health failed')
- assert request('/healthz')==(200,{'ok':True})
+ status,health=request('/healthz')
+ assert status==200 and health['ok'] is True
+ assert health['capabilities']=={'remember_login':True,'remember_login_max_age_seconds':2592000}
  assert request('/api/geo/state')[0]==401
+ durable=login(True);other_device=login(True)
  token=login();status,state=request('/api/geo/state',token=token)
  assert status==200 and not state['remote']['ready'] and state['remote']['reason']=='missing_bai_key'
  assert docker('exec',name,'id','-u')=='10001'
@@ -36,10 +44,15 @@ try:
   except OSError:pass
   time.sleep(.2)
  assert request('/api/geo/state',token=token)[0]==401
+ assert request('/api/geo/state',token=durable)[0]==200
+ assert request('/api/geo/state',token=other_device)[0]==200
+ assert request('/api/workspace/logout',{},durable)==(200,{'ok':True})
+ assert request('/api/geo/state',token=durable)[0]==401
+ assert request('/api/geo/state',token=other_device)[0]==200
  fresh=login();assert request('/api/geo/state',token=fresh)[1]['remote']['budget']['reserved']==63
  assert request('/api/workspace/logout',{},fresh)[0]==200
  assert request('/api/geo/state',token=fresh)[0]==401
- print('PASS: real container health, three private services, nonroot UID, loopback-only public mapping, authentication/logout, missing-key fail closed, persistent daily budget after restart, memory sessions invalidated. No model calls.')
+ print('PASS: real container health, three private services, nonroot UID, loopback-only public mapping, authentication/logout, missing-key fail closed, persistent daily budget and trusted device sessions after restart, legacy sessions invalidated, one-device durable logout. No model calls.')
 finally:
  subprocess.run(base+['rm','-f',name],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
  subprocess.run(base+['volume','rm',volume],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)

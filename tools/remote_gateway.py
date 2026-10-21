@@ -1,5 +1,6 @@
 """Single team HTTPS edge (TLS terminates at the hosting platform)."""
 import base64, html, collections, datetime, hashlib, hmac, http.server, json, os, pathlib, re, secrets, socketserver, threading, time, urllib.error, urllib.parse, urllib.request
+from device_sessions import DeviceSessions,StoreUnavailable,SessionLimit,GenerationChanged,MAX_AGE
 ORIGIN='https://saml1nhchen-ops.github.io'
 UUID=re.compile(r'[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}\Z')
 class Failure(Exception):
@@ -56,11 +57,11 @@ class Budget:
     try:tmp.unlink(missing_ok=True)
     except OSError:pass
 class Workspace:
- def __init__(self,password,host,budget,api=None):
+ def __init__(self,password,host,budget,api=None,session_store=None):
   if len(password)<16:raise ValueError('Workspace password must contain at least 16 characters')
   parts=host.split(':')
   if len(parts)>2 or len(parts)==2 and (not parts[1].isdigit() or not 1<=int(parts[1])<=65535) or len(parts[0])>253 or any(not re.fullmatch(r'[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?',label) for label in parts[0].split('.')):raise ValueError('Invalid public host')
-  self.digest=hashlib.sha256(password.encode()).digest();self.host=host.lower();self.budget=budget;self.api=api or LocalAPI();self.lock=threading.RLock();self.sessions={};self.attempts=collections.defaultdict(collections.deque);self.global_attempts=collections.deque();self.ready=False;self.reason='missing_bai_key';self.profiles=[];self.closing=False;self.active=None;self.shutdown_requested=threading.Event();self.maintenance_requested=threading.Event()
+  self.digest=hashlib.sha256(password.encode()).digest();self.host=host.lower();self.budget=budget;self.api=api or LocalAPI();self.lock=threading.RLock();self.sessions={};self.attempts=collections.defaultdict(collections.deque);self.global_attempts=collections.deque();self.ready=False;self.reason='missing_bai_key';self.profiles=[];self.closing=False;self.active=None;self.shutdown_requested=threading.Event();self.maintenance_requested=threading.Event();self.session_store=session_store
  def begin_shutdown(self):
   self.shutdown_requested.set()
   # Serialize shutdown with the complete reserve/submit/active publication.
@@ -69,7 +70,7 @@ class Workspace:
  def require_admission(self):
   if self.maintenance_requested.is_set():raise Failure(503,'maintenance')
   if not self.ready or self.stopping():raise Failure(503,self.reason or 'backend_unavailable')
- def login(self,password,source):
+ def login(self,password,source,remember=False):
   with self.lock:
    now=time.time()
    for q in (self.attempts[source],self.global_attempts):
@@ -78,14 +79,38 @@ class Workspace:
    self.attempts[source].append(now);self.global_attempts.append(now)
    if not isinstance(password,str) or not hmac.compare_digest(hashlib.sha256(password.encode()).digest(),self.digest):raise Failure(401,'unauthorized')
    self.sessions={t:e for t,e in self.sessions.items() if e>now}
-   if len(self.sessions)>=32:raise Failure(429,'rate_limited')
-   token=secrets.token_urlsafe(32);expires=now+3600;self.sessions[token]=expires
-   return {'token':token,'expires_at':datetime.datetime.fromtimestamp(expires,datetime.timezone.utc).isoformat(),'workspace':{'mode':'shared_team','shared_reports':True}}
+   if remember:
+    if self.session_store is None:raise Failure(503,'session_store_unavailable')
+    try:token,expires=self.session_store.issue(len(self.sessions),now)
+    except SessionLimit:raise Failure(429,'session_limit_reached') from None
+    except (StoreUnavailable,GenerationChanged):raise Failure(503,'session_store_unavailable') from None
+   else:
+    if len(self.sessions)>=32:raise Failure(429,'rate_limited')
+    if self.session_store is not None:
+     try:self.session_store.check_capacity(len(self.sessions),now)
+     except SessionLimit:raise Failure(429,'session_limit_reached') from None
+     except (StoreUnavailable,GenerationChanged):pass # Explicit legacy login stays available.
+    token=secrets.token_urlsafe(32);expires=now+3600;self.sessions[token]=expires
+   return {'token':token,'expires_at':datetime.datetime.fromtimestamp(expires,datetime.timezone.utc).isoformat(),'remembered':remember,'workspace':{'mode':'shared_team','shared_reports':True}}
  def auth(self,value):
   token=value[7:] if value.startswith('Bearer ') else ''
+  if not token or len(token)>256:raise Failure(401,'unauthorized')
   with self.lock:
-   if self.sessions.get(token,0)<=time.time():self.sessions.pop(token,None);raise Failure(401,'unauthorized')
+   if token.startswith('td1_'):
+    if self.session_store is None:raise Failure(503,'session_store_unavailable')
+    try:valid=self.session_store.authenticate(token)
+    except GenerationChanged:valid=False
+    except StoreUnavailable:raise Failure(503,'session_store_unavailable') from None
+    if not valid:raise Failure(401,'unauthorized')
+   elif self.sessions.get(token,0)<=time.time():self.sessions.pop(token,None);raise Failure(401,'unauthorized')
   return token
+ def logout(self,token):
+  with self.lock:
+   if token.startswith('td1_'):
+    if self.session_store is None:raise Failure(503,'session_store_unavailable')
+    try:self.session_store.revoke(token)
+    except (StoreUnavailable,GenerationChanged):raise Failure(503,'session_store_unavailable') from None
+   else:self.sessions.pop(token,None)
  def redact_text(self,value):
   # Treat public response fields AND dictionary keys as untrusted strings.
   # Do not decode whole responses: preserve evidence text except secret variants.
@@ -203,6 +228,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     if not re.fullmatch(r'[0-9a-f]{40}',revision):revision='unknown'
     if not re.fullmatch(r'[A-Za-z0-9._+-]{1,128}',version):version='unknown'
     metadata={k:v for k,v in (('revision',revision),('version',version)) if v!='unknown'}
+    if w.session_store is not None and w.session_store.usable():metadata['capabilities']={'remember_login':True,'remember_login_max_age_seconds':MAX_AGE}
     return self.reply({'ok':not w.stopping(),**metadata},200 if not w.stopping() else 503)
    if u.path not in (get if self.command=='GET' else post):raise Failure(404,'not_found')
    if u.path in ('/api/geo/run','/api/geo/export'):
@@ -223,11 +249,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
     d=json.loads(raw)
     if not isinstance(d,dict):raise Failure(400,'invalid_request')
    if u.path=='/api/workspace/login':
-    if set(d)!={'password'}:raise Failure(400,'invalid_request')
-    return self.reply(w.login(d['password'],self.client_address[0]))
+    if 'password' not in d or set(d)-{'password','remember'} or 'remember' in d and type(d['remember'])!=bool:raise Failure(400,'invalid_request')
+    return self.reply(w.login(d['password'],self.client_address[0],d.get('remember',False)))
    if u.path=='/api/workspace/logout':
     if d:raise Failure(400,'invalid_request')
-    with w.lock:w.sessions.pop(token,None)
+    w.logout(token)
     return self.reply({'ok':True})
    path=u.path.removeprefix('/api/geo/')+('?' +u.query if u.query else '')
    result,status=w.dispatch(path,d);self.reply(result,status)
