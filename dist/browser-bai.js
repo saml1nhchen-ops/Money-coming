@@ -1,7 +1,15 @@
-/* Browser-only B.AI adapter. Provider credentials never leave this closure. */
+/* Browser-only B.AI adapter. Optional device storage requires explicit opt-in. */
 (() => {
   'use strict';
   const BASE = 'https://api.b.ai/v1';
+  const DEVICE_KEY = 'signal-bai-device-connection-v1';
+  function rememberedKey() {
+    try { const saved = JSON.parse(localStorage.getItem(DEVICE_KEY) || 'null'); return saved?.version === 1 && typeof saved.key === 'string' ? saved.key : ''; } catch { return ''; }
+  }
+  function forgetDevice() { try { localStorage.removeItem(DEVICE_KEY); } catch {} }
+  function rememberDevice(secret) {
+    try { localStorage.setItem(DEVICE_KEY, JSON.stringify({version: 1, key: secret})); return true; } catch { return false; }
+  }
   const MODEL_TIMEOUT = 20000, CHAT_TIMEOUT = 120000, MAX_BYTES = 8 * 1024 * 1024;
   const nativeFetch = baiFetch, nativePage = baiPage, nativeApiPage = apiPage;
   const nativeConnectModal = baiConnectModal, nativeConnect = baiConnect, nativeModelModal = baiModelModal;
@@ -198,6 +206,7 @@
   async function connect(payload) {
     if (connecting) throw failure('正在连接，请等待或先退出当前连接。');
     let candidate = normalizeKey(payload?.key);
+    if (payload?.remember !== true || rememberedKey() !== candidate) forgetDevice();
     reset('正在读取账号模型目录；不会发送聊天请求。');
     const generation = epoch; connecting = true; sync(); paint();
     try {
@@ -219,7 +228,8 @@
         projected.push({id, name: model.id, model: model.id, manufacturer, provider: 'bai', channel: 'bai', protocol: 'chat', markets: ['CN','US'], search: false, base_url: BASE, capability_verified: false});
       }
       key = candidate; models = nextModels; catalogProfiles = projected; fetchedAt = stamp();
-      notice = '模型目录已读取。请选择支持 Chat Completions 的聊天模型，再明确提交题目；目录可见不代表调用已验证。';
+      const saved = payload?.remember === true && rememberDevice(key);
+      notice = payload?.remember === true && !saved ? '已连接，但浏览器不允许保存密钥；本次仅在页面内存使用。' : '模型目录已读取。请选择支持 Chat Completions 的聊天模型，再明确提交题目；目录可见不代表调用已验证。';
       return snapshot();
     } finally {
       candidate = '';
@@ -360,7 +370,7 @@
   async function adapter(path, body) {
     const endpoint = path.split('?')[0];
     if (endpoint === 'connect' && body) return connect(body);
-    if (endpoint === 'clear') { reset(); return snapshot(); }
+    if (endpoint === 'clear') { forgetDevice(); reset(); return snapshot(); }
     if (endpoint === 'state' && !body) return snapshot();
     if (endpoint === 'profile' && body) return profile(body);
     if (endpoint === 'runs' && !body) return {runs: clone([...runs.values()].reverse())};
@@ -397,7 +407,7 @@
   }
   function frozen(value) { if (value && typeof value === 'object') { for (const item of Object.values(value)) frozen(item); Object.freeze(value); } return value; }
   window.browserBaiResearchBroker = Object.freeze({
-    snapshot() { return clone({configured: Boolean(key), browser_direct: true, busy: running || connecting || Boolean(researchOwner), owner: researchOwner ? 'research' : running ? 'bai' : null, fetched_at: fetchedAt, profiles: catalogProfiles, billing: '按实际 API 用量计费；调用数上限不等于金额封顶。'}); },
+    snapshot() { return clone({configured: Boolean(key), connection_notice: scrub(notice), browser_direct: true, busy: running || connecting || Boolean(researchOwner), owner: researchOwner ? 'research' : running ? 'bai' : null, fetched_at: fetchedAt, profiles: catalogProfiles, billing: '按实际 API 用量计费；调用数上限不等于金额封顶。'}); },
     safeDraft(value) { return clone(scrub(value)); },
     subscribe(listener) { if (typeof listener !== 'function') throw failure('无效的状态订阅。', 'invalid_request'); listeners.add(listener); return () => listeners.delete(listener); },
     acquire({owner, profileIds, market, maxCalls} = {}) {
@@ -443,11 +453,11 @@
     }
     sync(); baiConnectModal(); paint();
   };
-  window.browserBaiClear = function() { if (!direct) return; reset(); closeOverlay(); paint(); };
+  window.browserBaiClear = function() { if (!direct) return; forgetDevice(); reset(); closeOverlay(); paint(); };
   baiConnectModal = function() {
     if (!direct) return nativeConnectModal();
     if (page === 'research') geoCapture(); else baiCapture();
-    modal(head('浏览器直接连接 B.AI') + `<p>密钥仅保存在当前页面内存，不写入浏览器存储、URL 或导出。刷新、离开页面或退出会清除密钥和本页证据。</p><p>连接只读取模型目录，不发送聊天请求。品牌分析页可直接选择目录中的固定模型，明确开始后生成 30 道题并采样；独立采样页仍支持手动 1–10 题。浏览器不会抓取官网。</p>${input('B.AI API Key','bai-key','','password')}<p class="mono">${BASE}/models</p><button class="primary" id="bai-connect" onclick="baiConnect()">连接并读取模型</button><button onclick="browserBaiClear()">取消并清除连接</button><p id="bai-connect-error" class="error" role="alert"></p>`);
+    modal(head('浏览器直接连接 B.AI') + `<p>默认仅在本页使用密钥。勾选下方选项后，密钥会保存在此浏览器，重新打开时自动连接；不会写入网址、GitHub 或报告。网页连接与聊天助手的连接相互独立。</p><p>连接只读取模型目录，不发送聊天请求。品牌分析页可直接选择目录中的固定模型，明确开始后生成 30 道题并采样；独立采样页仍支持手动 1–10 题。浏览器不会抓取官网。</p>${input('B.AI API Key','bai-key','','password')}<label style="display:block;margin:14px 0"><input type="checkbox" id="bai-remember" ${rememberedKey()?'checked':''}> 记住此设备并自动连接</label><p class="muted">仅在可信的个人设备开启。同源网页可读取浏览器保存的密钥；退出并清除连接会删除它。任务证据仍只在页面内存。</p><p class="mono">${BASE}/models</p><button class="primary" id="bai-connect" onclick="baiConnect()">连接并读取模型</button><button onclick="browserBaiClear()">取消并清除连接</button><p id="bai-connect-error" class="error" role="alert"></p>`);
     $('#bai-key').autocomplete = 'off';
     $('#bai-key').spellcheck = false;
     $('#bai-key').focus();
@@ -456,11 +466,12 @@
     if (!direct) return nativeConnect();
     const field = $('#bai-key'), button = $('#bai-connect');
     let candidate = field?.value || '';
+    const remember = Boolean($('#bai-remember')?.checked);
     if (field) field.value = '';
     if (button) button.disabled = true;
     try {
-      await adapter('connect', {key: candidate}); candidate = '';
-      closeOverlay(); sync(); paint(); toast(page === 'research' ? '模型目录已读取，可在本页选择 AI 开始分析。' : '模型目录已读取，请添加固定聊天模型并手动提交题目。');
+      await adapter('connect', {key: candidate, remember}); candidate = '';
+      closeOverlay(); sync(); paint(); toast(remember && !rememberedKey() ? '已连接，但浏览器禁止保存密钥，下次仍需输入。' : page === 'research' ? '模型目录已读取，可在本页选择 AI 开始分析。' : '模型目录已读取，请添加固定聊天模型并手动提交题目。');
     } catch (error) {
       if (error.code === 'cancelled') return;
       notice = error.code ? error.message : '连接未完成，请检查网络和服务访问条件后手动重试。';
@@ -490,13 +501,13 @@
   };
   baiPage = function() {
     const html = nativePage();
-    const banner = `<section class="card" id="browser-bai-connection"><div class="card-head"><h2>网页直接连接 B.AI</h2><span class="tag">${direct ? '浏览器直连' : '可选直连'}</span></div><p>使用现有手动题集采样：1–10 道问题，每批最多 64 次请求；不是 30 题官网自动诊断。仅请求固定的 ${BASE}，不会抓取品牌官网。</p><p>密钥和本页任务证据只在当前页面内存；刷新、离开或退出后清除。请先导出需要保留的证据。</p><div class="actions"><button class="primary" onclick="browserBaiOpen()" ${connecting ? 'disabled' : ''}>${key ? '更换密钥 / 重新连接' : '填写密钥并连接'}</button>${direct ? '<button onclick="browserBaiClear()">退出并清除本页数据</button>' : ''}</div>${notice ? `<p class="${key ? 'notice' : 'error'}" role="status">${esc(notice)}</p>` : ''}</section>`;
+    const banner = `<section class="card" id="browser-bai-connection"><div class="card-head"><h2>网页直接连接 B.AI</h2><span class="tag">${direct ? '浏览器直连' : '可选直连'}</span></div><p>使用现有手动题集采样：1–10 道问题，每批最多 64 次请求；不是 30 题官网自动诊断。仅请求固定的 ${BASE}，不会抓取品牌官网。</p><p>可在连接窗口选择记住此设备，下次自动连接。任务证据仍只在当前页面内存，刷新前请导出。</p><div class="actions"><button class="primary" onclick="browserBaiOpen()" ${connecting ? 'disabled' : ''}>${key ? '更换密钥 / 重新连接' : '填写密钥并连接'}</button>${direct ? '<button onclick="browserBaiClear()">退出并清除本页数据</button>' : ''}</div>${notice ? `<p class="${key ? 'notice' : 'error'}" role="status">${esc(notice)}</p>` : ''}</section>`;
     if (!direct) return banner + html;
     return banner + html.replace(/<a class="primary button" href="http:\/\/127\.0\.0\.1:8771[^>]*>[^<]*<\/a>/, '')
       .replace(/<div class="notice">[\s\S]*?<\/div>/, '<div class="notice">浏览器直连 · 聊天请求串行发送 · 不自动重试、不换模型。网络失败或接口拒绝后停止剩余请求；取消等待不保证撤销服务端已提交调用。</div>');
   };
   apiPage = function() {
-    return `<section class="card" id="browser-bai-api-entry"><h2>B.AI 网页直连</h2><p>无需本机执行器。填写 B.AI 密钥后读取真实模型目录，自选聊天模型与 1–10 道手动题目，明确提交后才调用模型。密钥仅保存在当前页面内存。</p><button class="primary" onclick="browserBaiOpen()">打开 B.AI 直连并连接</button></section>` + nativeApiPage();
+    return `<section class="card" id="browser-bai-api-entry"><h2>B.AI 网页直连</h2><p>无需本机执行器。填写 B.AI 密钥后读取真实模型目录，自选聊天模型与 1–10 道手动题目，明确提交后才调用模型。可选择记住此设备并自动连接。</p><button class="primary" onclick="browserBaiOpen()">打开 B.AI 直连并连接</button></section>` + nativeApiPage();
   };
   render = function() {
     if (direct) sync();
@@ -511,7 +522,19 @@
     const header = document.querySelector('.header-right .tag'); if (header) header.textContent = '浏览器直连 · 手动题集';
   };
   window.addEventListener('pagehide', () => { reset('页面已离开，密钥与本页证据已清除。'); });
-  window.addEventListener('pageshow', event => { if (event.persisted) paint(); });
-  if (direct) sync();
+  async function reconnectDevice() {
+    if (!direct || key || connecting || running || researchOwner) return;
+    let saved = rememberedKey();
+    if (!saved) return;
+    try { await connect({key: saved, remember: true}); }
+    catch (error) {
+      if (error.code !== 'cancelled') { forgetDevice(); notice = '自动连接未成功，请重新输入密钥连接；不会自动重试或开始分析。'; sync(); emit(); paint(); }
+    } finally { saved = ''; }
+  }
+  window.addEventListener('storage', event => {
+    if (direct && (event.key === DEVICE_KEY || event.key === null)) { reset('此浏览器的连接已在其他标签页更改，请重新连接。'); paint(); }
+  });
+  window.addEventListener('pageshow', event => { if (event.persisted) { paint(); void reconnectDevice(); } });
+  if (direct) { sync(); queueMicrotask(() => { void reconnectDevice(); }); }
   if (page === 'bai' || page === 'apis' || page === 'research') paint();
 })();
