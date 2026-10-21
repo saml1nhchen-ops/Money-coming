@@ -135,6 +135,7 @@
   };
   geoPage = function() { const html = nativePage(); return browser() ? connectionMarkup() + html.replace('从官网出发，用真实回答了解品牌表现。', '填写品牌背景，生成同一题库，核对真实 API 回答与证据。') : html; };
   render = function() {
+    consumeDraftLink();
     if (browser()) snapshot();
     beforeRender();
     if (page !== 'research' || !browser()) return;
@@ -142,6 +143,29 @@
     for (const button of document.querySelectorAll('[onclick^="geoStart("],[onclick="geoGenerateOnly()"]')) button.disabled = !geoToken || !selected || geoState.busy;
     const subtitle = document.querySelector('.page-head .subtitle'); if (subtitle) subtitle.textContent = '本页连接 AI · 30 道候选题 · 同题采样与原始证据';
   };
+  // Explicit draft links carry public brand information only; never run a task.
+  function consumeDraftLink() {
+    if (!browser() || page !== 'research') return;
+    const url = new URL(location.href), params = url.searchParams;
+    const brand = params.get('draft_brand');
+    if (brand && brand.length <= 200) {
+      const market = params.get('draft_market') === 'US' ? 'US' : 'CN';
+      const d = geoDraft[market];
+      if (!d.brand && !d.website) {
+        geoMarket = market;
+        d.brand = brand;
+        const website = params.get('draft_website') || '';
+        try { const u = new URL(website); if (u.protocol === 'https:' && !u.username && !u.password && website.length <= 500) d.website = u.href; } catch {}
+        for (const field of ['skus', 'context']) {
+          const value = params.get('draft_' + field);
+          if (value && value.length <= 2000) d[field] = value;
+        }
+        researchStep = 1;
+      }
+      for (const key of [...params.keys()]) if (key.startsWith('draft_')) params.delete(key);
+      history.replaceState(null, '', url);
+    }
+  }
   snapshot();
   if (browser() && page === 'research') render();
 })();
