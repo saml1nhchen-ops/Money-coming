@@ -45,8 +45,19 @@
     try { localStorage.setItem(authKey(url),JSON.stringify({version:1,backend_url:url,token:credential,expires_at,remembered})); return true; } catch { return false; }
   }
   function rememberURL(url) { try { localStorage.setItem('signal-analysis-backend',url); } catch {} }
+  function configuredOrigin() { try { return origin(window.SIGNAL_TEAM_BACKEND_URL || ''); } catch { return ''; } }
   try { connection.url = origin(localStorage.getItem('signal-analysis-backend') || ''); } catch {}
-  if (!connection.url) { try { connection.url = origin(window.SIGNAL_TEAM_BACKEND_URL || ''); } catch {} }
+  if (!connection.url) connection.url = configuredOrigin();
+  // The repair switch can select only the trusted deployment configuration, never a query-supplied host or credential.
+  let repairRequested = false;
+  const repairURL = new URL(location.href);
+  if (repairURL.searchParams.has('reset_backend')) {
+    if (repairURL.searchParams.getAll('reset_backend').length === 1 && repairURL.searchParams.get('reset_backend') === '1') {
+      const configured = configuredOrigin();
+      if (configured) { connection.url = configured; rememberURL(configured); repairRequested = true; }
+    }
+    repairURL.searchParams.delete('reset_backend'); history.replaceState(null,'',repairURL);
+  }
   function capture() { if (page === 'research') researchSave(); }
   function paint() { if (page === 'research') render(); }
   function clear(message = '请重新登录。') {
@@ -95,13 +106,14 @@
       } catch {
         current(generation);
         const message = paid ? '提交结果未确认，请先刷新团队任务列表核对，避免重复提交收费。' : '后台连接失败，已保存的登录不会被删除。请检查网络后手动刷新。';
-        throw Object.assign(error(timedOut ? '后台请求超时。'+message : message,'network'),{connectionFailure:true});
+        throw Object.assign(error((timedOut ? '后台请求超时。' : '')+message+' 实际请求后台：'+url,'network'),{connectionFailure:true});
       }
       if (generation !== epoch && path === '/api/workspace/login') {
         try { const abandoned = await response.json(); if (validRecord({version:1,backend_url:url,token:abandoned.token,expires_at:abandoned.expires_at,remembered:!!abandoned.remembered},url)) void revoke(url,abandoned.token); } catch {}
         current(generation);
       }
       current(generation);
+      if (settings.expectedStatus && response.status !== settings.expectedStatus) throw error('后台健康状态未确认。','health_unconfirmed');
       if (response.status === 401) {
         if (auth && auth === token && url === connection.url) { forget(url,auth); clear('登录已失效，请重新登录。'); paint(); }
         throw error(auth ? '登录已失效，请重新登录。' : '团队密码错误或登录失败，请重新输入。','unauthorized');
@@ -126,7 +138,23 @@
     if (url === connection.url) return;
     const wasAuthenticated = Boolean(token);
     capture(); clear('已切换后台，请验证此后台的登录。'); connection.url = url; rememberURL(url);
+    const fullURL = document.querySelector('#remote-current-url code'); if (fullURL) fullURL.textContent = url;
     const record = readRecord(url); if (record) await restore(record); else if (wasAuthenticated) paint();
+  };
+  async function probeConfigured(url) {
+    const generation = epoch; connection.busy = true; connection.message = '正在检查配置的后台：'+url; paint();
+    try {
+      const health = await request('/healthz',undefined,{token:'',generation,url,expectedStatus:200}); current(generation);
+      connection.message = (health.capabilities?.remember_login === true ? '后台在线，支持最长 30 天保持登录；请首次输入团队密码。' : '后台在线，尚未声明长期登录支持；请首次输入团队密码。')+' 实际后台：'+url+'。此检查不代表模型或业务已就绪。';
+    } catch (e) { if (generation === epoch) connection.message = '尚无法确认此设备到后台的连接：'+url+'。'+e.message; }
+    finally { if (generation === epoch) { connection.busy = false; paint(); } }
+  }
+  window.remoteUseConfiguredBackend = async function() {
+    const url = configuredOrigin();
+    if (!url) { connection.message = '尚未配置可用的 HTTPS 后台地址。'; paint(); return; }
+    capture(); clear('已选择配置的后台；如无已保存登录，请输入团队密码。');
+    connection.url = url; rememberURL(url); paint();
+    const record = readRecord(url); if (record) await restore(record); else await probeConfigured(url);
   };
   window.remotePasswordLogin = function() { capture(); clear('请重新输入团队密码。'); paint(); };
   function normalize() {
@@ -151,7 +179,7 @@
   window.remoteNormalizeSelection = normalize;
   window.remoteConnectionMarkup = function() {
     const s = geoState.remote, budget = s?.budget, limits = s?.limits;
-    return `<section class="ru-remote" id="remote-connection" aria-label="团队后台连接"><h2>连接团队分析后台</h2><p>授权团队成员共享模型连接、报告和停止权限。B.AI 密钥由管理员配置在服务器，团队密码仅用于身份验证。</p>${token ? `<p><b>${connection.offline ? '后台连接失败' : !connection.verified ? '正在验证保存的登录' : s?.ready ? '团队后台已连接 · 运行依赖已就绪' : '团队已登录 · 暂不能开始分析'}</b> · 登录有效至 ${esc(new Date(connection.expiresAt).toLocaleString())}</p><p class="mono">${esc(connection.url)}</p><div class="actions"><button onclick="geoRefresh()">刷新后台状态</button><button onclick="remotePasswordLogin()">重新登录 / 更换后台</button><button onclick="remoteLogout()">退出此设备</button></div>` : `<form onsubmit="remoteLogin(event)"><label class="ru-field" for="remote-backend-url"><span>HTTPS 后台地址</span><input id="remote-backend-url" type="url" value="${esc(connection.url)}" placeholder="https://你的团队分析后台" autocomplete="off" onchange="remoteBackendChanged(this.value)" required></label><label class="ru-field" for="remote-password"><span>团队密码</span><input id="remote-password" type="password" autocomplete="off" required></label><label><input id="remote-remember" type="checkbox" ${connection.rememberChoice ? 'checked' : ''}> 在此设备保持登录（仅可信设备）</label><button class="primary" ${connection.busy ? 'disabled' : ''}>${connection.busy ? '正在登录…' : '连接并登录'}</button><button type="button" onclick="remoteLogout()">取消 / 退出此设备</button></form>`}<p class="ru-help">默认保持登录，后台支持时最长 30 天；只保存此后台的登录令牌和到期时间，不保存团队密码或供应商密钥。登录与恢复只读取状态，不自动开始分析。</p>${connection.notice ? `<p class="ru-help" role="status">${esc(connection.notice)}</p>` : ''}${connection.message ? `<p class="ru-warning" role="status">${esc(connection.message)}</p>` : ''}${token && s?.ready !== true ? `<p class="ru-warning">${esc(messages[s?.reason] || '后台就绪状态未知，请刷新或联系管理员。')}</p>` : ''}${token ? `<p>中国 / 美国分开测量 · ${esc(limits?.count ?? '未知')} 题 · 最多 ${esc(limits?.max_models ?? '未知')} 个模型 · 每题 ${esc(limits?.repeats ?? '未知')} 次</p><p>UTC ${esc(budget?.date ?? '未知日期')}：已预约 ${esc(budget?.reserved ?? '未知')} / ${esc(budget?.limit ?? '未知')} 次，剩余 ${esc(budget?.remaining ?? '未知')} 次。预约调用数不是实际账单，失败或停止不自动退还。</p>${!Number.isFinite(budget?.remaining) ? '<p class="ru-warning">预算状态未知，已暂停新付费任务，请刷新状态。</p>' : budget.remaining === 0 ? '<p class="ru-warning">今日额度已用完；已有报告仍可查看和导出。</p>' : ''}<details><summary>服务端固定模型与目录时间</summary>${geoState.runner.profiles.length ? geoState.runner.profiles.map(p => `<p><code>${esc(p.model)}</code> · ${esc(p.protocol)} · ${esc((p.markets || []).join('/'))} · 目录可见，调用兼容性需实际验证。</p>`).join('') : '<p>模型目录暂不可用，不代表测评分数为零。</p>'}<p>${esc(geoState.runner.fetched_at || '后台未提供目录时间')}</p></details>` : ''}</section>`;
+    return `<section class="ru-remote" id="remote-connection" aria-label="团队后台连接"><h2>连接团队分析后台</h2><p id="remote-current-url" class="mono" style="overflow-wrap:anywhere">当前后台：<code>${esc(connection.url || '尚未选择')}</code></p><button type="button" onclick="remoteUseConfiguredBackend()">使用已配置的后台</button><p>授权团队成员共享模型连接、报告和停止权限。B.AI 密钥由管理员配置在服务器，团队密码仅用于身份验证。</p>${token ? `<p><b>${connection.offline ? '后台连接失败' : !connection.verified ? '正在验证保存的登录' : s?.ready ? '团队后台已连接 · 运行依赖已就绪' : '团队已登录 · 暂不能开始分析'}</b> · 登录有效至 ${esc(new Date(connection.expiresAt).toLocaleString())}</p><p class="mono">${esc(connection.url)}</p><div class="actions"><button onclick="geoRefresh()">刷新后台状态</button><button onclick="remotePasswordLogin()">重新登录 / 更换后台</button><button onclick="remoteLogout()">退出此设备</button></div>` : `<form onsubmit="remoteLogin(event)"><label class="ru-field" for="remote-backend-url"><span>HTTPS 后台地址</span><input id="remote-backend-url" type="url" value="${esc(connection.url)}" placeholder="https://你的团队分析后台" autocomplete="off" onchange="remoteBackendChanged(this.value)" required></label><label class="ru-field" for="remote-password"><span>团队密码</span><input id="remote-password" type="password" autocomplete="off" required></label><label><input id="remote-remember" type="checkbox" ${connection.rememberChoice ? 'checked' : ''}> 在此设备保持登录（仅可信设备）</label><button class="primary" ${connection.busy ? 'disabled' : ''}>${connection.busy ? '正在登录…' : '连接并登录'}</button><button type="button" onclick="remoteLogout()">取消 / 退出此设备</button></form>`}<p class="ru-help">默认保持登录，后台支持时最长 30 天；只保存此后台的登录令牌和到期时间，不保存团队密码或供应商密钥。登录与恢复只读取状态，不自动开始分析。</p>${connection.notice ? `<p class="ru-help" role="status">${esc(connection.notice)}</p>` : ''}${connection.message ? `<p class="ru-warning" role="status">${esc(connection.message)}</p>` : ''}${token && s?.ready !== true ? `<p class="ru-warning">${esc(messages[s?.reason] || '后台就绪状态未知，请刷新或联系管理员。')}</p>` : ''}${token ? `<p>中国 / 美国分开测量 · ${esc(limits?.count ?? '未知')} 题 · 最多 ${esc(limits?.max_models ?? '未知')} 个模型 · 每题 ${esc(limits?.repeats ?? '未知')} 次</p><p>UTC ${esc(budget?.date ?? '未知日期')}：已预约 ${esc(budget?.reserved ?? '未知')} / ${esc(budget?.limit ?? '未知')} 次，剩余 ${esc(budget?.remaining ?? '未知')} 次。预约调用数不是实际账单，失败或停止不自动退还。</p>${!Number.isFinite(budget?.remaining) ? '<p class="ru-warning">预算状态未知，已暂停新付费任务，请刷新状态。</p>' : budget.remaining === 0 ? '<p class="ru-warning">今日额度已用完；已有报告仍可查看和导出。</p>' : ''}<details><summary>服务端固定模型与目录时间</summary>${geoState.runner.profiles.length ? geoState.runner.profiles.map(p => `<p><code>${esc(p.model)}</code> · ${esc(p.protocol)} · ${esc((p.markets || []).join('/'))} · 目录可见，调用兼容性需实际验证。</p>`).join('') : '<p>模型目录暂不可用，不代表测评分数为零。</p>'}<p>${esc(geoState.runner.fetched_at || '后台未提供目录时间')}</p></details>` : ''}</section>`;
   };
   window.remoteLogin = async function(event) {
     event?.preventDefault(); if (connection.busy) return;
@@ -163,11 +191,12 @@
       const url = origin($('#remote-backend-url')?.value.trim() || '');
       const previous = token && connection.url === url ? token : readRecord(url)?.token;
       clear('正在确认后台登录能力…'); generation = epoch; connection.url = url; rememberURL(url); connection.busy = true; paint();
-      let supported = false;
-      try { const health = await request('/healthz',undefined,{token:'',generation,url}); supported = health.capabilities?.remember_login === true; }
+      let supported = false, legacyConfirmed = false;
+      try { const health = await request('/healthz',undefined,{token:'',generation,url,expectedStatus:200}); supported = health.capabilities?.remember_login === true; legacyConfirmed = !supported; }
       catch (e) { current(generation); }
       current(generation);
-      connection.notice = supported ? '' : '尚未确认后台支持长期登录，本次使用原协议 1 小时会话；服务器重启后需重新登录。';
+      const unconfirmed = '无法确认后台 '+url+' 的健康状态或长期登录能力；本次只按原登录协议尝试一次，不自动重试。';
+      connection.notice = supported ? '' : legacyConfirmed ? '后台健康检查未声明长期登录支持，本次使用原协议 1 小时会话；服务器重启后需重新登录。' : unconfirmed;
       const result = await request('/api/workspace/login',supported ? {password,remember} : {password},{token:'',generation,url}); password = '';
       current(generation);
       const record = validRecord({version:1,backend_url:url,token:result.token,expires_at:result.expires_at,remembered:result.remembered === true},url);
@@ -177,8 +206,8 @@
         connection.saved = saveRecord(url,token,result.expires_at,record.remembered);
         if (!connection.saved) connection.notice = '此设备无法保存登录，本次仅在当前页面有效。';
         else if (record.remembered) connection.notice = '已在此可信设备保持登录，到期时间以后台返回值为准。';
-        else connection.notice = supported ? '已保存本次短期登录，仅至后台返回的到期时间有效；未获得 30 天持久登录。' : '后台尚未确认长期登录支持，已保存原协议 1 小时会话；服务器重启后需重新登录，未获得 30 天持久登录。';
-      } else { if (previous) forget(url,previous); connection.notice = supported ? '本次仅在当前页面登录，不保存令牌。' : '本次使用原协议 1 小时会话，不保存令牌；服务器重启后需重新登录。'; }
+        else connection.notice = supported ? '已保存本次短期登录，仅至后台返回的到期时间有效；未获得 30 天持久登录。' : legacyConfirmed ? '后台健康检查未声明长期登录支持，已保存原协议 1 小时会话；服务器重启后需重新登录，未获得 30 天持久登录。' : unconfirmed+' 本次会话仅至后台实际返回的到期时间有效。';
+      } else { if (previous) forget(url,previous); connection.notice = supported ? '本次仅在当前页面登录，不保存令牌。' : legacyConfirmed ? '本次使用原协议 1 小时会话，不保存令牌；服务器重启后需重新登录。' : unconfirmed+' 本次不保存令牌。'; }
       scheduleExpiry();
       if (previous && previous !== token) {
         const replacement = token;
@@ -199,6 +228,7 @@
     const name = path.split('?')[0];
     if (name === 'resume') throw error('团队模式不提供续跑，请核对已有证据后明确开始新任务。', 'unsupported');
     if (!token || expire()) { clear('请先连接团队后台并登录。'); paint(); throw error('请先连接团队后台并登录。', 'unauthorized'); }
+    if (['start','sample'].includes(name) && !ready()) throw error('后台连接尚未验证或未就绪，请先刷新状态后再明确开始分析。','not_ready');
     const generation = epoch;
     try { const result = await request('/api/geo/' + path,payload(name,body),{generation}); current(generation); if (name === 'state') connection.offline = false; return result; }
     catch (e) { if (generation === epoch && token) { if (e.connectionFailure) { connection.offline = true; connection.verified = false; } connection.message = e.message; } throw e; }
@@ -281,5 +311,5 @@
   window.addEventListener('pageshow', event => { if (event.persisted) { const record = readRecord(connection.url); if (record) void restore(record); else paint(); } });
   document.addEventListener('visibilitychange', () => { if (!document.hidden && token) { if (!expire()) scheduleExpiry(); } });
   geoToken = ''; normalize(); if (page === 'research') paint();
-  const remembered = readRecord(connection.url); if (remembered) void restore(remembered);
+  const remembered = readRecord(connection.url); if (remembered) void restore(remembered); else if (repairRequested) void probeConfigured(connection.url);
 })();
