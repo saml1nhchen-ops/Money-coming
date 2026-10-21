@@ -79,6 +79,19 @@
       return data;
     } catch { throw failure('B.AI 返回了无法解析的响应，已停止本批后续请求。', 'invalid_response'); }
   }
+  async function serverErrorCode(response, credential) {
+    try {
+      const data = await readJSON(response);
+      const values = [data.error?.code, data.error?.type, data.code];
+      for (const value of values) {
+        if (typeof value !== 'string' || value.length > 64 || !/^[A-Za-z0-9_.:-]+$/.test(value)) continue;
+        const lower = value.toLowerCase();
+        if ((credential && lower.includes(credential.toLowerCase())) || /sk-|bearer|ghp_|github_pat_|gh[ours]_/.test(lower)) continue;
+        return value;
+      }
+    } catch { /* A body read or parse failure must leave the HTTP status intact. */ }
+    return '';
+  }
   async function request(path, body, credential, generation) {
     if (!['/models', '/chat/completions'].includes(path)) throw failure('浏览器直连只支持模型目录和 Chat Completions。');
     current(generation);
@@ -94,13 +107,15 @@
       });
       current(generation);
       if (!response.ok) {
-        await response.body?.cancel();
+        const errorCode = await serverErrorCode(response, credential);
+        current(generation);
         const messages = {
-          401: 'B.AI 拒绝了密钥，请检查密钥是否有效后重新连接。',
+          401: '身份验证未通过（HTTP 401），仅凭此响应不能确定是密钥、访问权限还是接入方式的问题。',
           403: 'B.AI 拒绝访问，请检查账号权限、模型权限或服务访问限制。',
           429: 'B.AI 触发限流或额度限制，请检查余额和调用限制后再手动开始。'
         };
-        throw failure(messages[response.status] || 'B.AI 请求未成功（HTTP ' + response.status + '），请检查所选模型和 Chat Completions 支持情况。', 'http_' + response.status);
+        const message = messages[response.status] || 'B.AI 请求未成功（HTTP ' + response.status + '），请检查所选模型和 Chat Completions 支持情况。';
+        throw failure(message + (errorCode ? ' 服务端错误码：' + errorCode : ''), 'http_' + response.status);
       }
       const result = await readJSON(response);
       current(generation);
