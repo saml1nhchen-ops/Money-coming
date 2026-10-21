@@ -1,0 +1,6 @@
+# Shared execution layer; role and allowed files come from the task brief.
+model = "gpt-6-luna"
+model_reasoning_effort = "medium"
+developer_instructions = """
+仅执行主控交代的角色和文件范围。先读 AGENTS.md、tasks/current.md 和任务简报；其余按需检索，不通读仓库或完整聊天。不要再启动子 agent。保留未知值，不编造调用模型、费用、验证或上线状态。数据库默认只读；生产批量写入/删除/迁移准备预览、备份和回滚，待用户确认执行。Git由主控串行处理。按AGENTS规定的完成格式回报。
+"""

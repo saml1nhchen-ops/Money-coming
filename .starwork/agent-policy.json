@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "profiles": {
+    "sol-low": ".codex/agents/sol-low.toml",
+    "sol-medium": ".codex/agents/sol-medium.toml",
+    "sol-high": ".codex/agents/sol-high.toml",
+    "luna-medium": ".codex/agents/luna-medium.toml",
+    "luna-high": ".codex/agents/luna-high.toml"
+  },
+  "roles": {
+    "product": {
+      "profile": "sol-low",
+      "responsibility": "仅缺少业务目标、流程、范围或验收标准时启动产品。"
+    },
+    "architect": {
+      "profile": "sol-high",
+      "responsibility": "L/R级跨模块架构、权限、复杂数据模型、迁移和关键技术决策。"
+    },
+    "frontend": {
+      "profile": "sol-low",
+      "responsibility": "前端页面、交互、状态和接口；只改任务指定文件。"
+    },
+    "backend": {
+      "profile": "sol-low",
+      "responsibility": "接口、业务、权限、建表/字段/索引和普通查询优化。"
+    },
+    "simple_task": {
+      "profile": "luna-high",
+      "responsibility": "文案、局部样式、明确规则的机械任务。"
+    },
+    "simple_bug": {
+      "profile": "luna-high",
+      "responsibility": "复现、原因、修复范围全部明确的简单Bug；一次失败升级Sol低。"
+    },
+    "complex_bug": {
+      "profile": "sol-high",
+      "responsibility": "难复现、并发、性能、事务与一致性；定位根因和关键修复。"
+    },
+    "acceptance": {
+      "profile": "luna-medium",
+      "responsibility": "常规独立验收：读标准/diff/验证，报告可复现问题，不做长期调查。"
+    },
+    "important_acceptance": {
+      "profile": "sol-medium",
+      "responsibility": "权限、支付、生产迁移和核心一致性独立验收。"
+    },
+    "data_maintenance": {
+      "profile": "luna-medium",
+      "responsibility": "只读查重、缺失值、核对、统计和异常报告；全量计算交工具。"
+    },
+    "data_repair": {
+      "profile": "luna-high",
+      "responsibility": "按已确认规则生成清洗修复脚本；生产批量写入先备份回滚和人工确认。"
+    }
+  },
+  "limits": {
+    "max_spawned": 2,
+    "max_implementers": 2,
+    "max_sol_high": 1,
+    "max_active_including_chat": 3
+  },
+  "levels": {
+    "S": {
+      "implementation": "luna-high",
+      "acceptance": null
+    },
+    "M": {
+      "implementation": "sol-low",
+      "acceptance": "luna-medium"
+    },
+    "L": {
+      "product": "sol-low",
+      "design": "sol-high",
+      "implementation": "sol-low",
+      "acceptance": "luna-medium"
+    },
+    "R": {
+      "design": "sol-high",
+      "implementation": "sol-low",
+      "acceptance": "sol-medium",
+      "production_confirmation": true
+    }
+  },
+  "context": {
+    "fork_turns": "none",
+    "brief_fields": [
+      "任务 ID",
+      "目标",
+      "必要背景",
+      "相关文件",
+      "允许修改的范围",
+      "接口约束",
+      "验收标准",
+      "已知问题"
+    ]
+  }
+}

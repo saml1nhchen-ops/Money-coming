@@ -1,20 +1,56 @@
-# Four reusable project agent roles. Requires project trust and a supporting Codex client.
+# Five shared execution layers; role descriptions carry responsibilities.
+model = "gpt-6.1-sol"
+model_reasoning_effort = "low"
+
 [agents]
 enabled = true
-max_concurrent_threads_per_session = 5
+# This field counts spawned threads, not the controller: 1 + 2 = 3.
+max_concurrent_threads_per_session = 2
+max_depth = 1
+default_subagent_model = "gpt-6.1-sol"
+default_subagent_reasoning_effort = "low"
+
 
 [agents.product]
-description = "产品负责人：规划、拆分任务、领导前后端协作，验收后汇总交付。"
-config_file = "agents/product.toml"
+description = "仅缺少业务目标、流程、范围或验收标准时启动产品。"
+config_file = "agents/sol-low.toml"
+
+[agents.architect]
+description = "L/R级跨模块架构、权限、复杂数据模型、迁移和关键技术决策。"
+config_file = "agents/sol-high.toml"
 
 [agents.frontend]
-description = "前端工程师：修改 Signal GEO 界面、交互、样式和前端测试。"
-config_file = "agents/frontend.toml"
+description = "前端页面、交互、状态和接口；只改任务指定文件。"
+config_file = "agents/sol-low.toml"
 
 [agents.backend]
-description = "后端工程师：修改接口、数据处理、分析逻辑及后端测试。"
-config_file = "agents/backend.toml"
+description = "接口、业务、权限、建表/字段/索引和普通查询优化。"
+config_file = "agents/sol-low.toml"
+
+[agents.simple_task]
+description = "文案、局部样式、明确规则的机械任务。"
+config_file = "agents/luna-high.toml"
+
+[agents.simple_bug]
+description = "复现、原因、修复范围全部明确的简单Bug；一次失败升级Sol低。"
+config_file = "agents/luna-high.toml"
+
+[agents.complex_bug]
+description = "难复现、并发、性能、事务与一致性；定位根因和关键修复。"
+config_file = "agents/sol-high.toml"
 
 [agents.acceptance]
-description = "验收工程师：等待前后端交付后独立验证，报告问题并推动返修。"
-config_file = "agents/acceptance.toml"
+description = "常规独立验收：读标准/diff/验证，报告可复现问题，不做长期调查。"
+config_file = "agents/luna-medium.toml"
+
+[agents.important_acceptance]
+description = "权限、支付、生产迁移和核心一致性独立验收。"
+config_file = "agents/sol-medium.toml"
+
+[agents.data_maintenance]
+description = "只读查重、缺失值、核对、统计和异常报告；全量计算交工具。"
+config_file = "agents/luna-medium.toml"
+
+[agents.data_repair]
+description = "按已确认规则生成清洗修复脚本；生产批量写入先备份回滚和人工确认。"
+config_file = "agents/luna-high.toml"
