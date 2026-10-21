@@ -102,7 +102,7 @@
       const response = await fetch(BASE + path, {
         method: body === undefined ? 'GET' : 'POST', credentials: 'omit', redirect: 'error', cache: 'no-store',
         signal: controller.signal,
-        headers: {Authorization: 'Bearer ' + credential, ...(body === undefined ? {} : {'Content-Type': 'application/json'})},
+        headers: {Authorization: 'Bearer ' + credential, 'Content-Type': 'application/json'},
         ...(body === undefined ? {} : {body: JSON.stringify(body)})
       });
       current(generation);
@@ -133,10 +133,27 @@
     const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
     return [...new Uint8Array(buffer)].map(b => b.toString(16).padStart(2, '0')).join('');
   }
+  function normalizeKey(value) {
+    const invalid = () => failure('密钥格式错误：请只粘贴单行完整密钥，可带一次 Bearer / Authorization: Bearer 前缀；不要包含多行说明、内部空白或不匹配的包装。', 'invalid_key_format');
+    if (typeof value !== 'string' || /[\r\n\u2028\u2029]/u.test(value)) throw invalid();
+    const edges = /^[\s\u200B-\u200D\u2060\uFEFF]+|[\s\u200B-\u200D\u2060\uFEFF]+$/gu;
+    let result = value.replace(edges, ''), unwrapped = false;
+    function unwrap() {
+      if (unwrapped) return;
+      const pairs = [['**', '**'], ['"', '"'], ["'", "'"], ['`', '`'], ['“', '”'], ['‘', '’']];
+      const pair = pairs.find(([left, right]) => result.startsWith(left) && result.endsWith(right) && result.length > left.length + right.length);
+      if (pair) { result = result.slice(pair[0].length, -pair[1].length).replace(edges, ''); unwrapped = true; }
+    }
+    unwrap();
+    const prefix = /^(?:Authorization[ \t]*:[ \t]*)?Bearer[ \t]+/i.exec(result);
+    if (prefix) result = result.slice(prefix[0].length).replace(edges, '');
+    unwrap();
+    if (!result || result.length > 4096 || /[\s\p{Cc}\p{Cf}]/u.test(result) || /^["'`*“”‘’]|["'`*“”‘’]$/u.test(result) || /^(?:Authorization|Bearer)(?::|$)/i.test(result)) throw invalid();
+    return result;
+  }
   async function connect(payload) {
     if (connecting) throw failure('正在连接，请等待或先退出当前连接。');
-    let candidate = typeof payload?.key === 'string' ? payload.key.trim() : '';
-    if (!candidate || candidate.length > 4096 || /[\r\n]/.test(candidate)) throw failure('请输入有效的 B.AI API Key。');
+    let candidate = normalizeKey(payload?.key);
     reset('正在读取账号模型目录；不会发送聊天请求。');
     const generation = epoch; connecting = true; sync(); paint();
     try {
