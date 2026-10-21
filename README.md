@@ -89,3 +89,7 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 1. 将业务对象和统一报告计算迁移至 TypeScript API + PostgreSQL；建立登录、组织、工作区授权和资源级 ACL。
 2. 补齐题型、题集冻结与市场/商品/门店模型；按 A01–A08、A14、A19、A23–A31 做服务端与交互验收。
 3. 补知识有效期、内容差异、人工实施验证，再为国内与海外各选择一个获得授权的采样来源。
+
+## 在线团队后台（腾讯云 / 阿里云）
+
+已准备 Docker + HTTPS + 持久报告的团队后台，模型密钥只在服务器配置。独立入口 `dist/team.html#/w/demo/research`，保留现有浏览器直连入口。开通、密钥和真实 HTTPS 尚待目标云服务器配置；详见 [腾讯云部署说明](deploy/TENCENT.zh-CN.md)。

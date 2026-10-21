@@ -1,0 +1,3 @@
+{$SIGNAL_PUBLIC_HOST} {
+    reverse_proxy backend:8080
+}

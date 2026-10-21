@@ -68,3 +68,9 @@
 .ru-remote{background:#fff;border:1px solid #ded9ef;border-radius:16px;padding:24px;margin:20px 0}.ru-remote h2{margin-top:0}.ru-remote form{display:grid;grid-template-columns:minmax(200px,1fr) minmax(180px,1fr) auto;gap:16px;align-items:end}.ru-remote form button{margin-bottom:2px}.ru-remote .mono{overflow-wrap:anywhere}.ru-remote details code{overflow-wrap:anywhere}@media(max-width:760px){.ru-remote form{grid-template-columns:1fr}.ru-remote{padding:18px}}
 
 .ru-browser-connection{background:#fff;border:1px solid #dfd9ee;border-radius:14px;padding:20px;margin:0 0 24px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}.ru-browser-connection p{margin:6px 0}.ru-browser-connection>.ru-help{flex-basis:100%}.ru-model small{overflow-wrap:anywhere}.ru-browser-connection .actions{flex-wrap:wrap}@media(max-width:700px){.ru-browser-connection{padding:16px}.ru-browser-connection .actions{width:100%}}
+
+/* Shared online team connection, before the existing three-step form. */
+.ru-remote{padding:24px;margin-bottom:24px;border:1px solid #ddd8f4;border-radius:16px;background:#fff}
+.ru-remote h2{margin-top:0}.ru-remote form{display:grid;gap:12px;max-width:640px}
+.ru-remote .ru-field input{width:100%}.ru-remote code,.ru-remote .mono{overflow-wrap:anywhere}
+@media(max-width:600px){.ru-remote{padding:16px}.ru-remote .actions{flex-wrap:wrap}}

@@ -5,7 +5,8 @@ let geoToken='',geoMarket=localStorage.getItem('signal-research-market')||'CN',g
 let geoDraft={CN:{},US:{}};try{geoDraft={...geoDraft,...JSON.parse(localStorage.getItem('signal-research-drafts')||'{}')}}catch{}
 for(const d of Object.values(geoDraft)){if(d.baselineVersion!==2){d.count='30';d.repeats='1';d.baselineVersion=2}}
 const geoLoopback=()=>['127.0.0.1','localhost'].includes(location.hostname)&&location.port==='8772';
-const geoBrowser=()=>!geoLoopback();
+const geoRemoteMode=()=>window.SIGNAL_GEO_MODE==='team';
+const geoBrowser=()=>!geoLoopback()&&!geoRemoteMode();
 const geoLocal=()=>geoLoopback()||Boolean(geoToken);
 const geoStage={queued:'等待执行',website:'读取官网',generating:'生成题目',sampling:'询问所选模型',report:'报告已生成'};
 const geoStatus={queued:'等待中',running:'执行中',finished:'已完成',partial:'部分完成',failed:'失败',stopped:'已停止',interrupted:'曾中断'};

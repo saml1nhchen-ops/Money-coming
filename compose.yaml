@@ -1,0 +1,35 @@
+# Tencent Cloud / Alibaba Cloud: one backend, one TLS edge, persistent volumes.
+services:
+  backend:
+    build: .
+    image: signal-geo-backend:team
+    restart: unless-stopped
+    init: true
+    env_file: .env
+    environment:
+      PORT: "8080"
+    expose:
+      - "8080"
+    volumes:
+      - signal-geo-runtime:/app/runtime
+    stop_grace_period: 30s
+  https:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    environment:
+      SIGNAL_PUBLIC_HOST: ${SIGNAL_PUBLIC_HOST:?Set SIGNAL_PUBLIC_HOST in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - signal-geo-tls:/data
+      - signal-geo-caddy-config:/config
+    depends_on:
+      backend:
+        condition: service_healthy
+volumes:
+  signal-geo-runtime:
+  signal-geo-tls:
+  signal-geo-caddy-config:

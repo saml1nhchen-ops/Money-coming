@@ -7,6 +7,8 @@ import concurrent.futures,copy,hashlib,http.server,ipaddress,json,pathlib,re,sec
 from html.parser import HTMLParser
 import ai_api as shared
 import geo_analysis,geo_plan
+import website_inspection
+import pinned_http
 ROOT=pathlib.Path(__file__).resolve().parents[1];DATA=ROOT/'runtime/geo-flows';PORT=8772
 TOKEN=secrets.token_urlsafe(32);POOL=concurrent.futures.ThreadPoolExecutor(max_workers=1);GUARD=threading.Lock();BUSY=False;CANCEL=set()
 SITE='https://signal-geo-workbench-lh.saml1nhchen.chatgpt.site';SESSIONS={}
@@ -47,28 +49,40 @@ class Extractor(HTMLParser):
  def handle_data(self,s):
   if not self.skip and s.strip():self.parts.append(s.strip())
 
-def fetch_website(url):
+def fetch_website(url,allow_short=False):
+ url=website_inspection.normalize_url(url)
+ pinned_http.require_direct_policy()
  for _ in range(5):
   try:u=urllib.parse.urlsplit(url);port=u.port
   except ValueError:raise ValueError('官网地址无效') from None
   if u.scheme not in ('https','http') or not u.hostname or u.username or u.password or port not in (None,80,443):raise ValueError('请输入公开官网的 HTTP(S) 地址')
-  addresses=socket.getaddrinfo(u.hostname,port or (443 if u.scheme=='https' else 80))
+  addresses=socket.getaddrinfo(u.hostname,port or (443 if u.scheme=='https' else 80),type=socket.SOCK_STREAM)
   if not addresses or any(not ipaddress.ip_address(a[4][0]).is_global for a in addresses):raise ValueError('官网必须解析为公开网络地址')
   req=urllib.request.Request(url,headers={'User-Agent':'SignalGEO/1.0 website-research','Accept':'text/html,text/plain','Accept-Encoding':'identity'})
   try:
-   with urllib.request.build_opener(shared.NoRedirect).open(req,timeout=30) as r:
-    content_type=r.headers.get('Content-Type','')
+   with urllib.request.build_opener(urllib.request.ProxyHandler({}),pinned_http.PinnedHTTPHandler(addresses),pinned_http.PinnedHTTPSHandler(addresses),shared.NoRedirect).open(req,timeout=30) as r:
+    content_type=r.headers.get('Content-Type','').lower()
     if not any(t in content_type for t in ('text/html','text/plain','application/xhtml')):raise ValueError('官网返回的不是网页文本')
     raw=r.read(2*1024*1024+1)
     if len(raw)>2*1024*1024:raise ValueError('网页超过 2 MB，请使用具体产品页')
     html=raw.decode(r.headers.get_content_charset() or 'utf-8',errors='replace')
-    p=Extractor();p.feed(html);text='\n'.join(p.parts)[:18000]
-    if len(text)<100:raise ValueError('网页可读内容过少，请换用具体产品页或填写业务背景')
-    return {'url':url,'captured_at':shared.stamp(),'content_sha256':hashlib.sha256(raw).hexdigest(),'text':text,'bytes':len(raw)}
+    is_html='text/plain' not in content_type
+    if is_html:
+     p=website_inspection.WebsiteExtractor();p.feed(html);text='\n'.join(p.parts)[:18000];metadata=p.metadata()
+    else:text=html[:18000];metadata={'readable_characters':len(html.strip())}
+    if len(text)<100 and not allow_short:raise ValueError('网页可读内容过少，请换用具体产品页或填写业务背景')
+    return {'url':url,'captured_at':shared.stamp(),'content_sha256':hashlib.sha256(raw).hexdigest(),'text':text,'bytes':len(raw),'metadata':metadata,'is_html':is_html}
   except urllib.error.HTTPError as e:
-   if e.code in (301,302,303,307,308) and e.headers.get('Location'):url=urllib.parse.urljoin(url,e.headers['Location']);continue
+   if e.code in (301,302,303,307,308) and e.headers.get('Location'):url=website_inspection.normalize_url(urllib.parse.urljoin(url,e.headers['Location']));continue
    raise ValueError('官网读取 HTTP '+str(e.code)+'；可填写业务背景继续生成，抓取失败会保留记录') from None
  raise ValueError('官网重定向次数过多')
+
+def inspect_website(d):
+ if not isinstance(d,dict) or d.get('market') not in ('CN','US'):raise ValueError('请选择中国或美国市场')
+ url=website_inspection.normalize_url(d.get('website'))
+ try:snapshot=fetch_website(url,allow_short=True)
+ except (urllib.error.URLError,TimeoutError,OSError):raise ValueError('官网连接失败或超时，请检查网址与网络后重试；未生成分数') from None
+ return website_inspection.inspect_snapshot(snapshot,d['market'])
 
 def niubi(operation,config,**extra):
  up=ROOT/'runtime/upstreams/niubigeo';node=shutil.which('node')
@@ -315,6 +329,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
    n=int(self.headers.get('Content-Length','0'))
    if not 0<n<=256*1024:raise ValueError('请求不能超过 256 KB')
    d=json.loads(self.rfile.read(n))
+   if self.path=='/api/geo/inspect':return self.reply(inspect_website(d))
    if self.path=='/api/geo/start':return self.reply(start(d),202)
    if self.path=='/api/geo/sample':return self.reply(start_manual(d),202)
    if self.path=='/api/geo/analyze':return self.reply(reanalyze(d),201)
