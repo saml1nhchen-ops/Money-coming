@@ -151,7 +151,7 @@
     if (brand && brand.length <= 200) {
       const market = params.get('draft_market') === 'US' ? 'US' : 'CN';
       const d = geoDraft[market];
-      if (!d.brand && !d.website) {
+      { // An explicit draft link replaces its supplied public form fields.
         geoMarket = market;
         d.brand = brand;
         const website = params.get('draft_website') || '';
