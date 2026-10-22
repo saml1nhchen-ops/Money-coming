@@ -1,6 +1,6 @@
 # 当前任务：官网输入到完整诊断报告
 
-状态：实现及独立验收通过，准备v0.5.0发布。用户已批准完整方案及发布；本轮复用已有后端、前端、验收角色，不创建新智能体。当前聊天负责接口约定、整合、回归与线上核验。
+状态：已完成并发布v0.5.0，前后端线上核验通过。用户已批准完整方案及发布；本轮复用已有后端、前端、验收角色，不创建新智能体。当前聊天负责接口约定、整合、回归与线上核验。
 
 ## 业务流程
 
@@ -29,3 +29,10 @@ v0.4.1已部署，服务器revision=20ddd4a7a791cd823e7d5df762f74bfe39e8f4d9；�
 - 真实nonroot Docker诊断/分享/登录在重启后保留；维护信号、健康回执、错误版本/nonce拒绝与重启恢复通过。构建磁盘满问题清理旧测试镜像后恢复，最终重跑通过；未影响生产卷。
 - GitHub验证39815402503运行216项检查，并实际采集Cremo/Nike/L’Oréal，0模型调用；完整证据diagnostic-results/39815402503。Cremo限流保留未知，品牌/品类来自本次公开官网材料，不假称首页已读。
 - 新增只读上线核验工作流，核对正式Release结论、服务器精确revision和Pages四个资产hash；不登录、不触发模型或修改业务数据。
+
+## 发布完成
+
+- 正式Release v0.5.0，部署39816569048成功；服务器实际revision=3b398899f0a10a911ec7b0f2e8d60d8e8885ff4b。
+- 只读上线核验39816574534：health ok、version v0.5.0、diagnostics_v1=true、30天设备保持登录capability可用，team.html/主流程JS与CSS/连接脚本四资产hash一致。
+- 发布证据：diagnostic-results/39816574534/connection-report.json。没有线上登录或额外付费模型采样；线上回滚演练仍未进行。
+- 用户入口：https://saml1nhchen-ops.github.io/Money-coming/dist/team.html?v=0.5.0#/w/demo/research
