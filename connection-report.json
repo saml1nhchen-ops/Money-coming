@@ -1,0 +1,62 @@
+{
+  "all_models_available": true,
+  "claude_available": true,
+  "expected_revision": "89c286a96fe5fde24ecf781e187e52a5011c5602",
+  "frontend": [
+    {
+      "matches": true,
+      "name": "team.html",
+      "sha256": "0272b8b69bb16c89f2506cefbe83f7dfa686fab120018301ec70a21c35167015"
+    },
+    {
+      "matches": true,
+      "name": "site-readiness.js",
+      "sha256": "c7d04883c5cb77cbe17a3b539f6278aaa4a1e200f4262addc442a33cc22cbf27"
+    },
+    {
+      "matches": true,
+      "name": "site-readiness.css",
+      "sha256": "45044edf72e527c370ca797e585ee67c884ea04e980fa120e8a2ba5b18f75695"
+    },
+    {
+      "matches": true,
+      "name": "remote-connection.js",
+      "sha256": "4131d4c203a5c839ff0adefe4883ca4c54619cc7f2e01380289a7bd974d0d939"
+    },
+    {
+      "matches": true,
+      "name": "research-ui.js",
+      "sha256": "795f326f6dafaba4df3ea0d8602ca1bea877f296093cfd9bc671614eac4b9fc9"
+    }
+  ],
+  "health": {
+    "capabilities": {
+      "analysis_all_models": true,
+      "analysis_manufacturers": [
+        "Anthropic",
+        "Google",
+        "OpenAI"
+      ],
+      "analysis_max_models": 3,
+      "claude_available": true,
+      "diagnostics_v1": true,
+      "remember_login": true,
+      "remember_login_max_age_seconds": 2592000
+    },
+    "ok": true,
+    "revision": "89c286a96fe5fde24ecf781e187e52a5011c5602",
+    "version": "v0.5.4"
+  },
+  "kind": "diagnostic_production_verification",
+  "model_calls": 0,
+  "ok": true,
+  "read_only": true,
+  "releases": [
+    {
+      "conclusion": "success",
+      "id": 39829706329,
+      "status": "completed",
+      "url": "https://github.com/saml1nhchen-ops/Money-coming/actions/runs/39829706329"
+    }
+  ]
+}
