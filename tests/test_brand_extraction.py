@@ -15,6 +15,9 @@ class BrandMetadataTests(unittest.TestCase):
   audit=self.preview('https://www.lorealparisusa.com/');self.assertEqual(audit['candidates']['brand']['name'],"L'Oreal Paris");self.assertIn('Makeup',[c['name'] for c in audit['candidates']['products']]);self.assertTrue(all(c['evidence_ids'] and c['kind']=='category' for c in audit['candidates']['products']))
  def test_real_loreal_china_title_is_still_brand_evidence_without_body(self):
   audit=self.preview('https://www.lorealparis.com.cn/');self.assertEqual(audit['candidates']['brand']['name'],'巴黎欧莱雅');self.assertFalse(audit['candidates']['products'])
+ def test_language_and_promotional_navigation_are_not_focus_products(self):
+  r={'id':'seed','url':'https://brand.example/','status':200,'captured_at':'2026-10-22','diagnostics':{},'parsed':{'metadata':{'site_name':'Brand','product_links':[{'text':'EN','href':'/makeup/face'},{'text':'Shop All Sale','href':'/w/sale'},{'text':'All Shoes','href':'/w/shoes'},{'text':'Sneaker 4: Get Notified','href':'/t/sneaker-4/ABC'},{'text':'Shoes','href':'/w/shoes'}]},'text':''}}
+  audit={'evidence':[],'candidates':{}};a.preview_candidates(audit,r);self.assertEqual([p['name'] for p in audit['candidates']['products']],['Sneaker 4']);self.assertEqual(audit['candidates']['products'][0]['kind'],'product')
  def test_product_cards_beyond_large_navigation_and_image_alt_are_retained(self):
   from website_inspection import WebsiteExtractor
   p=WebsiteExtractor();p.feed('<a href="/help">Help</a>'*150+'<a class="product-card__link" href="/catalog/item"><img alt="Real Product" src="x"></a>');meta=p.metadata();self.assertTrue(meta['product_links'][-1]['product_marker']);self.assertEqual(meta['product_links'][-1]['text'],'Real Product')

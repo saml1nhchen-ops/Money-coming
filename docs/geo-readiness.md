@@ -51,3 +51,5 @@ Cremo普通Python客户端实际返回429、Retry-After=60；同一验证机器�
 网站技术检测的model_calls仍为0；竞品请求与模型原始回答单独记录在competitor_suggestion，不与真实模型推荐测试或技术分混算。候选basis=model_inference、无官网证据ID；用户确认后也不冒充官网披露。服务器实际启用该匿名适配器；离线规则测试默认不联网。
 
 界面遵守用户偏好：主表单只列品牌、重点产品、主要竞品；不展示免费/AI/待核对徽标、供应商、模型名称、调用次数等过程信息。来源区别留在展开证据和导出附录。协作规则见AGENTS.md与docs/product.md，不自行创建或启动智能体。
+
+实际三品牌全流程记录：[39808638252](https://github.com/saml1nhchen-ops/Money-coming/actions/runs/39808638252)。Cremo首页429时通过同源公开MD识别Cremo、Shaving Cream/Body Wash等；Nike与美国欧莱雅200时均识别品牌和商品/品类。三品牌均完成一次匿名免费竞品生成、确认及完整导出。实测后进一步过滤语言选择、促销与泛导航；存在具体商品时优先展示具体商品，未以菜单当销量排名。

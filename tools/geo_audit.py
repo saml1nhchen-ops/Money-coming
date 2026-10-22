@@ -40,10 +40,11 @@ def preview_candidates(audit,seed):
   seen.add(row['name'].casefold());products.append(candidate(audit,seed,row['name'],'product',row['source']))
  linked=[]
  for link in meta.get('product_links',[]):
-  name=link['text'].strip();url=urllib.parse.urljoin(seed['url'],link['href'])
+  name=re.sub(r'\s*[:|–—-]\s*(?:get notified|shop now|learn more|discover more)\s*$','',link['text'].strip(),flags=re.I);link={**link,'text':name};url=urllib.parse.urljoin(seed['url'],link['href'])
   try:same=origin(normalize(url))==origin(seed['url'])
   except ValueError:same=False
   path=urllib.parse.urlsplit(url).path
+  if re.fullmatch(r'[A-Za-z]{2}',name) or re.match(r'^(?:all|shop|view|explore|discover|browse|see|buy|learn|read|sign)\b',name,re.I):continue
   if not same or not path.strip('/') or not name or len(name)>120 or name.casefold() in ('shop','shop all','shop now','all products','new','new & featured','new arrivals','best sellers','latest drops','men','women','kids','sale','contact','contact us','购物','联系我们'):continue
   if re.search(r'/(?:help|contact|privacy|terms|login|register|membership|cart|orders|blog|magazine|articles?)(?:/|$)',path,re.I):continue
   product=bool(link.get('product_marker') or re.search(r'/(?:products?|t)/[^/]+',path,re.I))
@@ -60,6 +61,7 @@ def preview_candidates(audit,seed):
   match=re.search(r'(?:versus|\bvs\.?|compared (?:to|with)|alternative to)\s+'+re.escape(name)+r'\b',body,re.I)
   if match:
    row=candidate(audit,seed,name,'competitor','body.comparison','website_text');eid=add_evidence(audit,seed,'body.comparison',body[max(0,match.start()-100):match.end()+100]);row['evidence_ids']=[eid];competitors.append(row)
+ if any(row['kind']=='product' for row in products):products=[row for row in products if row['kind']=='product']
  audit['candidates']={'brand':brand,'products':products[:6],'competitors':competitors[:5]}
 
 def preview_fallback(audit,budget):
