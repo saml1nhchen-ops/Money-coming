@@ -1,0 +1,35 @@
+name: Read website release status
+on:
+  push:
+    branches: ['diagnose/website-release-state-*']
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - name: Save only workflow states, never logs or credentials
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 - <<'PYCODE'
+          import os,json,sys,urllib.request
+          sys.path.insert(0,'deploy')
+          from connection_diagnostics import publish,NoRedirect
+          op=urllib.request.build_opener(NoRedirect)
+          def get(path):
+              req=urllib.request.Request('https://api.github.com/repos/saml1nhchen-ops/Money-coming/actions/runs/'+path,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+              with op.open(req,timeout=20) as r:return json.load(r)
+          report={'kind':'website_release_state','runs':[]}
+          for ident in ('39794316730','39794274116','39794082224'):
+              data=get(ident);jobs=get(ident+'/jobs?per_page=30').get('jobs',[])
+              report['runs'].append({'id':ident,'status':data.get('status'),'conclusion':data.get('conclusion'),'jobs':[{**{k:j.get(k) for k in ('name','status','conclusion','started_at','completed_at')},'steps':[{k:s.get(k) for k in ('name','status','conclusion','started_at','completed_at')} for s in j.get('steps',[])]} for j in jobs]})
+          print('Saved workflow states to '+publish(report))
+          PYCODE
