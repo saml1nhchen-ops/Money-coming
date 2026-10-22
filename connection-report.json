@@ -1,0 +1,53 @@
+{
+  "chat_calls": 0,
+  "diagnostics": {
+    "bytes": null,
+    "checked_at": "2026-10-22T14:15:17.855760+00:00",
+    "checks": [
+      {
+        "id": "address",
+        "message": "\u5b98\u7f51\u5730\u5740\u683c\u5f0f\u5df2\u6821\u9a8c\u3002",
+        "status": "passed"
+      },
+      {
+        "id": "dns",
+        "message": "\u57df\u540d\u5df2\u89e3\u6790\u5e76\u68c0\u67e5\u8fd4\u56de\u5730\u5740\u3002",
+        "status": "passed"
+      },
+      {
+        "id": "tls",
+        "message": "\u5df2\u6309\u5b98\u7f51\u57df\u540d\u5b8c\u6210\u8bc1\u4e66\u9a8c\u8bc1\u3002",
+        "status": "passed"
+      },
+      {
+        "id": "http",
+        "message": "\u5b98\u7f51\u8fd4\u56de HTTP 429\uff0c\u53ef\u80fd\u662f\u9650\u6d41\u6216\u81ea\u52a8\u8bbf\u95ee\u9650\u5236\uff0c\u4e0d\u80fd\u636e\u6b64\u786e\u5b9a\u53cd\u722c\uff1b\u8bf7\u7a0d\u540e\u624b\u52a8\u91cd\u8bd5\u6216\u6539\u7528\u4ea7\u54c1\u9875\u3002",
+        "status": "failed"
+      },
+      {
+        "id": "content",
+        "message": "\u5c1a\u65e0\u8db3\u591f\u8bc1\u636e\u5224\u65ad\u3002",
+        "status": "unknown"
+      }
+    ],
+    "content_type": "text/html",
+    "duration_ms": 218,
+    "final_url": "https://cremocompany.com/",
+    "findings": [
+      {
+        "code": "http_limited",
+        "message": "\u5b98\u7f51\u8fd4\u56de HTTP 429\uff0c\u53ef\u80fd\u662f\u9650\u6d41\u6216\u81ea\u52a8\u8bbf\u95ee\u9650\u5236\uff0c\u4e0d\u80fd\u636e\u6b64\u786e\u5b9a\u53cd\u722c\uff1b\u8bf7\u7a0d\u540e\u624b\u52a8\u91cd\u8bd5\u6216\u6539\u7528\u4ea7\u54c1\u9875\u3002"
+      }
+    ],
+    "http_status": 429,
+    "outcome": "limited",
+    "possible_access_restriction": true,
+    "readable_characters": null,
+    "redirects": [],
+    "retry_after": "60"
+  },
+  "error_type": "WebsiteCheckError",
+  "kind": "public_website_candidates",
+  "status": "failed",
+  "url": "https://cremocompany.com/"
+}
