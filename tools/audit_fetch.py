@@ -90,7 +90,7 @@ def same_seed_redirect(old,new,initial):
  return not (previous.scheme=='https' and b.scheme=='http') and not (previous.scheme==b.scheme and previous.port!=b.port) and a.hostname.removeprefix('www.')==b.hostname.removeprefix('www.') and (a.scheme==b.scheme or a.scheme=='http' and b.scheme=='https') and a.port in (None,80,443) and b.port in (None,80,443)
 class FetchBudget:
  def __init__(self,usage=None,worker=isolated):
-  self.usage=dict(usage or {'http_requests':0,'resources_requested':0,'bytes_received':0,'active_duration_ms':0,'model_calls':0});self.usage.setdefault('bytes_budget_used',self.usage['bytes_received']);self.worker=worker;self.started=time.monotonic();self.deadline=self.started+max(0,60-self.usage['active_duration_ms']/1000);self.admission=lambda:True
+  self.usage=dict(usage or {'http_requests':0,'resources_requested':0,'bytes_received':0,'active_duration_ms':0,'model_calls':0});self.usage.setdefault('bytes_budget_used',self.usage['bytes_received']);self.worker=worker;self.started=time.monotonic();self.deadline=self.started+max(0,60-self.usage['active_duration_ms']/1000);self.admission=lambda:True;self.max_resources=6
  def remaining(self):return self.deadline-time.monotonic()
  def run(self,op,args):
   if not self.admission():raise AuditFetchError('maintenance')
@@ -113,7 +113,7 @@ class FetchBudget:
    if field:
     row=next(c for c in check.value['checks'] if c['id']==field);row.update(status='failed',message=website_check.MESSAGES.get(code,messages.get(code,website_check.MESSAGES['connection_failed'])))
    check.value['possible_access_restriction']=code in ('http_limited','http_blocked','website_challenge');r['diagnostics']=check.finish(outcome);return r
-  if self.usage['resources_requested']>=6:return fail('resource_budget_exceeded')
+  if self.usage['resources_requested']>=self.max_resources:return fail('resource_budget_exceeded')
   self.usage['resources_requested']+=1
   try:pinned_http.require_direct_policy()
   except ValueError:return fail('proxy_unsupported','unsafe')

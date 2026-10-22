@@ -2,6 +2,7 @@
 import base64, html, collections, datetime, hashlib, hmac, http.server, json, os, pathlib, re, secrets, socketserver, threading, time, urllib.error, urllib.parse, urllib.request
 from brand_enrichment import EnrichmentError
 from geo_audit import AuditError
+from geo_diagnose import DiagnosticError
 from device_sessions import DeviceSessions,StoreUnavailable,SessionLimit,GenerationChanged,MAX_AGE
 ORIGIN='https://saml1nhchen-ops.github.io'
 UUID=re.compile(r'[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}\Z')
@@ -63,7 +64,7 @@ class Workspace:
   if len(password)<16:raise ValueError('Workspace password must contain at least 16 characters')
   parts=host.split(':')
   if len(parts)>2 or len(parts)==2 and (not parts[1].isdigit() or not 1<=int(parts[1])<=65535) or len(parts[0])>253 or any(not re.fullmatch(r'[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?',label) for label in parts[0].split('.')):raise ValueError('Invalid public host')
-  self.digest=hashlib.sha256(password.encode()).digest();self.host=host.lower();self.budget=budget;self.api=api or LocalAPI();self.lock=threading.RLock();self.sessions={};self.attempts=collections.defaultdict(collections.deque);self.global_attempts=collections.deque();self.ready=False;self.reason='missing_bai_key';self.profiles=[];self.closing=False;self.active=None;self.shutdown_requested=threading.Event();self.maintenance_requested=threading.Event();self.session_store=session_store;self.enrich_active=None;self.enricher=None;self.audit_active=None;self.auditor=None
+  self.digest=hashlib.sha256(password.encode()).digest();self.host=host.lower();self.budget=budget;self.api=api or LocalAPI();self.lock=threading.RLock();self.sessions={};self.attempts=collections.defaultdict(collections.deque);self.global_attempts=collections.deque();self.ready=False;self.reason='missing_bai_key';self.profiles=[];self.closing=False;self.active=None;self.shutdown_requested=threading.Event();self.maintenance_requested=threading.Event();self.session_store=session_store;self.enrich_active=None;self.enricher=None;self.audit_active=None;self.auditor=None;self.diagnostic_active=None;self.diagnostics=None
  def begin_shutdown(self):
   self.shutdown_requested.set()
   # Serialize shutdown with the complete reserve/submit/active publication.
@@ -154,13 +155,13 @@ class Workspace:
    ps=d.get('prompts')
    if not isinstance(ps,list) or len(ps)!=30 or any(not isinstance(p,str) or not p.strip() or len(p)>4000 for p in ps) or len({geo_plan.question_key(p) for p in ps})!=30:raise Failure(400,'invalid_request')
   d['count']=30;d['repeats']=1
- def dispatch(self,path,d=None):
+ def dispatch(self,path,d=None,_diagnostic=None):
   if path=='state':
    # Same lock as reservation/submission/publication. Once maintenance+idle is
    # observable, no earlier admitted POST can still publish a queued task.
    with self.lock:
     s=self.api.call('geo','state')
-    if self.enrich_active or self.audit_active:s['busy']=True
+    if self.enrich_active or self.audit_active or self.diagnostic_active:s['busy']=True
     if self.active and not s['busy']:
      previous=self.api.call('geo','run?id='+self.active)
      if previous.get('status') in ('queued','running'):s['busy']=True
@@ -168,6 +169,8 @@ class Workspace:
     maintenance=self.maintenance_requested.is_set()
     s['runner']['profiles']=self.profiles;s['runner']['configured']=self.ready;s['runner']['fetched_at']=getattr(self,'fetched_at',None)
     s['remote']={'mode':'shared_team','shared_reports':True,'ready':self.ready and not self.stopping() and not maintenance,'model_ready':self.ready,'maintenance':maintenance,'deployment_gate':'signals-v1','reason':'maintenance' if maintenance else self.reason,'limits':{'count':30,'max_models':2,'repeats':1},'budget':self.budget.state()};return s,200
+  if d is not None and self.diagnostic_active and _diagnostic!=self.diagnostic_active and path in ('audit','audit-confirm','enrich','start','sample','analyze'):
+   raise Failure(409,'busy')
   if path.startswith('audit'):
    if self.auditor is None:raise Failure(503,'audit_unavailable')
    try:
@@ -185,6 +188,7 @@ class Workspace:
      elif path=='audit-confirm':
       if set(d)!={'id','confirmed'} or not isinstance(d['id'],str) or not UUID.fullmatch(d['id']) or self.redact_text(json.dumps(d,ensure_ascii=False))!=json.dumps(d,ensure_ascii=False):raise Failure(400,'invalid_request')
      else:raise Failure(404,'not_found')
+     if self.diagnostic_active and _diagnostic!=self.diagnostic_active:raise Failure(409,'busy')
      if self.stopping() or self.maintenance_requested.is_set():raise Failure(503,'maintenance')
      if self.audit_active or self.enrich_active or self.api.call('geo','state')['busy']:raise Failure(409,'busy')
      if self.active and self.api.call('geo','run?id='+self.active).get('status') in ('queued','running'):raise Failure(409,'busy')
@@ -202,6 +206,7 @@ class Workspace:
     with self.lock:
      cached=self.enricher.lookup(d['request_id'],url,d['market'])
      if cached:return cached,200
+     if self.diagnostic_active and _diagnostic!=self.diagnostic_active:raise Failure(409,'busy')
      if self.stopping() or self.maintenance_requested.is_set():raise Failure(503,'maintenance')
      if self.enrich_active or self.audit_active or self.api.call('geo','state')['busy']:raise Failure(409,'busy')
      if self.active and self.api.call('geo','run?id='+self.active).get('status') in ('queued','running'):raise Failure(409,'busy')
@@ -215,7 +220,7 @@ class Workspace:
   if name in ('start','sample'):
    with self.lock:
     self.require_admission()
-    if self.enrich_active or self.audit_active:raise Failure(409,'busy')
+    if self.enrich_active or self.audit_active or self.diagnostic_active and _diagnostic!=self.diagnostic_active:raise Failure(409,'busy')
     s=self.api.call('geo','state')
     if s['busy']:raise Failure(409,'busy')
     if self.active:
@@ -262,7 +267,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
    if len(origins)>1 or origins and origins[0]!=ORIGIN:raise Failure(403,'origin_forbidden')
    u=urllib.parse.urlsplit(self.path)
    if u.scheme or u.netloc or u.fragment:raise Failure(400,'invalid_request')
-   get={'/api/geo/state','/api/geo/run','/api/geo/export','/api/geo/enrich','/api/geo/audit','/api/geo/audit-export'};post={'/api/workspace/login','/api/workspace/logout',*[f'/api/geo/{p}' for p in ('inspect','plan','start','sample','analyze','stop','enrich','audit','audit-confirm')]}
+   get={'/api/clients','/api/projects','/api/diagnostics','/api/diagnostics/detail','/api/diagnostics/export','/api/shared-report','/api/geo/state','/api/geo/run','/api/geo/export','/api/geo/enrich','/api/geo/audit','/api/geo/audit-export'};post={'/api/clients','/api/projects','/api/diagnostics','/api/diagnostics/retest','/api/diagnostics/share','/api/diagnostics/revoke','/api/workspace/login','/api/workspace/logout',*[f'/api/geo/{p}' for p in ('inspect','plan','start','sample','analyze','stop','enrich','audit','audit-confirm')]}
    if self.command=='OPTIONS':
     if u.path not in get|post or not origins or self.headers.get('Access-Control-Request-Method') not in ('GET','POST') or any(h.strip().lower() not in ('content-type','authorization') for h in self.headers.get('Access-Control-Request-Headers','').split(',') if h.strip()):raise Failure(403,'origin_forbidden')
     return self.reply({},204)
@@ -272,14 +277,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
     if not re.fullmatch(r'[A-Za-z0-9._+-]{1,128}',version):version='unknown'
     metadata={k:v for k,v in (('revision',revision),('version',version)) if v!='unknown'}
     if w.session_store is not None and w.session_store.usable():metadata['capabilities']={'remember_login':True,'remember_login_max_age_seconds':MAX_AGE}
+    if w.diagnostics is not None:metadata.setdefault('capabilities',{})['diagnostics_v1']=True
     return self.reply({'ok':not w.stopping(),**metadata},200 if not w.stopping() else 503)
    if u.path not in (get if self.command=='GET' else post):raise Failure(404,'not_found')
-   if u.path in ('/api/geo/run','/api/geo/export','/api/geo/enrich','/api/geo/audit','/api/geo/audit-export') and self.command=='GET':
+   if u.path in ('/api/geo/run','/api/geo/export','/api/geo/enrich','/api/geo/audit','/api/geo/audit-export','/api/diagnostics/detail','/api/diagnostics/export') and self.command=='GET':
     q=urllib.parse.parse_qs(u.query,keep_blank_values=True,strict_parsing=True)
     if set(q)!={'id'} or len(q['id'])!=1 or not UUID.fullmatch(q['id'][0]):raise Failure(400,'invalid_request')
+   elif u.path=='/api/shared-report' and self.command=='GET':
+    q=urllib.parse.parse_qs(u.query,keep_blank_values=True,strict_parsing=True)
+    if set(q)!={'token'} or len(q['token'])!=1:raise Failure(400,'invalid_request')
    elif u.query:raise Failure(400,'invalid_request')
    token=None
-   if u.path!='/api/workspace/login':token=w.auth(self.headers.get('Authorization',''))
+   if u.path not in ('/api/workspace/login','/api/shared-report'):token=w.auth(self.headers.get('Authorization',''))
    d=None
    if self.command=='POST':
     sizes=self.headers.get_all('Content-Length',[])
@@ -298,9 +307,22 @@ class Handler(http.server.BaseHTTPRequestHandler):
     if d:raise Failure(400,'invalid_request')
     w.logout(token)
     return self.reply({'ok':True})
+   if u.path.startswith('/api/diagnostics') or u.path in ('/api/clients','/api/projects','/api/shared-report'):
+    if w.diagnostics is None:raise Failure(503,'diagnostic_unavailable')
+    manager=w.diagnostics
+    if u.path in ('/api/clients','/api/projects'):return self.reply(manager.entities(u.path.removeprefix('/api/'),d),201 if d is not None else 200)
+    if u.path=='/api/shared-report':return self.reply(manager.shared(q['token'][0]))
+    if u.path=='/api/diagnostics':
+     if d is None:return self.reply(manager.listing())
+     result,status=manager.create(d);return self.reply(result,status)
+    if u.path in ('/api/diagnostics/detail','/api/diagnostics/export'):return self.reply(manager.detail(q['id'][0]))
+    if u.path.endswith('/retest'):
+     result,status=manager.retest(d);return self.reply(result,status)
+    if u.path.endswith('/share'):return self.reply(manager.share(d),201)
+    if u.path.endswith('/revoke'):return self.reply(manager.revoke(d))
    path=u.path.removeprefix('/api/geo/')+('?' +u.query if u.query else '')
    result,status=w.dispatch(path,d);self.reply(result,status)
-  except Failure as e:self.reply({'error':e.code,'code':e.code},e.status)
+  except (Failure,DiagnosticError,AuditError) as e:self.reply({'error':e.code,'code':e.code},e.status)
   except (ValueError,TypeError,KeyError):self.reply({'error':'invalid_request','code':'invalid_request'},400)
   except Exception:self.reply({'error':'backend_unavailable','code':'backend_unavailable'},503)
  do_GET=handle_api;do_POST=handle_api;do_OPTIONS=handle_api

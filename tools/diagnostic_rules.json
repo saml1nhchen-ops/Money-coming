@@ -1,0 +1,123 @@
+{
+  "version": "signal-diagnostic-rules-v0.1.1",
+  "parser_version": "protego-0.7.0+trafilatura-2.3.1",
+  "rules": [
+    {
+      "id": "access-response",
+      "dimension": "access",
+      "weight": 5,
+      "check": "response",
+      "rubric": "已获得正常可解析HTML响应，不代表正文完整可读。",
+      "verification": "核对对应抓取快照与规则适用条件；已获得正常可解析HTML响应，不代表正文完整可读。",
+      "action": "检查响应类型与状态；避免挑战页代替正文。"
+    },
+    {
+      "id": "access-extraction",
+      "dimension": "access",
+      "weight": 10,
+      "check": "extraction",
+      "rubric": "离线正文提取至少500字符才通过；未知不计通过。",
+      "verification": "核对对应抓取快照与规则适用条件；离线正文提取至少500字符才通过；未知不计通过。",
+      "action": "提供服务端可读取的主体内容并核对提取正文。"
+    },
+    {
+      "id": "access-tls",
+      "dimension": "access",
+      "weight": 5,
+      "check": "tls",
+      "rubric": "仅本次最终页面TLS验证通过；不认证网站业务事实。",
+      "verification": "核对对应抓取快照与规则适用条件；仅本次最终页面TLS验证通过；不认证网站业务事实。",
+      "action": "使用有效HTTPS证书，避免降级跳转。"
+    },
+    {
+      "id": "access-search",
+      "dimension": "access",
+      "weight": 5,
+      "check": "search-OAI-SearchBot",
+      "rubric": "只判断本页路径的搜索UA声明，训练策略分开。",
+      "verification": "核对对应抓取快照与规则适用条件；只判断本页路径的搜索UA声明，训练策略分开。",
+      "action": "核对robots路径策略及收录声明；不保证实际收录。"
+    },
+    {
+      "id": "entity-identity",
+      "dimension": "entity",
+      "weight": 10,
+      "check": "identity",
+      "rubric": "仅判断官网存在组织/品牌身份线索。",
+      "verification": "核对对应抓取快照与规则适用条件；仅判断官网存在组织/品牌身份线索。",
+      "action": "提供一致组织或品牌名称与机器可读身份信息。"
+    },
+    {
+      "id": "entity-products",
+      "dimension": "entity",
+      "weight": 10,
+      "observation": "products",
+      "rubric": "没有逐项核验所需事实时保持unknown；不得从提及或200推断。",
+      "verification": "核对对应抓取快照与规则适用条件；没有逐项核验所需事实时保持unknown；不得从提及或200推断。",
+      "action": "逐项核对原文、批准事实与适用范围后补充证据。"
+    },
+    {
+      "id": "questions-coverage",
+      "dimension": "questions",
+      "weight": 20,
+      "observation": "question_coverage",
+      "rubric": "没有逐项核验所需事实时保持unknown；不得从提及或200推断。",
+      "verification": "核对对应抓取快照与规则适用条件；没有逐项核验所需事实时保持unknown；不得从提及或200推断。",
+      "action": "逐项核对原文、批准事实与适用范围后补充证据。"
+    },
+    {
+      "id": "trust-contact",
+      "dimension": "trust",
+      "weight": 5,
+      "check": "contact",
+      "rubric": "只观察联系线索，不核验真实可联系。",
+      "verification": "核对对应抓取快照与规则适用条件；只观察联系线索，不核验真实可联系。",
+      "action": "补充公开联系方式并核对准确性。"
+    },
+    {
+      "id": "trust-policy",
+      "dimension": "trust",
+      "weight": 5,
+      "check": "policy",
+      "rubric": "只观察政策链接，不认证政策内容。",
+      "verification": "核对对应抓取快照与规则适用条件；只观察政策链接，不认证政策内容。",
+      "action": "提供清楚的隐私或使用条款链接。"
+    },
+    {
+      "id": "trust-facts",
+      "dimension": "trust",
+      "weight": 5,
+      "observation": "fact_verification",
+      "rubric": "没有逐项核验所需事实时保持unknown；不得从提及或200推断。",
+      "verification": "核对对应抓取快照与规则适用条件；没有逐项核验所需事实时保持unknown；不得从提及或200推断。",
+      "action": "逐项核对原文、批准事实与适用范围后补充证据。"
+    },
+    {
+      "id": "structure-headings",
+      "dimension": "structure",
+      "weight": 5,
+      "check": "headings",
+      "rubric": "title与H1均可观察才通过。",
+      "verification": "核对对应抓取快照与规则适用条件；title与H1均可观察才通过。",
+      "action": "提供准确页面标题与明确H1。"
+    },
+    {
+      "id": "structure-data",
+      "dimension": "structure",
+      "weight": 5,
+      "check": "structured-data",
+      "rubric": "观察已解析的语义类型，不认证结构化事实真实性。",
+      "verification": "核对对应抓取快照与规则适用条件；观察已解析的语义类型，不认证结构化事实真实性。",
+      "action": "提供符合页面实际内容的结构化数据并人工验证。"
+    },
+    {
+      "id": "maintenance-consistency",
+      "dimension": "maintenance",
+      "weight": 10,
+      "observation": "cross_page_facts",
+      "rubric": "没有逐项核验所需事实时保持unknown；不得从提及或200推断。",
+      "verification": "核对对应抓取快照与规则适用条件；没有逐项核验所需事实时保持unknown；不得从提及或200推断。",
+      "action": "逐项核对原文、批准事实与适用范围后补充证据。"
+    }
+  ]
+}

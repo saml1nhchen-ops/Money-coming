@@ -1,0 +1,37 @@
+name: Validate durable diagnostics
+on:
+  push:
+    branches: ['validate/diagnostics-*']
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - name: Install pinned website parsers
+        run: |
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --only-binary=:all: --require-hashes -r tools/requirements-audit.lock
+      - name: Backend regressions
+        run: .venv/bin/python -m unittest discover -s tests -p 'test_*.py'
+      - name: Real public-source diagnostics without model calls
+        run: .venv/bin/python deploy/check_diagnostic_sources.py
+      - name: Publish bounded validation evidence
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          .venv/bin/python - <<'PY'
+          import json,pathlib,sys
+          sys.path.insert(0,'deploy')
+          from connection_diagnostics import publish
+          p=pathlib.Path('diagnostic-source-report.json')
+          report=json.loads(p.read_text()) if p.exists() else {'kind':'real_diagnostic_sources','status':'validation_failed','model_calls':0}
+          print('Validation evidence: '+publish(report))
+          PY

@@ -98,6 +98,9 @@ def main():
   from free_competitors import ClassicCompetitors
   try:w.auditor=AuditManager(w,ROOT/'runtime/audits/index.sqlite3',suggestion_adapter=ClassicCompetitors())
   except Exception:w.auditor=None
+  from geo_diagnose import DiagnosticManager
+  try:w.diagnostics=DiagnosticManager(w,ROOT/'runtime/diagnostics/index.sqlite3',ROOT)
+  except Exception:w.diagnostics=None
   server=Server(('0.0.0.0',int(os.environ.get('PORT','8080'))),w)
   def drain():
    # This lock waits for any already admitted POST to publish its active job.
@@ -129,6 +132,7 @@ def main():
   threading.Thread(target=monitor,daemon=True).start();server.serve_forever(poll_interval=.2)
  finally:
   if server:server.server_close()
+  if w.diagnostics:w.diagnostics.pool.shutdown(wait=True)
   services.stop()
 if __name__=='__main__':
  try:main()
