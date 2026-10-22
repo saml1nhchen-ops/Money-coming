@@ -1,0 +1,23 @@
+{
+  "authenticated_bai": false,
+  "chat_calls": 0,
+  "kind": "public_bai_free_model_evidence",
+  "sources": [
+    {
+      "status": 403,
+      "url": "https://docs.b.ai/llms.txt"
+    },
+    {
+      "status": 403,
+      "url": "https://docs.b.ai/llms-full.txt"
+    },
+    {
+      "status": 403,
+      "url": "https://docs.b.ai/pricing"
+    },
+    {
+      "status": 401,
+      "url": "https://api.b.ai/v1/models"
+    }
+  ]
+}
