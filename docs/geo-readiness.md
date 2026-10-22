@@ -53,3 +53,5 @@ Cremo普通Python客户端实际返回429、Retry-After=60；同一验证机器�
 界面遵守用户偏好：主表单只列品牌、重点产品、主要竞品；不展示免费/AI/待核对徽标、供应商、模型名称、调用次数等过程信息。来源区别留在展开证据和导出附录。协作规则见AGENTS.md与docs/product.md，不自行创建或启动智能体。
 
 实际三品牌全流程记录：[39808638252](https://github.com/saml1nhchen-ops/Money-coming/actions/runs/39808638252)。Cremo首页429时通过同源公开MD识别Cremo、Shaving Cream/Body Wash等；Nike与美国欧莱雅200时均识别品牌和商品/品类。三品牌均完成一次匿名免费竞品生成、确认及完整导出。实测后进一步过滤语言选择、促销与泛导航；存在具体商品时优先展示具体商品，未以菜单当销量排名。
+
+已发布v0.4.1：[发布与部署](https://github.com/saml1nhchen-ops/Money-coming/actions/runs/39809568054)成功，后台版本与revision、公网页面及简洁表单已核对。最终202项Python检查、实际Chromium流程与导出、无密钥真实容器持久化回归均通过。本轮未创建或启动智能体，产品偏好按用户要求通过消息同步给已有产品角色。
