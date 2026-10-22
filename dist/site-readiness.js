@@ -73,6 +73,7 @@
   const terminal = status => ['finished','partial','failed','interrupted'].includes(status);
   const uuid = value => typeof value==='string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
   const statusLabel = s => ({queued:'等待开始',running:'诊断进行中',finished:'已完成',partial:'部分完成',failed:'未完成',interrupted:'已中断'})[s] || '状态未知';
+  const diagnosticError = code => ({sampling_incomplete:'部分回答未完成，已有结果仍可查看。',maintenance:'后台正在更新，请稍后再试。',daily_budget_exceeded:'今日额度不足，请核对额度后再明确开始。',interrupted:'任务曾中断，已有证据仍保留。',diagnostic_failed:'部分诊断步骤未完成，已有证据仍保留。',upstream_failed:'回答服务暂未完成请求，已有结果仍保留。'})[code] || '部分步骤未完成，请结合已有证据核对。';
   const stageLabel = s => ({website:'读取官网',preview:'读取官网',confirmation:'确认品牌信息',reading_policies:'检查官网',building_report:'整理官网证据',audit:'检查官网',generating:'生成问题',sampling:'收集回答',report:'整理诊断报告',done:'报告完成',starting:'准备诊断',awaiting_confirmation:'确认品牌信息'})[s] || '正在整理诊断';
   function params() { return new URLSearchParams(location.hash.split('?')[1] || ''); }
   function onWorkflow() { return page==='research' || page==='diagnostic'; }
@@ -144,16 +145,59 @@
     if(s.profileIDs===undefined)s.profileIDs=profiles.slice(0,2).map(p=>p.id);
     return profiles;
   }
+  function inlineProjectDraft(s) {
+    if(!s.inlineProject){
+      const client=array(s.clients).find(c=>!c.internal);
+      s.inlineProject={clientID:client?.id || '__new__',clientName:'团队项目',projectName:(s.draft?.brand || '官网').slice(0,160)+' · '+(geoMarket==='US'?'美国':'中国')+'诊断'};
+    }
+    return s.inlineProject;
+  }
   function projectSelect(s) {
-    return `<label class="sr-field"><span>保存到项目</span><select id="workflow-project"><option value="">请选择项目</option>${array(s.projects).filter(p=>!p.internal).map(p=>{const client=array(s.clients).find(c=>c.id===p.client_id);return `<option value="${text(p.id)}" ${s.projectID===p.id?'selected':''}>${text(client?.name || '')} / ${text(p.name)}${p.internal?'（内部）':''}</option>`;}).join('')}</select></label>${array(s.projects).some(p=>!p.internal)?'':'<p>尚无项目，请先创建客户和项目。</p>'}<button data-wf="projects">管理客户与项目</button>`;
+    const available=array(s.projects).filter(p=>!p.internal),draft=inlineProjectDraft(s);
+    return `<label class="sr-field"><span>保存到项目</span><select id="workflow-project" ${s.invalidField==='workflow-project'?'aria-invalid="true" aria-describedby="workflow-project-error"':''}><option value="">请选择项目</option>${available.map(p=>{const client=array(s.clients).find(c=>c.id===p.client_id);return `<option value="${text(p.id)}" ${s.projectID===p.id?'selected':''}>${text(client?.name || '')} / ${text(p.name)}</option>`;}).join('')}</select></label>${s.projectError?`<p id="workflow-project-error" class="sr-warning" role="alert" tabindex="-1">${text(s.projectError)}</p>`:''}<details id="workflow-inline-project" ${!available.length || s.inlineProjectOpen?'open':''}><summary>${available.length?'在本页创建新项目':'首次使用：在本页创建团队项目'}</summary><p>为本次诊断建立保存位置，已填写的信息与选择会保留。创建项目不会开始诊断。</p><label class="sr-field"><span>所属客户</span><select id="workflow-inline-client"><option value="__new__" ${draft.clientID==='__new__'?'selected':''}>新建团队客户</option>${array(s.clients).filter(c=>!c.internal).map(c=>`<option value="${text(c.id)}" ${draft.clientID===c.id?'selected':''}>${text(c.name)}</option>`).join('')}</select></label>${draft.clientID==='__new__'?field('客户名称','workflow-inline-client-name',draft.clientName):''}${field('项目名称','workflow-inline-project-name',draft.projectName)}${s.inlineProjectError?`<p id="workflow-inline-error" class="sr-warning" role="alert" tabindex="-1">${text(s.inlineProjectError)}</p>`:''}<button id="workflow-inline-create" type="button" data-wf="inline-project" ${s.inlineProjectPending?'disabled':''}>${s.inlineProjectPending?'正在创建项目…':'创建并选用项目'}</button></details>`;
+  }
+  function selectedProfiles(s) {return array(s.profileIDs).filter(id=>profileOptions(s).some(p=>p.id===id));}
+  function planMaximum(s) {
+    if((s.runMode || 'full')==='website')return 0;
+    const pc=array(s.projects).find(p=>p.id===s.projectID)?.config || {},saved=pc.question_context,aliases=[...new Set(confirmed(s).brand.aliases.map(v=>v.toLowerCase()))].sort();
+    const matching=saved && saved.website===normalize(s.audit?.website?.requested_url || s.url) && saved.market===geoMarket && JSON.stringify(saved.brand_aliases)===JSON.stringify(aliases);
+    return (matching && array(pc.question_set).length===30?0:3)+30*selectedProfiles(s).length;
   }
   function modelConfirm(s) {
-    const profiles=profileOptions(s),mode=s.runMode || 'full',selected=array(s.profileIDs).filter(id=>profiles.some(p=>p.id===id));
-    const pc=array(s.projects).find(p=>p.id===s.projectID)?.config || {}, saved=pc.question_context, aliases=[...new Set(confirmed(s).brand.aliases.map(v=>v.toLowerCase()))].sort();
-    const matching=saved && saved.website===normalize(s.audit?.website?.requested_url || s.url) && saved.market===geoMarket && JSON.stringify(saved.brand_aliases)===JSON.stringify(aliases);
-    const frozen=matching && array(pc.question_set).length===30, generation=mode==='website' || frozen?0:3;
-    const count=mode==='website'?0:generation+30*selected.length;
-    return `<section class="sr-card"><h2>确认本次诊断方案</h2><p>${text(s.draft.brand || s.url)} · ${geoMarket==='US'?'美国市场':'中国市场'}</p>${projectSelect(s)}<fieldset class="wf-choice"><legend>诊断范围</legend><label><input type="radio" name="workflow-mode" value="full" ${mode==='full'?'checked':''}> 官网与 30 道问题（默认）</label><label><input type="radio" name="workflow-mode" value="website" ${mode==='website'?'checked':''}> 仅检查官网</label></fieldset>${mode==='full'?`<h3>选择要比较的 AI</h3><p>每家回答同一组 30 道问题，最多选择两家。</p><div class="wf-profiles">${profiles.map(p=>`<label><input type="checkbox" data-wf-profile="${text(p.id)}" ${selected.includes(p.id)?'checked':''}> ${text(p.name || p.model)}</label>`).join('') || '<p>尚无可用连接，请联系管理员配置；也可以选择仅检查官网。</p>'}</div>`:''}<div class="wf-call-confirm"><p>${mode==='full'?`预计最多 ${count} 次请求：${generation?'生成问题最多 3 次，':'复用项目已保存的 30 道问题，'}收集回答 ${30*selected.length} 次。`:'仅检查官网，不产生模型调用费用。'}</p>${mode==='full'?'<p>服务按实际用量计费，不自动充值；实际金额以服务商账单为准。开始后刷新、返回或离开页面不会撤销后台已提交的任务。</p><label><input id="workflow-cost-consent" type="checkbox" '+(s.costConsent?'checked':'')+'> 我已核对范围与预计请求，确认开始并承担实际费用</label>':''}</div><div class="sr-actions"><button data-wf="brand">← 返回修改信息</button><button class="primary" data-wf="start" ${s.pending || !workspaceReady()?'disabled':''}>${s.pending?'正在提交…':'确认并开始诊断'}</button></div></section>`;
+    const profiles=profileOptions(s),mode=s.runMode || 'full',selected=selectedProfiles(s),count=planMaximum(s),generation=count-30*selected.length;
+    return `<section class="sr-card"><h2>确认本次诊断方案</h2><p>${text(s.draft.brand || s.url)} · ${geoMarket==='US'?'美国市场':'中国市场'}</p>${projectSelect(s)}<fieldset class="wf-choice"><legend>诊断范围</legend><label><input type="radio" name="workflow-mode" value="full" ${mode==='full'?'checked':''}> 官网与 30 道问题（默认）</label><label><input type="radio" name="workflow-mode" value="website" ${mode==='website'?'checked':''}> 仅检查官网</label></fieldset>${mode==='full'?`<div id="workflow-profile-group" tabindex="-1"><h3>选择要比较的 AI</h3><p>每家回答同一组 30 道问题，最多选择两家。</p><div class="wf-profiles">${profiles.map(p=>`<label><input type="checkbox" data-wf-profile="${text(p.id)}" ${selected.includes(p.id)?'checked':''}> ${text(p.name || p.model)}</label>`).join('') || '<p>尚无可用连接，请联系管理员配置；也可以选择仅检查官网。</p>'}</div>${s.profileError?`<p id="workflow-profile-error" class="sr-warning" role="alert">${text(s.profileError)}</p>`:''}</div>`:''}<div class="wf-call-confirm"><p>${mode==='full'?`预计最多 ${count} 次请求：${generation?'生成问题最多 3 次，':'复用项目已保存的 30 道问题，'}收集回答 ${30*selected.length} 次。`:'仅检查官网，不产生模型调用费用。'}</p>${mode==='full'?'<p>服务按实际用量计费，不自动充值；实际金额以服务商账单为准。开始后刷新、返回或离开页面不会撤销后台已提交的任务。</p><label><input id="workflow-cost-consent" type="checkbox" '+(s.costConsent?'checked':'')+'> 我已核对范围与预计请求，确认开始并承担实际费用</label>':''}</div><div id="workflow-start-feedback" aria-live="assertive" aria-atomic="true">${s.startError?`<p id="workflow-start-error" class="sr-warning" role="alert" tabindex="-1">${text(s.startError)}</p>`:s.startNotice?`<p id="workflow-start-notice" role="status" tabindex="-1">${text(s.startNotice)}</p>`:''}</div><div class="sr-actions"><button id="workflow-brand-back" data-wf="brand">← 返回修改信息</button><button class="primary" data-wf="start" ${s.pending || s.inlineProjectPending || !workspaceReady()?'disabled':''}>${s.pending?'正在提交…':'确认并开始诊断'}</button></div></section>`;
+  }
+  function focusWorkflow(id) {
+    requestAnimationFrame(()=>{const target=document.getElementById(id);if(target){target.focus({preventScroll:true});target.scrollIntoView({block:'center',behavior:'smooth'});}});
+  }
+  function startError(message,field='workflow-start-error') {
+    const s=session();s.startError=message;s.startNotice='';s.invalidField=field;
+    if(field==='workflow-project'){s.projectError=message;s.inlineProjectOpen=true;}
+    if(field==='workflow-profile-group')s.profileError=message;
+    repaint();focusWorkflow(field==='workflow-project'?'workflow-project-error':field);
+  }
+  async function createInlineProject() {
+    const s=session();if(s.inlineProjectPending || s.pending)return;
+    const draft=inlineProjectDraft(s),clientName=(document.getElementById('workflow-inline-client-name')?.value ?? draft.clientName).trim(),projectName=(document.getElementById('workflow-inline-project-name')?.value ?? draft.projectName).trim();
+    draft.clientID=document.getElementById('workflow-inline-client')?.value || draft.clientID;draft.clientName=clientName;draft.projectName=projectName;
+    if(!projectName || draft.clientID==='__new__'&&!clientName || projectName.length>200 || clientName.length>200){s.inlineProjectError='请填写客户与项目名称，每个名称不超过 200 个字符。';s.inlineProjectOpen=true;repaint();focusWorkflow('workflow-inline-error');return;}
+    const key=identity().key,previousMaximum=planMaximum(s),previousConsent=document.getElementById('workflow-cost-consent')?.checked ?? s.costConsent;
+    s.inlineProjectPending=true;s.inlineProjectError='';s.startError='';repaint();
+    try{
+      let clientID=draft.clientID;
+      if(clientID==='__new__'){
+        const before=new Set(array(s.clients).map(c=>c.id)),result=await remoteWorkspace('client',{name:clientName});if(!sameContext(key))return;
+        s.clients=array(result.clients);clientID=s.clients.find(c=>!before.has(c.id)&&c.name===clientName)?.id;
+        if(!clientID)throw Error('客户创建结果未确认，请刷新项目列表后再操作。');draft.clientID=clientID;
+      }
+      const before=new Set(array(s.projects).map(p=>p.id)),result=await remoteWorkspace('project',{client_id:clientID,name:projectName});if(!sameContext(key))return;
+      s.projects=array(result.projects);const created=s.projects.find(p=>!before.has(p.id)&&p.client_id===clientID&&p.name===projectName);
+      if(!created)throw Error('项目创建结果未确认，请刷新项目列表后再操作。');
+      s.projectID=created.id;s.inlineProjectPending=false;s.inlineProjectOpen=false;s.inlineProjectError='';s.projectError='';s.invalidField='';
+      s.costConsent=planMaximum(s)>previousMaximum?false:previousConsent;
+      s.startNotice=s.costConsent || (s.runMode || 'full')==='website'?'项目已创建并选用，点击“确认并开始诊断”继续。':'项目已创建并选用，请核对方案和费用后开始。';
+      repaint();focusWorkflow('workflow-start-notice');
+    }catch(e){if(sameContext(key)){s.inlineProjectPending=false;s.inlineProjectError=e.message+' 不会自动创建或开始诊断。';s.inlineProjectOpen=true;repaint();focusWorkflow('workflow-inline-error');}}
   }
   function progress(s) {
     return `<section class="sr-card sr-progress"><h2>正在读取官网</h2><p>${text(stageLabel(s.audit?.stage))}。完成后会进入信息确认。</p><progress></progress><div class="sr-actions"><button data-wf="preview-resume" ${s.pending?'disabled':''}>读取进度</button><button data-wf="url">返回官网输入</button></div></section>`;
@@ -269,15 +313,23 @@
     return {brand:{name:brand,aliases:brand?(original?.name===brand && original.aliases?.length?original.aliases:[brand]):[]},products:rows('products'),competitors:rows('competitors'),context:s.draft.context || ''};
   }
   async function startDiagnostic() {
-    const s=session();if(s.pending)return;
-    if(!workspaceReady()){s.message='后台正在升级，不能开始完整诊断。';repaint();return;}
-    const mode=s.runMode || 'full',profiles=profileOptions(s),ids=array(s.profileIDs).filter(id=>profiles.some(p=>p.id===id));
-    if(!s.projectID){s.message='请选择保存项目；没有项目时可以先创建。';repaint();return;}
-    if(mode==='full' && (!s.draft.brand.trim() || !ids.length || ids.length>2 || !s.costConsent)){s.message='请填写品牌、选择 1–2 家 AI，并确认本次范围和费用。';repaint();return;}
-    const j=job();s.pending=true;s.message='';s.startRequestID ||= crypto.randomUUID();repaint();
+    const s=session();if(s.pending || s.inlineProjectPending)return;
+    // Read the live form too: native touch controls need not depend on a bubbled change event.
+    const project=document.getElementById('workflow-project'),consent=document.getElementById('workflow-cost-consent');
+    if(project)s.projectID=project.value;
+    if(consent)s.costConsent=consent.checked;
+    const rendered=document.querySelectorAll('[data-wf-profile]');
+    if(rendered.length)s.profileIDs=[...rendered].filter(el=>el.checked).map(el=>el.dataset.wfProfile);
+    if(!workspaceReady()){startError('后台正在升级，暂时不能开始完整诊断。');return;}
+    const mode=s.runMode || 'full',ids=selectedProfiles(s);
+    if(!array(s.projects).some(p=>p.id===s.projectID&&!p.internal)){startError('请选择保存项目，或在本页创建团队项目后继续。','workflow-project');return;}
+    if(mode==='full' && !s.draft.brand.trim()){startError('请返回上一步填写品牌名称。','workflow-brand-back');return;}
+    if(mode==='full' && (!ids.length || ids.length>2)){startError('请选择 1–2 家 AI，最多选择两家。','workflow-profile-group');return;}
+    if(mode==='full' && !s.costConsent){startError('请勾选本次诊断的范围与费用确认。','workflow-cost-consent');return;}
+    const j=job();s.pending=true;s.message='';s.startError='';s.startNotice='';s.startRequestID ||= crypto.randomUUID();repaint();
     const payload={audit_id:s.audit.id,confirmed:confirmed(s),profile_ids:mode==='full'?ids:[],project_id:s.projectID,request_id:s.startRequestID,mode};
     try{const d=await remoteWorkspace('start',payload);if(!current(j))return;s.pending=false;s.startRequestID=null;s.detail=d;s.detailLoaded=true;s.detailID=d.id;s.workspaceLoaded=false;route('',d.id);}
-    catch(e){failure(j,e);}
+    catch(e){if(current(j)){s.pending=false;startError(e.message+' 不会自动重新提交；结果未确认时请先核对历史诊断。');}}
   }
   function acceptDiagnostic(j,d) {
     if(!current(j))return;const s=session();s.detail=d;s.detailID=d.id;s.pending=false;s.message='';s.detailLoading=false;s.detailLoaded=true;
@@ -339,24 +391,26 @@
   };
   geoChange=function(m){if(!['CN','US'].includes(m))return;stop();return legacyChange(m);};
   document.addEventListener('submit',e=>{if(e.target.id==='audit-url-form'){e.preventDefault();void analyze();}if(e.target.id==='workflow-client-form'){e.preventDefault();void manage('client');}if(e.target.id==='workflow-project-form'){e.preventDefault();void manage('project');}});
-  document.addEventListener('input',e=>{const s=session(),keys={'audit-brand':'brand','audit-products':'products','audit-competitors':'competitors','audit-context':'context'};if(e.target.id==='audit-url')s.url=e.target.value;else if(keys[e.target.id]&&s.draft)s.draft[keys[e.target.id]]=e.target.value;});
+  document.addEventListener('input',e=>{const s=session(),keys={'audit-brand':'brand','audit-products':'products','audit-competitors':'competitors','audit-context':'context'};if(e.target.id==='workflow-inline-client-name')inlineProjectDraft(s).clientName=e.target.value;else if(e.target.id==='workflow-inline-project-name')inlineProjectDraft(s).projectName=e.target.value;else if(e.target.id==='audit-url')s.url=e.target.value;else if(keys[e.target.id]&&s.draft)s.draft[keys[e.target.id]]=e.target.value;},true);
   document.addEventListener('change',e=>{
     const s=session(),id=e.target.id;
     if(id==='audit-market'){geoChange(e.target.value);return;}
-    if(id==='workflow-project'){s.projectID=e.target.value;s.costConsent=false;repaint();}
+    if(id==='workflow-inline-client'){inlineProjectDraft(s).clientID=e.target.value;s.inlineProjectOpen=true;repaint();return;}
+    if(id==='workflow-project'){const before=planMaximum(s);s.projectID=e.target.value;if(planMaximum(s)>before)s.costConsent=false;s.projectError='';s.startError='';s.invalidField='';repaint();}
     if(id==='workflow-cost-consent')s.costConsent=e.target.checked;
     if(e.target.name==='workflow-mode'){s.runMode=e.target.value;s.costConsent=false;repaint();}
-    if(e.target.hasAttribute('data-wf-profile')){const key=e.target.dataset.wfProfile;s.profileIDs=e.target.checked?[...new Set([...array(s.profileIDs),key])]:array(s.profileIDs).filter(v=>v!==key);s.costConsent=false;repaint();}
+    if(e.target.hasAttribute('data-wf-profile')){const key=e.target.dataset.wfProfile;if(e.target.checked&&!array(s.profileIDs).includes(key)&&array(s.profileIDs).length>=2){e.target.checked=false;s.profileError='最多选择两家，请先取消一家再选择其他 AI。';repaint();return;}s.profileIDs=e.target.checked?[...new Set([...array(s.profileIDs),key])]:array(s.profileIDs).filter(v=>v!==key);s.profileError='';s.startError='';s.costConsent=false;repaint();}
     for(const [field,name] of [['workflow-filter-client','filterClient'],['workflow-filter-project','filterProject'],['workflow-filter-market','filterMarket']])if(id===field){s[name]=e.target.value;if(name==='filterClient')s.filterProject='';repaint();}
-  });
+  },true);
   document.addEventListener('click',e=>{
     const question=e.target.closest('[data-wf-question]');if(question){questionDialog(Number(question.dataset.wfQuestion));return;}
     const rev=e.target.closest('[data-wf-revoke]');if(rev){void share(rev.dataset.wfRevoke);return;}
     const button=e.target.closest('[data-wf],[data-sr]');if(!button)return;
     const action=button.dataset.wf || button.dataset.sr,s=session();e.preventDefault();
-    if(action==='confirm'){s.screen='models';s.message='';s.costConsent=false;repaint();return;}
+    if(action==='confirm'){s.screen='models';s.message='';s.costConsent=false;s.startError='';s.startNotice='';repaint();return;}
     if(action==='refresh'){void analyze(true);return;}
-    if(action==='start'){void startDiagnostic();return;}
+    if(action==='inline-project'){void createInlineProject();return;}
+    if(action==='start'){void startDiagnostic().catch(()=>{session().pending=false;startError('提交未能完成，请核对项目与方案后重试；不会自动开始诊断。');});return;}
     if(action==='preview-resume'&&s.audit?.id){void read(job(),s.audit.id);return;}
     if(['html','json','print'].includes(action)){void exportReport(action);return;}
     if(action==='share'){void share();return;}
@@ -369,7 +423,7 @@
     if(action==='back-from-projects'){s.screen=s.returnScreen || 'history';s.returnScreen=null;repaint();return;}
     if(action==='brand'){s.screen='confirm';repaint();return;}
     if(action==='url'){stop();s.pending=false;s.screen='url';repaint();}
-  });
+  },true);
   window.addEventListener('remote-enrichment-invalidated',()=>{stop();});
   window.addEventListener('hashchange',()=>{stop();if(onWorkflow()){const s=session();syncRoute(s);s.detailLoading=false;s.publicLoading=false;repaint();}});
   window.addEventListener('pagehide',stop);

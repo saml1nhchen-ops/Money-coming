@@ -282,6 +282,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
     metadata={k:v for k,v in (('revision',revision),('version',version)) if v!='unknown'}
     if w.session_store is not None and w.session_store.usable():metadata['capabilities']={'remember_login':True,'remember_login_max_age_seconds':MAX_AGE}
     if w.diagnostics is not None:metadata.setdefault('capabilities',{})['diagnostics_v1']=True
+    manufacturers=sorted({p.get('manufacturer') for p in w.profiles if p.get('manufacturer') in ('OpenAI','Google','Anthropic')})
+    metadata.setdefault('capabilities',{}).update(claude_available='Anthropic' in manufacturers,analysis_manufacturers=manufacturers)
     return self.reply({'ok':not w.stopping(),**metadata},200 if not w.stopping() else 503)
    if u.path not in (get if self.command=='GET' else post):raise Failure(404,'not_found')
    if u.path in ('/api/geo/run','/api/geo/export','/api/geo/enrich','/api/geo/audit','/api/geo/audit-export','/api/diagnostics/detail','/api/diagnostics/export') and self.command=='GET':

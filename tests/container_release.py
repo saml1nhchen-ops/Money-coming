@@ -38,7 +38,7 @@ with tempfile.TemporaryDirectory(prefix='signal-admission-') as folder:
  p=pathlib.Path(folder);p.chmod(0o755)
  try:
   docker('run','-d','--init','--name',name,'--network','none','--mount','type=volume,src='+volume+',dst=/app/runtime','--mount','type=bind,src='+folder+',dst=/run/signal-deploy,readonly','-e','SIGNAL_WORKSPACE_PASSWORD','-e','SIGNAL_BAI_API_KEY=','-e','SIGNAL_PUBLIC_HOST=backend.test','-e','SIGNAL_DEPLOY_MAINTENANCE=1','-e','SIGNAL_DEPLOY_NONCE='+nonce,image)
-  h=wait_health();assert h=={'ok':True,'revision':revision,'version':'release-check','capabilities':{'remember_login':True,'remember_login_max_age_seconds':2592000,'diagnostics_v1':True}},h
+  h=wait_health();assert h=={'ok':True,'revision':revision,'version':'release-check','capabilities':{'remember_login':True,'remember_login_max_age_seconds':2592000,'diagnostics_v1':True,'claude_available':False,'analysis_manufacturers':[]}},h
   assert state()=={'maintenance':True,'gate':'signals-v1','model_ready':False}
   probe=docker('exec',name,'python3','tools/deploy_control.py','probe');assert json.loads(probe.stdout)['maintenance']
   health=docker('exec',name,'python3','tools/deploy_control.py','health','--timeout','.2',check=False);assert health.returncode!=0 and json.loads(health.stdout)=={'ok':False,'code':'health_timeout'},health.stdout

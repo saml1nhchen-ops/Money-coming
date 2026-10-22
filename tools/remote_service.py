@@ -4,12 +4,30 @@ from remote_gateway import Budget, Failure, LocalAPI, Server, Workspace
 from device_sessions import DeviceSessions
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 def choose_models(models,environ=os.environ):
+ """Select real directory IDs only. Claude is optional unless explicitly pinned.
+
+ Haiku preference is a family preference, not a verified pricing/free claim.
+ The B.AI catalog projection exposes IDs/names, not verified billing or model
+ capabilities; profile creation and actual usage remain authoritative.
+ """
  ids={m['id'] for m in models if isinstance(m,dict) and isinstance(m.get('id'),str)};selected=[]
- for family,var in [('gpt','SIGNAL_GPT_MODEL'),('gemini','SIGNAL_GEMINI_MODEL')]:
+ for family,var in [('gpt','SIGNAL_GPT_MODEL'),('gemini','SIGNAL_GEMINI_MODEL'),('claude','SIGNAL_CLAUDE_MODEL')]:
   candidates=sorted(i for i in ids if re.search(r'(?:^|[/\s-])'+family+r'(?:-|\d)',i,re.I) and not re.search(r'auto|router|latest|dynamic|image|audio|realtime|embedding|tts|search',i,re.I))
+  if family=='claude':
+   # Require a versioned text-family ID, never a moving unversioned alias.
+   version=r'\d+(?:[.-]\d+)?'
+   family_id=r'(?:haiku|sonnet|opus)'
+   fixed_claude=rf'(?:anthropic/)?claude-(?:{family_id}-{version}|{version}-{family_id})(?:-\d{{8}})?'
+   candidates=[i for i in candidates if re.fullmatch(fixed_claude,i,re.I)]
+   def preference(mid):
+    version=tuple(int(n) for n in re.findall(r'\d+',mid))
+    return (0 if re.search(r'haiku',mid,re.I) else 1 if re.search(r'sonnet',mid,re.I) else 2,tuple(-n for n in version),mid)
+   candidates=sorted(candidates,key=preference)
   explicit=environ.get(var)
-  if explicit and explicit not in candidates:raise Failure(503,'required_models_unavailable')
-  if not candidates:raise Failure(503,'required_models_unavailable')
+  if explicit and explicit not in candidates:raise Failure(503,'configured_claude_unavailable' if family=='claude' else 'required_models_unavailable')
+  if not candidates:
+   if family=='claude':continue
+   raise Failure(503,'required_models_unavailable')
   selected.append(explicit or candidates[0])
  return selected
 def prepare_dependencies(root=ROOT):
@@ -17,14 +35,25 @@ def prepare_dependencies(root=ROOT):
  if not target.exists() and seed.exists():target.parent.mkdir(parents=True,exist_ok=True);target.symlink_to(seed,target_is_directory=True)
  return bool(shutil.which('node') and (target/'node_modules/tsx/dist/cli.mjs').is_file())
 def bootstrap(w,environ=os.environ):
+ w.ready=False
  if not environ.get('SIGNAL_BAI_API_KEY'):w.reason='missing_bai_key';return
  try:
   state=w.api.call('bai','connect',{'key':environ['SIGNAL_BAI_API_KEY']})
-  for model in choose_models(state.get('models',[]),environ):state=w.api.call('bai','profile',{'model':model,'name':model,'protocol':'chat','markets':['CN','US'],'search':False})
+  selected=choose_models(state.get('models',[]),environ)
+  configured=[]
+  for model in selected:
+   try:state=w.api.call('bai','profile',{'model':model,'name':model,'protocol':'chat','markets':['CN','US'],'search':False})
+   except Exception:
+    if re.search(r'(?:^|[/\s-])claude',model,re.I):
+     if environ.get('SIGNAL_CLAUDE_MODEL'):raise Failure(503,'configured_claude_unavailable') from None
+     continue # Optional Claude cannot disable existing GPT/Gemini profiles.
+    raise
+   configured.append(model)
   w.profiles=state['profiles'];w.fetched_at=state.get('fetched_at')
-  for p in w.profiles:p['manufacturer']='OpenAI' if re.search(r'(?:^|[/\s-])gpt',p['model'],re.I) else 'Google'
-  if len(w.profiles)!=2:w.reason='required_models_unavailable';return
- except Failure as e:w.reason=e.code if e.code=='required_models_unavailable' else 'catalog_unavailable';return
+  for p in w.profiles:
+   p['manufacturer']='OpenAI' if re.search(r'(?:^|[/\s-])gpt',p['model'],re.I) else 'Anthropic' if re.search(r'(?:^|[/\s-])claude',p['model'],re.I) else 'Google'
+  if len(w.profiles)!=len(configured) or {p.get('model') for p in w.profiles}!=set(configured):w.reason='required_models_unavailable';return
+ except Failure as e:w.reason=e.code if e.code in ('required_models_unavailable','configured_claude_unavailable') else 'catalog_unavailable';return
  except Exception:w.reason='catalog_unavailable';return
  if not prepare_dependencies():w.reason='runtime_unavailable';return
  w.ready=True;w.reason=None

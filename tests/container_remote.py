@@ -28,7 +28,7 @@ try:
  else:raise AssertionError('Container health failed')
  status,health=request('/healthz')
  assert status==200 and health['ok'] is True
- assert health['capabilities']=={'remember_login':True,'remember_login_max_age_seconds':2592000}
+ assert health['capabilities']=={'remember_login':True,'remember_login_max_age_seconds':2592000,'diagnostics_v1':True,'claude_available':False,'analysis_manufacturers':[]}
  assert request('/api/geo/state')[0]==401
  durable=login(True);other_device=login(True)
  token=login();status,state=request('/api/geo/state',token=token)

@@ -22,7 +22,7 @@ class DurableHTTPTests(unittest.TestCase):
   if password is not None:self.password=password
   self.store=DeviceSessions(self.path,self.password);self.w=self.workspace(self.store,self.password);self.server.workspace=self.w
  def test_capability_legacy_payload_and_same_volume_restart(self):
-  self.assertEqual(self.request('/healthz')[1]['capabilities'],{'remember_login':True,'remember_login_max_age_seconds':MAX_AGE})
+  self.assertEqual(self.request('/healthz')[1]['capabilities'],{'remember_login':True,'remember_login_max_age_seconds':MAX_AGE,'claude_available':False,'analysis_manufacturers':[]})
   status,legacy=self.request('/api/workspace/login',{'password':self.password});self.assertEqual(status,200);self.assertFalse(legacy['remembered']);self.assertFalse(legacy['token'].startswith('td1_'))
   now=time.time();status,trusted=self.login();self.assertEqual(status,200);self.assertTrue(trusted['remembered']);self.assertTrue(trusted['token'].startswith('td1_'));self.assertEqual(self.request('/api/geo/state',token=trusted['token'])[0],200)
   from datetime import datetime
@@ -51,7 +51,7 @@ class DurableHTTPTests(unittest.TestCase):
    status,d=self.request(route,body,durable['token']);self.assertEqual((status,d['code']),(503,'session_store_unavailable'))
   self.assertEqual(self.request('/api/geo/state',token=legacy['token'])[0],200)
   self.assertEqual(self.login(False)[0],200);status,d=self.login();self.assertEqual((status,d['code']),(503,'session_store_unavailable'))
-  status,d=self.request('/healthz');self.assertEqual(status,200);self.assertNotIn('capabilities',d);self.assertNotIn(self.password,str(d));self.assertNotIn(durable['token'],str(d))
+  status,d=self.request('/healthz');self.assertEqual(status,200);self.assertNotIn('remember_login',d.get('capabilities',{}));self.assertNotIn(self.password,str(d));self.assertNotIn(durable['token'],str(d))
  def test_bad_session_fields_are_503_without_cleanup_and_legacy_works(self):
   _,durable=self.login();_,legacy=self.login(False)
   mutations=[('expires_at','not-an-integer'),('created_at','not-an-integer'),('expires_at',-1),('created_at',-1),('expires_at',253402300800),('token_hash','not-a-blob'),('token_hash',b'short'),('generation','bad-generation'),('generation','f'*64)]
@@ -65,7 +65,7 @@ class DurableHTTPTests(unittest.TestCase):
     status,d=self.login();self.assertEqual((status,d['code']),(503,'session_store_unavailable'))
     self.w.attempts.clear();self.w.global_attempts.clear()
     self.assertEqual(self.request('/api/geo/state',token=legacy['token'])[0],200);self.assertEqual(self.login(False)[0],200)
-    self.assertNotIn('capabilities',self.request('/healthz')[1])
+    self.assertNotIn('remember_login',self.request('/healthz')[1].get('capabilities',{}))
     # Fault detection must not delete or silently repair even expired bad rows.
     with sqlite3.connect(self.path) as c:
      self.assertEqual(c.execute('SELECT '+field+' FROM trusted_sessions').fetchone()[0],value)

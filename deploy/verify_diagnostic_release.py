@@ -45,8 +45,11 @@ def main():
                 expected = hashlib.sha256((ROOT / 'dist' / name).read_bytes()).hexdigest()
                 assets.append({'name': name, 'matches': actual == expected, 'sha256': actual})
             report['frontend'] = assets
-            report['ok'] = bool(any(r.get('conclusion') == 'success' for r in releases) and report['health'].get('revision') == revision and report['health'].get('ok') is True and report['health'].get('capabilities', {}).get('diagnostics_v1') is True and all(a['matches'] for a in assets))
-            if report['ok']:
+            deployed = bool(any(r.get('conclusion') == 'success' for r in releases) and report['health'].get('revision') == revision and report['health'].get('ok') is True and report['health'].get('capabilities', {}).get('diagnostics_v1') is True and all(a['matches'] for a in assets))
+            report['claude_available'] = report['health'].get('capabilities', {}).get('claude_available') is True
+            report['ok'] = deployed and report['claude_available']
+            report.pop('observation_error', None)
+            if deployed:
                 break
             print('Waiting for the exact Release, backend revision and Pages assets; attempt', attempt + 1, flush=True)
         except Exception as error:
