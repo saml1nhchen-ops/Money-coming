@@ -5,7 +5,7 @@
   const nativePage = geoPage, nativeRender = render, nativeStart = geoStart;
   const nativeSave = researchSave, nativePayload = geoPayload, nativeChange = geoChange;
   const nativeResults = researchResults, nativeSelect = researchSelect, nativeAdvanced = researchAdvanced;
-  const connection = {url:'',expiresAt:0,busy:false,offline:false,verified:false,message:'',notice:'',rememberChoice:true,remembered:false,saved:false};
+  const connection = {url:'',expiresAt:0,busy:false,offline:false,verified:false,message:'',notice:'',rememberChoice:true,remembered:false,saved:false,capabilities:{}};
   let token = '', epoch = 0, expiryTimer = null, submission = false;
   const pending = new Set(), AUTH_PREFIX = 'signal-team-auth:v1:', MAX_TIMER = 2147483646;
   const error = (message, code = 'request_failed') => Object.assign(new Error(message), {code});
@@ -62,7 +62,7 @@
   function paint() { if (page === 'research') render(); }
   function clear(message = '请重新登录。') {
     epoch++; window.dispatchEvent(new Event('remote-enrichment-invalidated')); for (const controller of pending) controller.abort(); pending.clear();
-    token = ''; geoToken = ''; connection.expiresAt = 0; connection.offline = false; connection.busy = false; connection.verified = false; connection.saved = false; connection.remembered = false;
+    token = ''; geoToken = ''; connection.expiresAt = 0; connection.offline = false; connection.busy = false; connection.verified = false; connection.saved = false; connection.remembered = false; connection.capabilities = {};
     clearTimeout(expiryTimer); clearTimeout(geoTimer); submission = false;
     connection.message = message; connection.notice = '';
     geoState = {runner:{configured:false,profiles:[]},runs:[]}; geoActive = null; geoPlanView = null;
@@ -96,7 +96,7 @@
     current(generation);
     const controller = new AbortController(); pending.add(controller);
     let timedOut = false;
-    const paid = /\/api\/geo\/(start|sample|enrich)$/.test(path);
+    const paid = /\/api\/geo\/(start|sample|enrich)$/.test(path) || /\/api\/diagnostics(?:\/retest)?$/.test(path) && body !== undefined;
     const timer = setTimeout(() => { timedOut = true; controller.abort(); }, paid ? 135000 : 20000);
     try {
       let response;
@@ -122,6 +122,7 @@
       current(generation);
       if (!response.ok) throw Object.assign(error(messages[data?.code] || '后台请求失败，请刷新状态或联系管理员。',data?.code || 'request_failed'),{connectionFailure:response.status >= 500});
       if (!data || typeof data !== 'object' || Array.isArray(data)) throw Object.assign(error('后台响应格式错误。','invalid_response'),{connectionFailure:true});
+      if (path === '/healthz' && url === connection.url) connection.capabilities = data.capabilities || {};
       return data;
     } finally { clearTimeout(timer); pending.delete(controller); }
   }
@@ -130,6 +131,7 @@
     clear('正在验证此设备保存的登录…');
     token = record.token; geoToken = 'team-session'; connection.expiresAt = Date.parse(record.expires_at); connection.saved = true; connection.remembered = record.remembered; connection.busy = true;
     const generation = epoch; scheduleExpiry(); paint();
+    try { await request('/healthz',undefined,{generation,token:'',expectedStatus:200}); } catch {}
     await geoRefresh(false);
     if (generation === epoch) { connection.busy = false; paint(); }
   }
@@ -158,20 +160,15 @@
   };
   window.remotePasswordLogin = function() { capture(); clear('请重新输入团队密码。'); paint(); };
   function normalize() {
-    const draft = geoDraft[geoMarket], profiles = geoState.runner.profiles || [], seen = new Set();
-    draft.providers = [...new Set(draft.providers || [])].filter(id => {
-      const p = profiles.find(p => p.id === id && p.markets?.includes(geoMarket));
-      const vendor = p?.manufacturer || p?.model;
-      if (!p || seen.has(vendor) || seen.size >= 2) return false;
-      seen.add(vendor); return true;
-    });
+    const draft = geoDraft[geoMarket], profiles = geoState.runner.profiles || [];
+    draft.providers = [...new Set(draft.providers || [])].filter(id => profiles.some(p=>p.id===id && p.markets?.includes(geoMarket)));
     if (!draft.providers.includes(draft.generator)) draft.generator = draft.providers[0] || '';
     draft.count = '30'; draft.repeats = '1';
   }
   const common = ['website','market','brand_aliases','skus','competitors','focus','context','count','repeats','providers','generator'];
   function payload(name, body) {
     if (body === undefined) return undefined;
-    const fields = {enrich:['website','market','request_id'],inspect:['website','market'],plan:[...common,'generate_only','manual'],start:[...common,'generate_only'],sample:[...common,'prompts'],analyze:['id','brand_aliases','skus','competitors'],stop:['id'],diagnose:['website','market','brand','aliases','flow_id']}[name];
+    const fields = {enrich:['website','market','request_id'],inspect:['website','market'],plan:[...common,'generate_only','manual'],start:[...common,'generate_only'],sample:[...common,'prompts'],analyze:['id','brand_aliases','skus','competitors'],stop:['id']}[name];
     if (!fields) throw error('该操作不属于团队接口。');
     return Object.fromEntries(fields.filter(key => Object.hasOwn(body,key)).map(key => [key,body[key]]));
   }
@@ -183,10 +180,66 @@
     if (typeof bodyOrId === 'string' && !/^[0-9a-f-]{36}$/i.test(bodyOrId)) throw error('识别编号无效。','invalid_request');
     return request('/api/geo/enrich'+(typeof bodyOrId === 'string' ? '?id='+encodeURIComponent(bodyOrId) : ''),typeof bodyOrId === 'string' ? undefined : payload('enrich',bodyOrId),{generation});
   };
+  // Website audits never require a model, model readiness, or a model budget.
+  window.remoteAudit = async function(action, input) {
+    if (!remoteEnrichmentContext().authenticated) throw error('请先登录团队后台。','unauthorized');
+    const generation = epoch;
+    const names = {preview:'audit',read:'audit',confirm:'audit-confirm',export:'audit-export'};
+    if (!Object.hasOwn(names,action)) throw error('不支持的官网检测操作。','invalid_request');
+    const validID = id => typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (action === 'read' || action === 'export') {
+      if (!validID(input)) throw error('官网检测编号无效。','invalid_request');
+      return request('/api/geo/'+names[action]+'?id='+encodeURIComponent(input),undefined,{generation});
+    }
+    let body;
+    if (action === 'preview') {
+      if (!validID(input?.request_id)) throw error('请求编号无效。','invalid_request');
+      body = {website:input.website,market:input.market,request_id:input.request_id,...(input.refresh === true?{refresh:true}:{})};
+    } else {
+      if (!validID(input?.id) || !input.confirmed) throw error('确认信息无效。','invalid_request');
+      const select = (value,keys) => Object.fromEntries(keys.filter(k=>Object.hasOwn(value || {},k)).map(k=>[k,value[k]]));
+      const c = input.confirmed;
+      body = {id:input.id,confirmed:{brand:select(c.brand,['name','aliases']),products:(c.products || []).map(v=>select(v,['name','aliases','source_candidate_id'])),competitors:(c.competitors || []).map(v=>select(v,['name','aliases','domains','source_candidate_id'])),...(typeof c.context === 'string'?{context:c.context}:{})}};
+    }
+    return request('/api/geo/'+names[action],body,{generation});
+  };
+  window.remoteDiagnosticsContext = () => ({...remoteEnrichmentContext(),supported:connection.capabilities?.diagnostics_v1 === true,canRead:Boolean(token && Date.now() < connection.expiresAt)});
+  window.remoteWorkspace = async function(action, input) {
+    const readOnly=['clients','projects','list','detail','export'].includes(action);
+    if (!(readOnly?remoteDiagnosticsContext().canRead:remoteEnrichmentContext().authenticated)) throw error('请先登录团队后台。','unauthorized');
+    if (!readOnly && !remoteDiagnosticsContext().supported) throw error('后台正在升级，新的诊断功能尚未就绪。不会自动启动旧分析。','diagnostics_unavailable');
+    const generation = epoch, validID = v => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+    const get = {clients:'/api/clients',projects:'/api/projects',list:'/api/diagnostics',detail:'/api/diagnostics/detail',export:'/api/diagnostics/export'};
+    if (Object.hasOwn(get,action)) {
+      if (['detail','export'].includes(action) && !validID(input)) throw error('诊断编号无效。','invalid_request');
+      return request(get[action]+(['detail','export'].includes(action)?'?id='+encodeURIComponent(input):''),undefined,{generation});
+    }
+    const pick = (value,keys) => Object.fromEntries(keys.filter(k=>Object.hasOwn(value || {},k)).map(k=>[k,value[k]]));
+    let path, body;
+    if (action === 'client') {path='/api/clients';body=pick(input,['name']);}
+    else if (action === 'project') {path='/api/projects';body=pick(input,['client_id','name']);}
+    else if (action === 'start') {
+      path='/api/diagnostics'; body=pick(input,['audit_id','profile_ids','project_id','request_id','mode']);
+      const c=input?.confirmed || {};
+      body.confirmed={brand:pick(c.brand,['name','aliases']),products:(c.products || []).map(v=>pick(v,['name','aliases','source_candidate_id'])),competitors:(c.competitors || []).map(v=>pick(v,['name','aliases','domains','source_candidate_id'])),context:typeof c.context==='string'?c.context:''};
+    } else if (action === 'retest') {path='/api/diagnostics/retest';body=pick(input,['id','request_id']);}
+    else if (action === 'share') {path='/api/diagnostics/share';body=pick(input,['id']);}
+    else if (action === 'revoke') {path='/api/diagnostics/revoke';body=pick(input,['share_id']);}
+    else throw error('不支持的诊断操作。','invalid_request');
+    return request(path,body,{generation});
+  };
+  window.remoteSharedReport = async function(shareToken) {
+    if (typeof shareToken !== 'string' || !/^[A-Za-z0-9_-]{20,256}$/.test(shareToken)) throw error('分享链接无效或已失效。','invalid_request');
+    const url=configuredOrigin();
+    if (!url) throw error('尚未配置报告后台。','backend_unavailable');
+    return request('/api/shared-report?token='+encodeURIComponent(shareToken),undefined,{generation:epoch,token:'',url});
+  };
   window.remoteCanRun = canRun;
   window.remoteNormalizeSelection = normalize;
-  window.remoteConnectionMarkup = function() {
+  window.remoteConnectionMarkup = function(options = {}) {
     const s = geoState.remote, budget = s?.budget, limits = s?.limits;
+    if (options.audit === true) return `<section class="ru-remote" id="remote-connection" aria-label="团队后台连接"><h2>团队后台登录</h2><p>网站 GEO 检测通过规则和工具完成，不需要模型密钥或模型额度。</p><p id="remote-current-url" class="mono">当前后台：<code>${esc(connection.url || '尚未选择')}</code></p>${token?`<p>${connection.offline?'后台暂时连接失败':connection.verified?'团队已登录，可以检测官网':'正在验证保存的登录'} · 有效至 ${esc(new Date(connection.expiresAt).toLocaleString())}</p><div class="actions"><button onclick="geoRefresh()">刷新连接状态</button><button onclick="remotePasswordLogin()">重新登录 / 更换后台</button><button onclick="remoteLogout()">退出此设备</button></div>`:`<form onsubmit="remoteLogin(event)"><label class="ru-field"><span>HTTPS 后台地址</span><input id="remote-backend-url" type="url" value="${esc(connection.url)}" autocomplete="off" onchange="remoteBackendChanged(this.value)" required></label><label class="ru-field"><span>团队密码</span><input id="remote-password" type="password" autocomplete="off" required></label><label><input id="remote-remember" type="checkbox" ${connection.rememberChoice?'checked':''}> 在此设备保持登录（仅可信设备）</label><button class="primary" ${connection.busy?'disabled':''}>连接并登录</button><button type="button" onclick="remoteUseConfiguredBackend()">使用已配置的后台</button></form>`}${connection.message?`<p role="status">${esc(connection.message)}</p>`:''}${connection.notice?`<p class="sr-muted">${esc(connection.notice)}</p>`:''}${s?.reason==='maintenance'?'<p>后台正在维护，请稍后明确重试。</p>':''}<p class="sr-muted">登录与恢复只验证连接，不自动读取官网或调用模型。</p></section>`;
+
     return `<section class="ru-remote" id="remote-connection" aria-label="团队后台连接"><h2>连接团队分析后台</h2><p id="remote-current-url" class="mono" style="overflow-wrap:anywhere">当前后台：<code>${esc(connection.url || '尚未选择')}</code></p><button type="button" onclick="remoteUseConfiguredBackend()">使用已配置的后台</button><p>授权团队成员共享模型连接、报告和停止权限。B.AI 密钥由管理员配置在服务器，团队密码仅用于身份验证。</p>${token ? `<p><b>${connection.offline ? '后台连接失败' : !connection.verified ? '正在验证保存的登录' : s?.ready ? '团队后台已连接 · 运行依赖已就绪' : '团队已登录 · 暂不能开始分析'}</b> · 登录有效至 ${esc(new Date(connection.expiresAt).toLocaleString())}</p><p class="mono">${esc(connection.url)}</p><div class="actions"><button onclick="geoRefresh()">刷新后台状态</button><button onclick="remotePasswordLogin()">重新登录 / 更换后台</button><button onclick="remoteLogout()">退出此设备</button></div>` : `<form onsubmit="remoteLogin(event)"><label class="ru-field" for="remote-backend-url"><span>HTTPS 后台地址</span><input id="remote-backend-url" type="url" value="${esc(connection.url)}" placeholder="https://你的团队分析后台" autocomplete="off" onchange="remoteBackendChanged(this.value)" required></label><label class="ru-field" for="remote-password"><span>团队密码</span><input id="remote-password" type="password" autocomplete="off" required></label><label><input id="remote-remember" type="checkbox" ${connection.rememberChoice ? 'checked' : ''}> 在此设备保持登录（仅可信设备）</label><button class="primary" ${connection.busy ? 'disabled' : ''}>${connection.busy ? '正在登录…' : '连接并登录'}</button><button type="button" onclick="remoteLogout()">取消 / 退出此设备</button></form>`}<p class="ru-help">默认保持登录，后台支持时最长 30 天；只保存此后台的登录令牌和到期时间，不保存团队密码或供应商密钥。登录与恢复只读取状态，不自动开始分析。</p>${connection.notice ? `<p class="ru-help" role="status">${esc(connection.notice)}</p>` : ''}${connection.message ? `<p class="ru-warning" role="status">${esc(connection.message)}</p>` : ''}${token && s?.ready !== true ? `<p class="ru-warning">${esc(messages[s?.reason] || '后台就绪状态未知，请刷新或联系管理员。')}</p>` : ''}${token ? `<p>中国 / 美国分开测量 · ${esc(limits?.count ?? '未知')} 题 · 最多 ${esc(limits?.max_models ?? '未知')} 个模型 · 每题 ${esc(limits?.repeats ?? '未知')} 次</p><p>UTC ${esc(budget?.date ?? '未知日期')}：已预约 ${esc(budget?.reserved ?? '未知')} / ${esc(budget?.limit ?? '未知')} 次，剩余 ${esc(budget?.remaining ?? '未知')} 次。预约调用数不是实际账单，失败或停止不自动退还。</p>${!Number.isFinite(budget?.remaining) ? '<p class="ru-warning">预算状态未知，已暂停新付费任务，请刷新状态。</p>' : budget.remaining === 0 ? '<p class="ru-warning">今日额度已用完；已有报告仍可查看和导出。</p>' : ''}<details><summary>服务端固定模型与目录时间</summary>${geoState.runner.profiles.length ? geoState.runner.profiles.map(p => `<p><code>${esc(p.model)}</code> · ${esc(p.protocol)} · ${esc((p.markets || []).join('/'))} · 目录可见，调用兼容性需实际验证。</p>`).join('') : '<p>模型目录暂不可用，不代表测评分数为零。</p>'}<p>${esc(geoState.runner.fetched_at || '后台未提供目录时间')}</p></details>` : ''}</section>`;
   };
   window.remoteLogin = async function(event) {
@@ -254,11 +307,15 @@
   geoLoad = async function() { paint(); };
   geoPayload = function() { const body = nativePayload(); normalize(); const d = geoDraft[geoMarket]; return {...body,market:geoMarket,count:30,repeats:1,providers:[...d.providers],generator:d.generator}; };
   geoOptions = function() { const d = geoDraft[geoMarket]; return geoState.runner.profiles.filter(p => d.providers?.includes(p.id) && p.markets?.includes(geoMarket)).map(p => `<option value="${esc(p.id)}" ${d.generator === p.id ? 'selected' : ''}>${esc(p.model)}</option>`).join('') || '<option value="">先选择回答模型</option>'; };
+  // Team selection is per actual profile, including multiple models from the same manufacturer.
+  researchChoices = function() {
+    const d=geoDraft[geoMarket],seen=new Set();
+    return geoState.runner.profiles.filter(p=>p.markets?.includes(geoMarket) && !seen.has(p.id) && seen.add(p.id)).map(p=>({vendor:p.id,ps:[p],p,selected:d.providers?.includes(p.id)===true,display:[p.name || p.model,(p.manufacturer || p.name || 'AI').slice(0,1),researchVendors[p.manufacturer]?.[2] || '#6554d9']}));
+  };
   researchToggle = function(vendor) {
     capture(); const d = geoDraft[geoMarket], group = researchChoices().find(g => g.vendor === vendor); if (!group) return;
     const ids = new Set(group.ps.map(p => p.id));
     if (group.selected) d.providers = d.providers.filter(id => !ids.has(id));
-    else if ((d.providers || []).length >= 2) { researchMessage = '最多选择两家厂商，每家一个固定模型。'; paint(); return; }
     else d.providers = [...(d.providers || []),group.p.id];
     researchMessage = ''; normalize(); paint();
   };
@@ -270,15 +327,17 @@
     let message = '';
     if (!token) message = '请先连接团队后台并登录。';
     else if (!ready()) message = '后台未就绪或连接已中断，请查看连接状态并刷新。';
-    else if (!providers.length || providers.length > 2) message = '请选择 1–2 个固定文本模型。';
+    else if (!providers.length) message = '请至少选择一个固定文本模型。';
+    else if (Number.isFinite(geoState.remote?.limits?.max_models) && geoState.remote.limits.max_models>0 && providers.length>geoState.remote.limits.max_models) message='后台正在更新，请稍后重新读取状态；已保留全部选择。';
     else if (manual && (prompts.length !== 30 || new Set(prompts).size !== 30 || prompts.some(p => p.length > 4000))) message = '手工采样需要恰好 30 道不同问题，每题不超过 4000 字符。';
     else if (!canRun(calls)) message = '后台已有任务或调用额度不足，请刷新状态并核对计划。';
     if (message) { researchMessage = message; paint(); return; }
     submission = true; const generation = epoch; paint();
     try { await nativeStart(manual,generateOnly); } finally { if (generation === epoch) { submission = false; paint(); } }
   };
-  researchSelect = function() { return nativeSelect().replace(/<a class="button primary" href="http:\/\/127\.0\.0\.1:8771[^>]*>[^<]*<\/a>/g,'<a class="button primary" href="#remote-connection">连接团队后台</a>'); };
-  researchAdvanced = function() { return nativeAdvanced().replace(/<p><a href="http:\/\/127\.0\.0\.1:8771[\s\S]*?<\/p>/g,'<p class="ru-help">供应商密钥仅在服务器配置；目录可见不等于实际调用已验证。每家使用一个固定模型，不自动切换或重试。</p>'); };
+  window.remoteSelectProfiles = function(all) { capture();const d=geoDraft[geoMarket];d.providers=all?researchChoices().map(g=>g.p.id):[];normalize();paint(); };
+  researchSelect = function() { return nativeSelect().replace('点选要测试的厂商。每家使用一个模型，回答同一组 30 道问题。','选择要测试的模型，每个所选模型回答同一组 30 道问题。').replace('每题问一次 · 每家一个模型','每题问一次 · 每个所选模型分别回答').replace('<div class="ru-model-grid">','<div class="actions"><button type="button" onclick="remoteSelectProfiles(true)">全选</button><button type="button" onclick="remoteSelectProfiles(false)">清空</button></div><div class="ru-model-grid">').replace(/<a class="button primary" href="http:\/\/127\.0\.0\.1:8771[^>]*>[^<]*<\/a>/g,'<a class="button primary" href="#remote-connection">连接团队后台</a>'); };
+  researchAdvanced = function() { return nativeAdvanced().replace(/<p><a href="http:\/\/127\.0\.0\.1:8771[\s\S]*?<\/p>/g,'<p class="ru-help">供应商密钥仅在服务器配置；目录可见不等于实际调用已验证。每个所选模型分别执行，不自动切换或重试。</p>'); };
   researchResults = function() { const html = nativeResults().replace(/<button onclick="geoResume\(\)">[^<]*<\/button>/g,''); return html + (geoActive && !geoActive.report && typeof questionCards === 'function' ? questionCards(geoActive) : ''); };
   geoPage = function() { return remoteConnectionMarkup() + nativePage(); };
   function consumeDraft() {

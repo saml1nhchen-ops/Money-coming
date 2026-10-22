@@ -10,10 +10,9 @@ import geo_analysis,geo_plan
 import website_inspection
 import pinned_http
 import website_check
-import geo_diagnose
 ROOT=pathlib.Path(__file__).resolve().parents[1];DATA=ROOT/'runtime/geo-flows';PORT=8772
 TOKEN=secrets.token_urlsafe(32);POOL=concurrent.futures.ThreadPoolExecutor(max_workers=1);GUARD=threading.Lock();BUSY=False;CANCEL=set()
-SITE='https://signal-geo-workbench-lh.saml1nhchen.chatgpt.site';SESSIONS={};DIAGNOSES=None
+SITE='https://signal-geo-workbench-lh.saml1nhchen.chatgpt.site';SESSIONS={}
 
 def bridge(path,body=None):
  prefix='/api/bai/';base='http://127.0.0.1:8771'
@@ -168,7 +167,7 @@ def validate(d,check_models=True):
   if type(v)!=int or not 1<=v<=limit:raise ValueError('题数 1–300；新任务每题只调用一次，默认每市场 30 道不同题目')
   d[f]=v
  ids=d.get('providers',[])
- if not isinstance(ids,list) or not 1<=len(ids)<=16 or len(set(ids))!=len(ids) or len(ids)*d['count']*d['repeats']>15000:raise ValueError('请选择 1–16 个厂商；单任务最多 15000 次回答')
+ if not isinstance(ids,list) or not 1<=len(ids)<=16 or len(set(ids))!=len(ids) or len(ids)*d['count']*d['repeats']>15000:raise ValueError('请选择 1–16 个实际模型；单任务最多 15000 次回答')
  for f in ('focus','context'):
   if not isinstance(d.get(f,''),str) or len(d.get(f,''))>18000:raise ValueError('业务背景过长')
  if not check_models:return d
@@ -176,15 +175,31 @@ def validate(d,check_models=True):
  if not state['configured']:raise ValueError('请先在 B.AI 页面连接密钥并配置模型')
  for pid in [*ids,d.get('generator')]:
   if pid not in profiles or d['market'] not in profiles[pid]['markets']:raise ValueError('生成模型和测试模型必须属于当前市场')
- manufacturers=[geo_plan.vendor(profiles[pid]) for pid in ids]
- if len(set(manufacturers))!=len(manufacturers):raise ValueError('每个厂商只保留一个固定模型；同一厂商的直连与聚合渠道也不能同时计入')
- if any(v.startswith('未识别:') for v in manufacturers):raise ValueError('无法识别所选模型的厂商，请先使用明确的厂商模型 ID')
  d['configuration']={pid:profiles[pid] for pid in set([*ids,d['generator']])}
  return d
 
-def start(d):
+def validate_source_snapshot(snapshot,website):
+ # Authenticated loopback-only capability; public gateway schemas reject this.
+ fields={'version','website','captured_at','text','resources','usage','limits','evidence_signature'}
+ if not isinstance(snapshot,dict) or set(snapshot)!=fields or snapshot['version']!='audited-material-v1' or snapshot['website']!=website:raise ValueError('Invalid audited material')
+ if not isinstance(snapshot['text'],str) or len(snapshot['text'])>24000 or not isinstance(snapshot['captured_at'],str) or len(snapshot['captured_at'])>64:raise ValueError('Invalid audited material')
+ if not isinstance(snapshot['resources'],list) or not 1<=len(snapshot['resources'])<=8:raise ValueError('Invalid audited material')
+ for row in snapshot['resources']:
+  if not isinstance(row,dict) or set(row)!={'url','http_status','error_code','sha256'} or not isinstance(row['url'],str) or len(row['url'])>4096:raise ValueError('Invalid audited material')
+  if website_inspection.normalize_url(row['url'])!=row['url'] or row['http_status'] is not None and (type(row['http_status'])!=int or not 100<=row['http_status']<=599):raise ValueError('Invalid audited material')
+  if row['error_code'] is not None and (not isinstance(row['error_code'],str) or not re.fullmatch(r'[a-z_]{1,64}',row['error_code'])):raise ValueError('Invalid audited material')
+  if row['sha256'] is not None and (not isinstance(row['sha256'],str) or not re.fullmatch(r'[a-f0-9]{64}',row['sha256'])):raise ValueError('Invalid audited material')
+ limits={'resources':8,'http_requests':10,'bytes':4*1024*1024,'active_seconds':60}
+ if snapshot['limits']!=limits or not isinstance(snapshot['usage'],dict) or set(snapshot['usage'])-{'resources_requested','http_requests','bytes_received','bytes_budget_used','active_duration_ms','model_calls'} or any(type(v)!=int or v<0 for v in snapshot['usage'].values()):raise ValueError('Invalid audited material')
+ if snapshot['usage'].get('resources_requested',0)>8 or snapshot['usage'].get('http_requests',0)>10 or max(snapshot['usage'].get('bytes_received',0),snapshot['usage'].get('bytes_budget_used',0))>limits['bytes']:raise ValueError('Invalid audited material')
+ signature=hashlib.sha256(json.dumps({k:v for k,v in snapshot.items() if k!='evidence_signature'},ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+ if snapshot['evidence_signature']!=signature:raise ValueError('Invalid audited material signature')
+ return copy.deepcopy(snapshot)
+
+def start(d,source_snapshot=None):
  global BUSY
  config=validate(d)
+ if source_snapshot is not None:source_snapshot=validate_source_snapshot(source_snapshot,config['website'])
  with GUARD:
   if BUSY:raise ValueError('已有流程正在执行，请等待或停止当前流程')
   BUSY=True
@@ -193,6 +208,7 @@ def start(d):
   lock=json.loads((ROOT/'tools/upstreams.lock.json').read_text('utf-8'));source=next(x for x in lock if x['id']=='niubigeo')
   task_plan=geo_plan.plan(config)
   job={'id':rid,'created_at':shared.stamp(),'status':'queued','stage':'queued','config':config,'generation':None,'generations':[],'prompts':[],'calls':[],'samples':[],'report':None,'plan':task_plan,'planned_max_calls':task_plan['maximum_calls'],'upstream':{'repository':source.get('repository'),'commit':source['commit'],'module':'src/prompts/prompt-generator.ts'},'entry_type':'model_api'}
+  if source_snapshot is not None:job['source_snapshot']=source_snapshot
   persist(job);POOL.submit(execute,job);return job
  except Exception:
   with GUARD:BUSY=False
@@ -216,11 +232,15 @@ def call(job,pid,prompts,kind):
 def execute(job):
  global BUSY
  try:
-  job['status']='running';job['stage']='website';persist(job);cfg=job['config']
-  try:job['website']=fetch_website(cfg['website'])
-  except Exception as e:
-   job['website']={'url':cfg['website'],'error':str(e) if isinstance(e,ValueError) else '官网读取失败','text':''}
-   if not cfg.get('context'):raise ValueError('官网抓取失败，请补充业务背景再运行；尚未调用模型') from None
+  job['status']='running';job['stage']='preparing_material' if 'source_snapshot' in job else 'website';persist(job);cfg=job['config']
+  if 'source_snapshot' in job:
+   material=validate_source_snapshot(job['source_snapshot'],cfg['website'])
+   job['website']={'url':cfg['website'],'text':material['text'],'source':'audited_snapshot','evidence_signature':material['evidence_signature'],'read_status':'captured' if material['text'] else 'unavailable','material_note':'仅使用已审计网页摘录，不再次请求官网。' if material['text'] else '官网未取得可读材料；仅依据用户确认品牌/产品/竞品与背景出题，未声称读取成功。'}
+  else:
+   try:job['website']=fetch_website(cfg['website'])
+   except Exception as e:
+    job['website']={'url':cfg['website'],'error':str(e) if isinstance(e,ValueError) else '官网读取失败','text':''}
+    if not cfg.get('context'):raise ValueError('官网抓取失败，请补充业务背景再运行；尚未调用模型') from None
   job['stage']='generating';persist(job)
   generate_bank(job)
   if len(job['prompts'])<cfg['count']:raise ValueError('题库去重后不足目标题数，已保留现有题目。请审核后使用可编辑题集；没有自动补题或开始采样')
@@ -237,7 +257,7 @@ def generate_bank(job):
  for batch_index,specs in enumerate(geo_plan.blueprint(cfg['count'])):
   if job['id'] in CANCEL:raise ValueError('自动出题已停止，已生成的问题保留')
   batch_cfg={**cfg,'count':len(specs),'question_blueprint':specs,'batch_index':batch_index,'previous_questions':[p['text'] for p in job['prompts'][-6:]]}
-  prompt=niubi('build',batch_cfg,website_text='User supplied scope: '+cfg.get('context','')+'\nWebsite excerpt: '+job['website']['text'])['prompt']
+  prompt=niubi('build',batch_cfg,website_text='User supplied scope: '+cfg.get('context','')+'\nMaterial provenance: '+job['website'].get('material_note','Live website capture')+'\nWebsite excerpt: '+job['website']['text'])['prompt']
   generated=call(job,cfg['generator'],[prompt],'generation');g={'batch':batch_index+1,'runner_id':generated['id'],'sample':generated['samples'][0] if generated['samples'] else None};job['generation']=g;job['generations'].append(g);persist(job)
   s=g['sample']
   if not s or s['status']!='complete':raise ValueError('自动出题失败：'+(s.get('error','回答不完整') if s else '没有返回样本'))
@@ -349,8 +369,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
    if u.path.startswith('/api/geo/'):
     if not self.auth():return
     if u.path=='/api/geo/state':return self.reply({'runner':catalog(),'busy':BUSY,'runs':[{'id':j['id'],'created_at':j['created_at'],'status':j['status'],'market':j['config']['market'],'brand':j['config']['brand_aliases'][0]} for j in [json.loads(p.read_text('utf-8')) for p in sorted(DATA.glob('*/flow.json'),key=lambda p:p.stat().st_mtime,reverse=True)[:40]]]})
-    if u.path=='/api/geo/diagnoses':return self.reply(DIAGNOSES.list())
-    if u.path=='/api/geo/diagnosis':return self.reply(DIAGNOSES.get(q['id'][0]))
     if u.path in ('/api/geo/run','/api/geo/export'):
      job=get(q['id'][0])
      if u.path.endswith('export'):job['raw_evidence']={p.name:json.loads(p.read_text('utf-8')) for p in folder(job['id']).glob('*.json') if p.name!='flow.json'}
@@ -363,14 +381,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
   if not self.auth():return
   try:
    n=int(self.headers.get('Content-Length','0'))
-   if not 0<n<=256*1024:raise ValueError('请求不能超过 256 KB')
+   if not 0<n<=(512 if self.path=='/api/geo/diagnostic-start' else 256)*1024:raise ValueError('请求超过允许大小')
    d=json.loads(self.rfile.read(n))
    if self.path=='/api/geo/inspect':return self.reply(inspect_website(d))
    if self.path=='/api/geo/start':return self.reply(start(d),202)
+   if self.path=='/api/geo/diagnostic-start':
+    if not isinstance(d,dict) or set(d)!={'config','source_snapshot'}:raise ValueError('Invalid audited submission')
+    return self.reply(start(d['config'],d['source_snapshot']),202)
    if self.path=='/api/geo/sample':return self.reply(start_manual(d),202)
    if self.path=='/api/geo/analyze':return self.reply(reanalyze(d),201)
    if self.path=='/api/geo/plan':return self.reply(geo_plan.plan(validate(d),bool(d.get('manual'))))
-   if self.path=='/api/geo/diagnose':return self.reply(DIAGNOSES.start(d),202)
    if self.path=='/api/geo/resume':return self.reply(resume(d),202)
    if self.path=='/api/geo/stop':
     job=get(d['id']);CANCEL.add(job['id']);return self.reply({'status':'stop_requested'})
@@ -378,7 +398,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
   except Exception as e:self.reply({'error':str(e) if isinstance(e,ValueError) else '无法提交任务'},400)
 
 if __name__=='__main__':
- DATA.mkdir(parents=True,exist_ok=True);DIAGNOSES=geo_diagnose.Store(flows=get)
+ DATA.mkdir(parents=True,exist_ok=True)
  for p in DATA.glob('*/flow.json'):
   try:
    j=json.loads(p.read_text('utf-8'))

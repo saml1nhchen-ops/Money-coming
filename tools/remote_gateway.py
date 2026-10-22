@@ -1,8 +1,13 @@
 """Single team HTTPS edge (TLS terminates at the hosting platform)."""
 import base64, html, collections, datetime, hashlib, hmac, http.server, json, os, pathlib, re, secrets, socketserver, threading, time, urllib.error, urllib.parse, urllib.request
 from brand_enrichment import EnrichmentError
+from geo_audit import AuditError
+from geo_diagnose import DiagnosticError
 from device_sessions import DeviceSessions,StoreUnavailable,SessionLimit,GenerationChanged,MAX_AGE
 ORIGIN='https://saml1nhchen-ops.github.io'
+MAX_ANALYSIS_MODELS=16
+def analysis_max_models(profiles):
+ return min(MAX_ANALYSIS_MODELS,len({p['id'] for p in profiles}))
 UUID=re.compile(r'[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}\Z')
 class Failure(Exception):
  def __init__(self,status,code): self.status=status;self.code=code
@@ -62,7 +67,7 @@ class Workspace:
   if len(password)<16:raise ValueError('Workspace password must contain at least 16 characters')
   parts=host.split(':')
   if len(parts)>2 or len(parts)==2 and (not parts[1].isdigit() or not 1<=int(parts[1])<=65535) or len(parts[0])>253 or any(not re.fullmatch(r'[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?',label) for label in parts[0].split('.')):raise ValueError('Invalid public host')
-  self.digest=hashlib.sha256(password.encode()).digest();self.host=host.lower();self.budget=budget;self.api=api or LocalAPI();self.lock=threading.RLock();self.sessions={};self.attempts=collections.defaultdict(collections.deque);self.global_attempts=collections.deque();self.ready=False;self.reason='missing_bai_key';self.profiles=[];self.closing=False;self.active=None;self.shutdown_requested=threading.Event();self.maintenance_requested=threading.Event();self.session_store=session_store;self.enrich_active=None;self.enricher=None
+  self.digest=hashlib.sha256(password.encode()).digest();self.host=host.lower();self.budget=budget;self.api=api or LocalAPI();self.lock=threading.RLock();self.session_lock=threading.RLock();self.sessions={};self.attempts=collections.defaultdict(collections.deque);self.global_attempts=collections.deque();self.ready=False;self.reason='missing_bai_key';self.profiles=[];self.closing=False;self.active=None;self.shutdown_requested=threading.Event();self.maintenance_requested=threading.Event();self.session_store=session_store;self.enrich_active=None;self.enricher=None;self.audit_active=None;self.auditor=None;self.diagnostic_active=None;self.diagnostics=None
  def begin_shutdown(self):
   self.shutdown_requested.set()
   # Serialize shutdown with the complete reserve/submit/active publication.
@@ -72,7 +77,7 @@ class Workspace:
   if self.maintenance_requested.is_set():raise Failure(503,'maintenance')
   if not self.ready or self.stopping():raise Failure(503,self.reason or 'backend_unavailable')
  def login(self,password,source,remember=False):
-  with self.lock:
+  with self.session_lock:
    now=time.time()
    for q in (self.attempts[source],self.global_attempts):
     while q and q[0]<=now-900:q.popleft()
@@ -96,7 +101,7 @@ class Workspace:
  def auth(self,value):
   token=value[7:] if value.startswith('Bearer ') else ''
   if not token or len(token)>256:raise Failure(401,'unauthorized')
-  with self.lock:
+  with self.session_lock:
    if token.startswith('td1_'):
     if self.session_store is None:raise Failure(503,'session_store_unavailable')
     try:valid=self.session_store.authenticate(token)
@@ -106,7 +111,7 @@ class Workspace:
    elif self.sessions.get(token,0)<=time.time():self.sessions.pop(token,None);raise Failure(401,'unauthorized')
   return token
  def logout(self,token):
-  with self.lock:
+  with self.session_lock:
    if token.startswith('td1_'):
     if self.session_store is None:raise Failure(503,'session_store_unavailable')
     try:self.session_store.revoke(token)
@@ -137,11 +142,6 @@ class Workspace:
  def validate(self,path,d):
   common={'website','market','brand_aliases','skus','competitors','focus','context','count','repeats','providers','generator'}
   fields={'inspect':{'website','market'},'start':common|{'generate_only'},'sample':common|{'prompts'},'plan':common|{'generate_only','manual'},'analyze':{'id','brand_aliases','skus','competitors'},'stop':{'id'}}
-  if path=='diagnose':
-   if set(d)-{'website','market','brand','aliases','flow_id'} or d.get('market') not in ('CN','US') or not isinstance(d.get('website'),str) or not isinstance(d.get('brand'),str) or not 0<len(d['brand'].strip())<=200:raise Failure(400,'invalid_request')
-   if 'aliases' in d and (not isinstance(d['aliases'],list) or len(d['aliases'])>10 or any(not isinstance(a,str) or len(a)>200 for a in d['aliases'])):raise Failure(400,'invalid_request')
-   if d.get('flow_id') is not None and (not isinstance(d['flow_id'],str) or not UUID.fullmatch(d['flow_id'])):raise Failure(400,'invalid_request')
-   return
   if set(d)-fields[path]:raise Failure(400,'invalid_request')
   if path in ('analyze','stop'):
    if not isinstance(d.get('id'),str) or not UUID.fullmatch(d['id']):raise Failure(400,'invalid_request')
@@ -150,7 +150,7 @@ class Workspace:
   if path=='inspect':return
   if type(d.get('count',30))!=int or d.get('count',30)!=30 or type(d.get('repeats',1))!=int or d.get('repeats',1)!=1:raise Failure(400,'invalid_request')
   ids=d.get('providers');allowed={p['id'] for p in self.profiles}
-  if not isinstance(ids,list) or not 1<=len(ids)<=2 or any(not isinstance(p,str) or p not in allowed for p in ids) or len(set(ids))!=len(ids) or d.get('generator') not in ids:raise Failure(400,'invalid_request')
+  if not isinstance(ids,list) or not 1<=len(ids)<=MAX_ANALYSIS_MODELS or any(not isinstance(p,str) or p not in allowed for p in ids) or len(set(ids))!=len(ids) or d.get('generator') not in ids:raise Failure(400,'invalid_request')
   for k in ('generate_only','manual'):
    if k in d and type(d[k])!=bool:raise Failure(400,'invalid_request')
   if path=='sample':
@@ -158,20 +158,46 @@ class Workspace:
    ps=d.get('prompts')
    if not isinstance(ps,list) or len(ps)!=30 or any(not isinstance(p,str) or not p.strip() or len(p)>4000 for p in ps) or len({geo_plan.question_key(p) for p in ps})!=30:raise Failure(400,'invalid_request')
   d['count']=30;d['repeats']=1
- def dispatch(self,path,d=None):
+ def dispatch(self,path,d=None,_diagnostic=None,_source_snapshot=None):
   if path=='state':
    # Same lock as reservation/submission/publication. Once maintenance+idle is
    # observable, no earlier admitted POST can still publish a queued task.
    with self.lock:
     s=self.api.call('geo','state')
-    if self.enrich_active:s['busy']=True
+    if self.enrich_active or self.audit_active or self.diagnostic_active:s['busy']=True
     if self.active and not s['busy']:
      previous=self.api.call('geo','run?id='+self.active)
      if previous.get('status') in ('queued','running'):s['busy']=True
      else:self.active=None
     maintenance=self.maintenance_requested.is_set()
     s['runner']['profiles']=self.profiles;s['runner']['configured']=self.ready;s['runner']['fetched_at']=getattr(self,'fetched_at',None)
-    s['remote']={'mode':'shared_team','shared_reports':True,'ready':self.ready and not self.stopping() and not maintenance,'model_ready':self.ready,'maintenance':maintenance,'deployment_gate':'signals-v1','reason':'maintenance' if maintenance else self.reason,'limits':{'count':30,'max_models':2,'repeats':1},'budget':self.budget.state()};return s,200
+    s['remote']={'mode':'shared_team','shared_reports':True,'ready':self.ready and not self.stopping() and not maintenance,'model_ready':self.ready,'maintenance':maintenance,'deployment_gate':'signals-v1','reason':'maintenance' if maintenance else self.reason,'limits':{'count':30,'max_models':analysis_max_models(self.profiles),'repeats':1},'budget':self.budget.state()};return s,200
+  if d is not None and self.diagnostic_active and _diagnostic!=self.diagnostic_active and path in ('audit','audit-confirm','enrich','start','sample','analyze'):
+   raise Failure(409,'busy')
+  if path.startswith('audit'):
+   if self.auditor is None:raise Failure(503,'audit_unavailable')
+   try:
+    if d is None:
+     ident=urllib.parse.parse_qs(path.split('?',1)[1])['id'][0]
+     return self.auditor.get(ident,export=path.startswith('audit-export?')),200
+    with self.lock:
+     if path=='audit':
+      if not isinstance(d,dict) or set(d)-{'website','market','request_id','refresh'} or not {'website','market','request_id'}<=set(d) or d.get('market') not in ('CN','US') or type(d.get('refresh',False))!=bool or not isinstance(d.get('request_id'),str) or not UUID.fullmatch(d['request_id']):raise Failure(400,'invalid_request')
+      import website_inspection
+      url=website_inspection.normalize_url(d['website'])
+      if self.redact_text(url)!=url:raise Failure(400,'invalid_request')
+      cached=self.auditor.lookup(d['request_id'],url,d['market'],d.get('refresh',False))
+      if cached:return cached,200
+     elif path=='audit-confirm':
+      if set(d)!={'id','confirmed'} or not isinstance(d['id'],str) or not UUID.fullmatch(d['id']) or self.redact_text(json.dumps(d,ensure_ascii=False))!=json.dumps(d,ensure_ascii=False):raise Failure(400,'invalid_request')
+     else:raise Failure(404,'not_found')
+     if self.diagnostic_active and _diagnostic!=self.diagnostic_active:raise Failure(409,'busy')
+     if self.stopping() or self.maintenance_requested.is_set():raise Failure(503,'maintenance')
+     if self.audit_active or self.enrich_active or self.api.call('geo','state')['busy']:raise Failure(409,'busy')
+     if self.active and self.api.call('geo','run?id='+self.active).get('status') in ('queued','running'):raise Failure(409,'busy')
+     if path=='audit-confirm':return self.auditor.confirm(d['id'],d['confirmed'])
+     return self.auditor.start(d['request_id'],url,d['market']),202
+   except AuditError as error:raise Failure(error.status,error.code) from None
   if path.startswith('enrich'):
    if self.enricher is None:raise Failure(503,'enrichment_store_unavailable')
    try:
@@ -183,25 +209,25 @@ class Workspace:
     with self.lock:
      cached=self.enricher.lookup(d['request_id'],url,d['market'])
      if cached:return cached,200
+     if self.diagnostic_active and _diagnostic!=self.diagnostic_active:raise Failure(409,'busy')
      if self.stopping() or self.maintenance_requested.is_set():raise Failure(503,'maintenance')
-     if self.enrich_active or self.api.call('geo','state')['busy']:raise Failure(409,'busy')
+     if self.enrich_active or self.audit_active or self.api.call('geo','state')['busy']:raise Failure(409,'busy')
      if self.active and self.api.call('geo','run?id='+self.active).get('status') in ('queued','running'):raise Failure(409,'busy')
      return self.enricher.start(d['request_id'],url,d['market']),202
    except EnrichmentError as error:raise Failure(error.status,error.code) from None
   if d is None:return self.api.call('geo',path),200
   name=path;self.validate(name,d)
-  if name=='diagnose':
-   # Website reads only: no model calls and no budget reservation.
-   with self.lock:
-    if self.maintenance_requested.is_set() or self.stopping():raise Failure(503,'maintenance')
-    return self.api.call('geo',name,d),202
+  if _source_snapshot is not None:
+   if name!='start' or not _diagnostic or self.diagnostic_active!=_diagnostic:raise Failure(400,'invalid_request')
+   from geo_flow import validate_source_snapshot
+   _source_snapshot=validate_source_snapshot(_source_snapshot,d['website'])
   if name=='plan':
    with self.lock:
     self.require_admission();result=self.api.call('geo',name,d);self.require_admission();return result,200
   if name in ('start','sample'):
    with self.lock:
     self.require_admission()
-    if self.enrich_active:raise Failure(409,'busy')
+    if self.enrich_active or self.audit_active or self.diagnostic_active and _diagnostic!=self.diagnostic_active:raise Failure(409,'busy')
     s=self.api.call('geo','state')
     if s['busy']:raise Failure(409,'busy')
     if self.active:
@@ -214,7 +240,7 @@ class Workspace:
     self.require_admission()
     self.budget.reserve(expected)
     self.require_admission()
-    result=self.api.call('geo',name,d);self.active=result['id'];return result,202
+    result=self.api.call('geo','diagnostic-start',{'config':d,'source_snapshot':_source_snapshot}) if _source_snapshot is not None else self.api.call('geo',name,d);self.active=result['id'];return result,202
   return self.api.call('geo',name,d),201 if name=='analyze' else 200
 class Server(http.server.ThreadingHTTPServer):
  daemon_threads=True;allow_reuse_address=True
@@ -248,7 +274,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
    if len(origins)>1 or origins and origins[0]!=ORIGIN:raise Failure(403,'origin_forbidden')
    u=urllib.parse.urlsplit(self.path)
    if u.scheme or u.netloc or u.fragment:raise Failure(400,'invalid_request')
-   get={'/api/geo/state','/api/geo/run','/api/geo/export','/api/geo/enrich','/api/geo/diagnoses','/api/geo/diagnosis'};post={'/api/workspace/login','/api/workspace/logout',*[f'/api/geo/{p}' for p in ('inspect','plan','start','sample','analyze','stop','enrich','diagnose')]}
+   get={'/api/clients','/api/projects','/api/diagnostics','/api/diagnostics/detail','/api/diagnostics/export','/api/shared-report','/api/geo/state','/api/geo/run','/api/geo/export','/api/geo/enrich','/api/geo/audit','/api/geo/audit-export'};post={'/api/clients','/api/projects','/api/diagnostics','/api/diagnostics/retest','/api/diagnostics/share','/api/diagnostics/revoke','/api/workspace/login','/api/workspace/logout',*[f'/api/geo/{p}' for p in ('inspect','plan','start','sample','analyze','stop','enrich','audit','audit-confirm')]}
    if self.command=='OPTIONS':
     if u.path not in get|post or not origins or self.headers.get('Access-Control-Request-Method') not in ('GET','POST') or any(h.strip().lower() not in ('content-type','authorization') for h in self.headers.get('Access-Control-Request-Headers','').split(',') if h.strip()):raise Failure(403,'origin_forbidden')
     return self.reply({},204)
@@ -258,14 +284,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
     if not re.fullmatch(r'[A-Za-z0-9._+-]{1,128}',version):version='unknown'
     metadata={k:v for k,v in (('revision',revision),('version',version)) if v!='unknown'}
     if w.session_store is not None and w.session_store.usable():metadata['capabilities']={'remember_login':True,'remember_login_max_age_seconds':MAX_AGE}
+    if w.diagnostics is not None:metadata.setdefault('capabilities',{})['diagnostics_v1']=True
+    manufacturers=sorted({p.get('manufacturer') for p in w.profiles if p.get('manufacturer') in ('OpenAI','Google','Anthropic')})
+    metadata.setdefault('capabilities',{}).update(claude_available='Anthropic' in manufacturers,analysis_manufacturers=manufacturers,analysis_all_models=True,analysis_max_models=analysis_max_models(w.profiles))
     return self.reply({'ok':not w.stopping(),**metadata},200 if not w.stopping() else 503)
    if u.path not in (get if self.command=='GET' else post):raise Failure(404,'not_found')
-   if u.path in ('/api/geo/run','/api/geo/export','/api/geo/enrich','/api/geo/diagnosis') and self.command=='GET':
+   if u.path in ('/api/geo/run','/api/geo/export','/api/geo/enrich','/api/geo/audit','/api/geo/audit-export','/api/diagnostics/detail','/api/diagnostics/export') and self.command=='GET':
     q=urllib.parse.parse_qs(u.query,keep_blank_values=True,strict_parsing=True)
     if set(q)!={'id'} or len(q['id'])!=1 or not UUID.fullmatch(q['id'][0]):raise Failure(400,'invalid_request')
+   elif u.path=='/api/shared-report' and self.command=='GET':
+    q=urllib.parse.parse_qs(u.query,keep_blank_values=True,strict_parsing=True)
+    if set(q)!={'token'} or len(q['token'])!=1:raise Failure(400,'invalid_request')
    elif u.query:raise Failure(400,'invalid_request')
    token=None
-   if u.path!='/api/workspace/login':token=w.auth(self.headers.get('Authorization',''))
+   if u.path not in ('/api/workspace/login','/api/shared-report'):token=w.auth(self.headers.get('Authorization',''))
    d=None
    if self.command=='POST':
     sizes=self.headers.get_all('Content-Length',[])
@@ -284,9 +316,22 @@ class Handler(http.server.BaseHTTPRequestHandler):
     if d:raise Failure(400,'invalid_request')
     w.logout(token)
     return self.reply({'ok':True})
+   if u.path.startswith('/api/diagnostics') or u.path in ('/api/clients','/api/projects','/api/shared-report'):
+    if w.diagnostics is None:raise Failure(503,'diagnostic_unavailable')
+    manager=w.diagnostics
+    if u.path in ('/api/clients','/api/projects'):return self.reply(manager.entities(u.path.removeprefix('/api/'),d),201 if d is not None else 200)
+    if u.path=='/api/shared-report':return self.reply(manager.shared(q['token'][0]))
+    if u.path=='/api/diagnostics':
+     if d is None:return self.reply(manager.listing())
+     result,status=manager.create(d);return self.reply(result,status)
+    if u.path in ('/api/diagnostics/detail','/api/diagnostics/export'):return self.reply(manager.detail(q['id'][0]))
+    if u.path.endswith('/retest'):
+     result,status=manager.retest(d);return self.reply(result,status)
+    if u.path.endswith('/share'):return self.reply(manager.share(d),201)
+    if u.path.endswith('/revoke'):return self.reply(manager.revoke(d))
    path=u.path.removeprefix('/api/geo/')+('?' +u.query if u.query else '')
    result,status=w.dispatch(path,d);self.reply(result,status)
-  except Failure as e:self.reply({'error':e.code,'code':e.code},e.status)
+  except (Failure,DiagnosticError,AuditError) as e:self.reply({'error':e.code,'code':e.code},e.status)
   except (ValueError,TypeError,KeyError):self.reply({'error':'invalid_request','code':'invalid_request'},400)
   except Exception:self.reply({'error':'backend_unavailable','code':'backend_unavailable'},503)
  do_GET=handle_api;do_POST=handle_api;do_OPTIONS=handle_api

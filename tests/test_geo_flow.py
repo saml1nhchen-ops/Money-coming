@@ -44,6 +44,13 @@ class PipelineTests(unittest.TestCase):
    self.assertEqual(call.call_count,1)
  def test_local_website_blocked_before_network_request(self):
   with self.assertRaises(ValueError):flow.fetch_website('http://127.0.0.1/')
+ def test_validation_accepts_two_actual_profiles_from_same_manufacturer(self):
+  profiles=[{'id':pid,'markets':['US'],'model':model,'manufacturer':'OpenAI'} for pid,model in [('gpt-a','gpt-4.1'),('gpt-b','gpt-4.1-mini')]]
+  with patch.object(flow,'catalog',return_value={'configured':True,'profiles':profiles}):
+   c=config();c.update(providers=['gpt-a','gpt-b'],generator='gpt-a',count=30)
+   validated=flow.validate(c);self.assertEqual(validated['providers'],['gpt-a','gpt-b']);self.assertEqual(set(validated['configuration']),{'gpt-a','gpt-b'})
+   for ids in (['gpt-a','gpt-a'],['gpt-a','missing'],['gpt-a']*17):
+    with self.assertRaises(ValueError):flow.validate({**c,'providers':ids})
  def test_validation_market_budget_and_overlap(self):
   state={'configured':True,'profiles':[{'id':'p','markets':['US'],'model':'gpt-test'}]}
   with patch.object(flow,'catalog',return_value=state):

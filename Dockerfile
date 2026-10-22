@@ -5,12 +5,18 @@ FROM node:22-bookworm-slim AS dependencies
 RUN --mount=type=secret,id=system_ca \
     set -eu; if [ -f /run/secrets/system_ca ]; then \
       apt-get -o Acquire::https::CaInfo=/run/secrets/system_ca update; \
-      apt-get -o Acquire::https::CaInfo=/run/secrets/system_ca install -y --no-install-recommends python3 git ca-certificates tini; \
+      apt-get -o Acquire::https::CaInfo=/run/secrets/system_ca install -y --no-install-recommends python3 python3-venv git ca-certificates tini; \
     else \
-      apt-get update && apt-get install -y --no-install-recommends python3 git ca-certificates tini; \
+      apt-get update && apt-get install -y --no-install-recommends python3 python3-venv git ca-certificates tini; \
     fi && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+COPY tools/requirements-audit.lock /app/tools/requirements-audit.lock
+RUN --mount=type=secret,id=system_ca \
+    if [ -f /run/secrets/system_ca ]; then export PIP_CERT=/run/secrets/system_ca; fi; \
+    python3 -m venv /opt/geo-audit-venv && \
+    /opt/geo-audit-venv/bin/python -m pip install --no-cache-dir --only-binary=:all: --require-hashes -r /app/tools/requirements-audit.lock
+ENV PATH="/opt/geo-audit-venv/bin:${PATH}"
 COPY tools/upstreams.lock.json /app/tools/upstreams.lock.json
 RUN --mount=type=secret,id=proxy_ca \
     --mount=type=secret,id=system_ca \

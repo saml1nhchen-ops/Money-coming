@@ -1,0 +1,35 @@
+name: Check clean Loreal homepage
+on:
+  push:
+    branches: ['validate/loreal-clean-*']
+permissions:
+  contents: read
+jobs:
+  check:
+    if: github.event.deleted == false && github.event.forced == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - name: Install pinned parsers
+        run: |
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --only-binary=:all: --require-hashes -r tools/requirements-audit.lock
+      - name: Collect clean homepage with no model calls
+        run: .venv/bin/python deploy/check_diagnostic_sources.py --website https://www.lorealparisusa.com/ --market CN
+      - name: Save public website evidence
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          .venv/bin/python - <<'PY'
+          import json,pathlib,sys
+          sys.path.insert(0,'deploy')
+          from connection_diagnostics import publish
+          report=json.loads(pathlib.Path('diagnostic-source-report.json').read_text())
+          assert report['model_calls']==0 and len(report['sources'])==1
+          print('Public-source evidence: '+publish(report))
+          PY

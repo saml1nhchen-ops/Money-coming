@@ -1,0 +1,58 @@
+name: Validate durable diagnostics
+on:
+  push:
+    branches: ['validate/diagnostics-*']
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - name: Install pinned website parsers
+        run: |
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --only-binary=:all: --require-hashes -r tools/requirements-audit.lock
+          .venv/bin/python -m pip install --only-binary=:all: PyYAML==6.0.3
+      - name: Install the locked question-generator runtime
+        run: |
+          python3 - <<'PY'
+          import json,pathlib,subprocess
+          item=next(v for v in json.loads(pathlib.Path('tools/upstreams.lock.json').read_text()) if v['id']=='niubigeo')
+          target=pathlib.Path('runtime/upstreams/niubigeo')
+          subprocess.run(['git','init',str(target)],check=True)
+          subprocess.run(['git','-C',str(target),'remote','add','origin','https://github.com/'+item['repository']+'.git'],check=True)
+          subprocess.run(['git','-C',str(target),'fetch','--depth','1','origin',item['commit']],check=True)
+          subprocess.run(['git','-C',str(target),'checkout','--detach','FETCH_HEAD'],check=True)
+          assert subprocess.check_output(['git','-C',str(target),'rev-parse','HEAD'],text=True).strip()==item['commit']
+          subprocess.run(['npm','ci','--no-audit','--no-fund'],cwd=target,check=True)
+          PY
+      - name: Backend regressions
+        run: |
+          set +e
+          .venv/bin/python -m unittest discover -s tests -p 'test_*.py' > backend-validation.log 2>&1
+          result=$?
+          tail -n 100 backend-validation.log
+          exit "$result"
+      - name: Real public-source diagnostics without model calls
+        run: .venv/bin/python deploy/check_diagnostic_sources.py
+      - name: Publish bounded validation evidence
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          .venv/bin/python - <<'PY'
+          import json,pathlib,sys
+          sys.path.insert(0,'deploy')
+          from connection_diagnostics import publish
+          p=pathlib.Path('diagnostic-source-report.json')
+          report=json.loads(p.read_text()) if p.exists() else {'kind':'real_diagnostic_sources','status':'validation_failed','model_calls':0}
+          log=pathlib.Path('backend-validation.log')
+          if log.exists():report['backend_test_tail']=log.read_text()[-20000:]
+          print('Validation evidence: '+publish(report))
+          PY

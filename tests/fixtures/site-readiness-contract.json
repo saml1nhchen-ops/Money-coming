@@ -1,0 +1,929 @@
+{
+  "schema_version": "geo-readiness-v1",
+  "id": "00266c67-0831-4549-9d99-9801ac931db3",
+  "revision": 1,
+  "request_id": "00266c67-0831-4549-9d99-9801ac931db3",
+  "market": "US",
+  "status": "finished",
+  "phase": "done",
+  "stage": "report",
+  "created_at": "2026-10-22T14:52:17.508462+00:00",
+  "website": {
+    "requested_url": "https://acme.example/",
+    "final_url": "https://acme.example/",
+    "origin": "https://acme.example"
+  },
+  "access": {
+    "checked_at": "2026-10-22T14:52:17.509768+00:00",
+    "duration_ms": 1,
+    "outcome": "readable",
+    "http_status": 200,
+    "final_url": "https://acme.example/",
+    "redirects": [],
+    "content_type": "text/html",
+    "bytes": 5742,
+    "readable_characters": 5125,
+    "checks": [
+      {
+        "id": "address",
+        "status": "passed",
+        "message": "官网地址格式已校验。"
+      },
+      {
+        "id": "dns",
+        "status": "passed",
+        "message": "域名已解析并检查返回地址。"
+      },
+      {
+        "id": "tls",
+        "status": "passed",
+        "message": "已按官网域名完成证书验证。"
+      },
+      {
+        "id": "http",
+        "status": "passed",
+        "message": "已收到官网 HTTP 响应。"
+      },
+      {
+        "id": "content",
+        "status": "passed",
+        "message": "已读取网页文本；仅检查本次返回内容。"
+      }
+    ],
+    "findings": [],
+    "retry_after": null,
+    "possible_access_restriction": false
+  },
+  "candidates": {
+    "brand": {
+      "id": "candidate-15b0146187d960c3cbd8",
+      "name": "Acme Tea",
+      "aliases": [
+        "Acme Tea"
+      ],
+      "kind": "brand",
+      "basis": "website_metadata",
+      "source_url": "https://acme.example/",
+      "source_field": "meta[property=\"og:site_name\"]",
+      "evidence_ids": [
+        "e-30ff06b3d2d080ddf8a1"
+      ],
+      "needs_confirmation": true
+    },
+    "products": [
+      {
+        "id": "candidate-91064c5305b3090844af",
+        "name": "Green Tea",
+        "aliases": [
+          "Green Tea"
+        ],
+        "kind": "product",
+        "basis": "website_metadata",
+        "source_url": "https://acme.example/",
+        "source_field": "JSON-LD.Product.name",
+        "evidence_ids": [
+          "e-13b06907ff4ba4872262"
+        ],
+        "needs_confirmation": true
+      }
+    ],
+    "competitors": [
+      {
+        "id": "candidate-afb58b8497b046bc50b8",
+        "name": "Rival Tea",
+        "aliases": [
+          "Rival Tea"
+        ],
+        "kind": "competitor",
+        "basis": "website_text",
+        "source_url": "https://acme.example/",
+        "source_field": "body.comparison",
+        "evidence_ids": [
+          "e-559275a5e508fc7cf4c2"
+        ],
+        "needs_confirmation": true
+      }
+    ]
+  },
+  "evidence": [
+    {
+      "id": "e-5d3c3282633d7b413ba5",
+      "resource_id": "resource-1",
+      "url": "https://acme.example/",
+      "captured_at": "2026-10-22T14:52:17.509782+00:00",
+      "http_status": 200,
+      "content_type": "text/html",
+      "redirects": [],
+      "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc"
+    },
+    {
+      "id": "e-30ff06b3d2d080ddf8a1",
+      "resource_id": "resource-1",
+      "url": "https://acme.example/",
+      "captured_at": "2026-10-22T14:52:17.509782+00:00",
+      "http_status": 200,
+      "content_type": "text/html",
+      "redirects": [],
+      "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+      "source_field": "meta[property=\"og:site_name\"]",
+      "excerpt": "Acme Tea"
+    },
+    {
+      "id": "e-13b06907ff4ba4872262",
+      "resource_id": "resource-1",
+      "url": "https://acme.example/",
+      "captured_at": "2026-10-22T14:52:17.509782+00:00",
+      "http_status": 200,
+      "content_type": "text/html",
+      "redirects": [],
+      "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+      "source_field": "JSON-LD.Product.name",
+      "excerpt": "Green Tea"
+    },
+    {
+      "id": "e-2d905c342a6f315ec5b5",
+      "resource_id": "resource-1",
+      "url": "https://acme.example/",
+      "captured_at": "2026-10-22T14:52:17.509782+00:00",
+      "http_status": 200,
+      "content_type": "text/html",
+      "redirects": [],
+      "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+      "source_field": "body.comparison",
+      "excerpt": "Rival Tea"
+    },
+    {
+      "id": "e-559275a5e508fc7cf4c2",
+      "resource_id": "resource-1",
+      "url": "https://acme.example/",
+      "captured_at": "2026-10-22T14:52:17.509782+00:00",
+      "http_status": 200,
+      "content_type": "text/html",
+      "redirects": [],
+      "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+      "source_field": "body.comparison",
+      "excerpt": "rewing information for customers. Tea leaves and brewing information for customers.\nCompare our tea versus\nRival Tea\n.\nPartner Company\nContact us\nPrivacy policy\nAbout us\nsupport@acme.example"
+    },
+    {
+      "id": "e-0e50a5772a1c341eb766",
+      "resource_id": "resource-1",
+      "url": "https://acme.example/",
+      "captured_at": "2026-10-22T14:52:17.509782+00:00",
+      "http_status": 200,
+      "content_type": "text/html",
+      "redirects": [],
+      "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+      "source_field": "response"
+    },
+    {
+      "id": "e-80fd79c6f367350a8aaf",
+      "resource_id": "resource-2",
+      "url": "https://acme.example/robots.txt",
+      "captured_at": "2026-10-22T14:52:17.523947+00:00",
+      "http_status": 200,
+      "content_type": "text/plain",
+      "redirects": [],
+      "sha256": "54f6fd1edcf3f22736cbfd2643c832438727dfe6a6a1cdb5e4846a3fd5a9b5ec",
+      "source_field": "robots.txt",
+      "excerpt": "User-agent: GPTBot\nDisallow: /\n\nUser-agent: OAI-SearchBot\nDisallow: /private\nAllow: /private/open\n\nUser-agent: *\nAllow: /\n"
+    },
+    {
+      "id": "e-94435df769ffc42c9517",
+      "resource_id": "resource-3",
+      "url": "https://acme.example/llms.txt",
+      "captured_at": "2026-10-22T14:52:17.527181+00:00",
+      "http_status": 200,
+      "content_type": "text/plain",
+      "redirects": [],
+      "sha256": "2446abb1cdeae199cc2aa7e4c1ff98fb7c8d5a7d00433d741595cfd0770087a3",
+      "source_field": "response"
+    },
+    {
+      "id": "e-14390962b2d2059c594b",
+      "resource_id": "resource-4",
+      "url": "https://acme.example/index.md",
+      "captured_at": "2026-10-22T14:52:17.527595+00:00",
+      "http_status": 200,
+      "content_type": "text/markdown",
+      "redirects": [],
+      "sha256": "cd373e7e91a36a2571016b8b40499e9cd1e1073c5d55090904a6293221744023",
+      "source_field": "response"
+    },
+    {
+      "id": "e-0ee4341cf4cdd39fa5e0",
+      "resource_id": "resource-5",
+      "url": "https://acme.example/about",
+      "captured_at": "2026-10-22T14:52:17.528119+00:00",
+      "http_status": 200,
+      "content_type": "text/html",
+      "redirects": [],
+      "sha256": "ef91fa9e70b0dcd8604ba65b4945d5b9a5f8c05c4a2b9e6a2dd03f5c9de43a07",
+      "source_field": "response"
+    },
+    {
+      "id": "e-6322b20f9bfd36c7023e",
+      "resource_id": "resource-1",
+      "url": "https://acme.example/",
+      "captured_at": "2026-10-22T14:52:17.509782+00:00",
+      "http_status": 200,
+      "content_type": "text/html",
+      "redirects": [],
+      "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+      "source_field": "robots",
+      "excerpt": "noindex"
+    },
+    {
+      "id": "e-7550531051d272e11d1a",
+      "resource_id": "resource-1",
+      "url": "https://acme.example/",
+      "captured_at": "2026-10-22T14:52:17.509782+00:00",
+      "http_status": 200,
+      "content_type": "text/html",
+      "redirects": [],
+      "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+      "source_field": "x-robots-tag",
+      "excerpt": "googlebot: noindex"
+    }
+  ],
+  "confirmed": {
+    "brand": {
+      "name": "Acme Tea",
+      "aliases": [
+        "Acme Tea"
+      ],
+      "basis": "website_metadata",
+      "evidence_ids": [
+        "e-30ff06b3d2d080ddf8a1"
+      ]
+    },
+    "products": [],
+    "competitors": [],
+    "context": "",
+    "confirmed_at": "2026-10-22T14:52:17.518871+00:00"
+  },
+  "report": {
+    "schema_version": "geo-readiness-v1",
+    "rule_version": "geo-readiness-rules-v1",
+    "generated_at": "2026-10-22T14:52:17.532517+00:00",
+    "target": {
+      "url": "https://acme.example/",
+      "market": "US",
+      "brand": "Acme Tea"
+    },
+    "scope": {
+      "kind": "finite_website_readiness",
+      "resources": [
+        {
+          "id": "resource-1",
+          "url": "https://acme.example/",
+          "kind": "seed",
+          "http_status": 200,
+          "error_code": null
+        },
+        {
+          "id": "resource-2",
+          "url": "https://acme.example/robots.txt",
+          "kind": "robots",
+          "http_status": 200,
+          "error_code": null
+        },
+        {
+          "id": "resource-3",
+          "url": "https://acme.example/llms.txt",
+          "kind": "llms",
+          "http_status": 200,
+          "error_code": null
+        },
+        {
+          "id": "resource-4",
+          "url": "https://acme.example/index.md",
+          "kind": "markdown",
+          "http_status": 200,
+          "error_code": null
+        },
+        {
+          "id": "resource-5",
+          "url": "https://acme.example/about",
+          "kind": "about",
+          "http_status": 200,
+          "error_code": null
+        }
+      ],
+      "limitations": [
+        "最多6资源/10HTTP/4MiB/累计60秒；无JS、无模型调用。",
+        "仅官网线索，不认证事实、外部权威或模型实际推荐。",
+        "未知和未请求不计通过；robots parser未提供精确命中行。"
+      ],
+      "model_calls": 0
+    },
+    "summary": {
+      "score": 100,
+      "partial_score": 100.0,
+      "coverage_percent": 100,
+      "known_weight": 100,
+      "total_weight": 100,
+      "passed": 14,
+      "failed": 1,
+      "unknown": 2,
+      "not_applicable": 0,
+      "conclusions": [
+        "观察到含noindex的页面收录声明，请先核对适用范围；这不是训练策略。",
+        "规则技术检测，尚未测试模型实际推荐表现。",
+        "分数仅描述本次有限页面规则检查。"
+      ]
+    },
+    "sections": [
+      {
+        "id": "access",
+        "title": "官网访问",
+        "checks": [
+          {
+            "id": "response",
+            "title": "正常页面响应",
+            "weight": 15,
+            "status": "pass",
+            "reason": "已获得可解析HTML页面。",
+            "evidence_ids": [
+              "e-0e50a5772a1c341eb766"
+            ],
+            "action": "补充页面证据后重新检测。",
+            "methodology": "geo-readiness-rules-v1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+          },
+          {
+            "id": "tls",
+            "title": "TLS证书与域名",
+            "weight": 5,
+            "status": "pass",
+            "reason": "本次最终页面TLS检查：passed",
+            "evidence_ids": [
+              "e-0e50a5772a1c341eb766"
+            ],
+            "action": "补充页面证据后重新检测。",
+            "methodology": "geo-readiness-rules-v1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+          }
+        ]
+      },
+      {
+        "id": "robots",
+        "title": "搜索与机器人策略",
+        "checks": [
+          {
+            "id": "search-OAI-SearchBot",
+            "title": "OAI-SearchBot搜索策略",
+            "weight": 5,
+            "status": "pass",
+            "reason": "针对本页路径的Protego结论：allowed",
+            "evidence_ids": [
+              "e-80fd79c6f367350a8aaf"
+            ],
+            "action": "核对搜索UA与目标路径策略；训练限制单独解释。",
+            "methodology": "geo-readiness-rules-v1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+          },
+          {
+            "id": "search-Claude-SearchBot",
+            "title": "Claude-SearchBot搜索策略",
+            "weight": 5,
+            "status": "pass",
+            "reason": "针对本页路径的Protego结论：allowed",
+            "evidence_ids": [
+              "e-80fd79c6f367350a8aaf"
+            ],
+            "action": "核对搜索UA与目标路径策略；训练限制单独解释。",
+            "methodology": "geo-readiness-rules-v1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+          },
+          {
+            "id": "search-PerplexityBot",
+            "title": "PerplexityBot搜索策略",
+            "weight": 5,
+            "status": "pass",
+            "reason": "针对本页路径的Protego结论：allowed",
+            "evidence_ids": [
+              "e-80fd79c6f367350a8aaf"
+            ],
+            "action": "核对搜索UA与目标路径策略；训练限制单独解释。",
+            "methodology": "geo-readiness-rules-v1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+          },
+          {
+            "id": "search-Googlebot",
+            "title": "Googlebot搜索策略",
+            "weight": 5,
+            "status": "pass",
+            "reason": "针对本页路径的Protego结论：allowed",
+            "evidence_ids": [
+              "e-80fd79c6f367350a8aaf"
+            ],
+            "action": "核对搜索UA与目标路径策略；训练限制单独解释。",
+            "methodology": "geo-readiness-rules-v1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+          }
+        ]
+      },
+      {
+        "id": "content",
+        "title": "可提取性与辅助文件",
+        "checks": [
+          {
+            "id": "extraction",
+            "title": "Trafilatura正文提取",
+            "weight": 20,
+            "status": "pass",
+            "reason": "离线Trafilatura提取正文 5121 字符。",
+            "evidence_ids": [
+              "e-0e50a5772a1c341eb766"
+            ],
+            "action": "补充页面证据后重新检测。",
+            "methodology": "geo-readiness-rules-v1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+          },
+          {
+            "id": "headings",
+            "title": "标题与H1",
+            "weight": 10,
+            "status": "pass",
+            "reason": "title及H1均可观察。",
+            "evidence_ids": [
+              "e-0e50a5772a1c341eb766"
+            ],
+            "action": "补充页面证据后重新检测。",
+            "methodology": "geo-readiness-rules-v1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+          },
+          {
+            "id": "structured-data",
+            "title": "语义结构化数据",
+            "weight": 10,
+            "status": "pass",
+            "reason": "观察到可解析语义类型：Organization, Product",
+            "evidence_ids": [
+              "e-0e50a5772a1c341eb766"
+            ],
+            "action": "补充页面证据后重新检测。",
+            "methodology": "geo-readiness-rules-v1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+          },
+          {
+            "id": "llms",
+            "title": "llms.txt",
+            "weight": 0,
+            "status": "pass",
+            "reason": "辅助信号，缺失不扣分，不保证模型推荐。 已取得符合类型的资源。",
+            "evidence_ids": [
+              "e-94435df769ffc42c9517"
+            ],
+            "action": "可选提供清晰的公开文本文件并复测；非强制要求。",
+            "methodology": "geo-readiness-rules-v1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+          },
+          {
+            "id": "markdown",
+            "title": "Markdown替代",
+            "weight": 0,
+            "status": "pass",
+            "reason": "辅助信号，缺失不扣分，不保证模型推荐。 已取得符合类型的资源。",
+            "evidence_ids": [
+              "e-14390962b2d2059c594b"
+            ],
+            "action": "可选提供清晰的公开文本文件并复测；非强制要求。",
+            "methodology": "geo-readiness-rules-v1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+          },
+          {
+            "id": "llms-full",
+            "title": "llms-full.txt",
+            "weight": 0,
+            "status": "unknown",
+            "reason": "辅助信号，缺失不扣分，不保证模型推荐。 未请求或失败保持未知。",
+            "evidence_ids": [
+              "e-0e50a5772a1c341eb766"
+            ],
+            "action": "可选提供清晰的公开文本文件并复测；非强制要求。",
+            "methodology": "geo-readiness-rules-v1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+          },
+          {
+            "id": "indexing-declarations",
+            "title": "页面收录声明",
+            "weight": 0,
+            "status": "fail",
+            "reason": "观察到含noindex的页面收录声明；不是训练限制，也不保证AI行为。UA前缀不推断作用范围。",
+            "evidence_ids": [
+              "e-6322b20f9bfd36c7023e",
+              "e-7550531051d272e11d1a"
+            ],
+            "action": "核对meta robots/googlebot及X-Robots-Tag的预期收录声明，再重新检测。",
+            "methodology": "geo-readiness-rules-v1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+          }
+        ]
+      },
+      {
+        "id": "trust",
+        "title": "官网身份与联系线索",
+        "checks": [
+          {
+            "id": "identity",
+            "title": "组织或品牌身份线索",
+            "weight": 10,
+            "status": "pass",
+            "reason": "仅观察官网线索，未核验事实真实性或链接目标。",
+            "evidence_ids": [
+              "e-0e50a5772a1c341eb766"
+            ],
+            "action": "补充页面证据后重新检测。",
+            "methodology": "geo-readiness-rules-v1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+          },
+          {
+            "id": "contact",
+            "title": "联系线索",
+            "weight": 5,
+            "status": "pass",
+            "reason": "仅观察官网线索，未核验事实真实性或链接目标。",
+            "evidence_ids": [
+              "e-0e50a5772a1c341eb766"
+            ],
+            "action": "补充页面证据后重新检测。",
+            "methodology": "geo-readiness-rules-v1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+          },
+          {
+            "id": "policy",
+            "title": "政策链接线索",
+            "weight": 5,
+            "status": "pass",
+            "reason": "仅观察官网线索，未核验事实真实性或链接目标。",
+            "evidence_ids": [
+              "e-0e50a5772a1c341eb766"
+            ],
+            "action": "补充页面证据后重新检测。",
+            "methodology": "geo-readiness-rules-v1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+          },
+          {
+            "id": "author-date",
+            "title": "作者和日期观察",
+            "weight": 0,
+            "status": "unknown",
+            "reason": "作者/日期仅作观察，不认证来源权威。",
+            "evidence_ids": [
+              "e-0e50a5772a1c341eb766"
+            ],
+            "action": "补充页面证据后重新检测。",
+            "methodology": "geo-readiness-rules-v1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+          }
+        ]
+      }
+    ],
+    "robots": {
+      "resource_id": "resource-2",
+      "fetch_status": "available",
+      "agents": [
+        {
+          "user_agent": "*",
+          "purpose": "usage_control",
+          "path": "/",
+          "decision": "allowed",
+          "parser": "protego",
+          "evidence_ids": [
+            "e-80fd79c6f367350a8aaf"
+          ],
+          "notes": [
+            "Protego解析结果；未提供精确命中行。",
+            "训练策略与搜索/用户触发分别展示，不代表推荐概率。"
+          ]
+        },
+        {
+          "user_agent": "SignalGEO/1.0",
+          "purpose": "usage_control",
+          "path": "/",
+          "decision": "allowed",
+          "parser": "protego",
+          "evidence_ids": [
+            "e-80fd79c6f367350a8aaf"
+          ],
+          "notes": [
+            "Protego解析结果；未提供精确命中行。",
+            "训练策略与搜索/用户触发分别展示，不代表推荐概率。"
+          ]
+        },
+        {
+          "user_agent": "OAI-SearchBot",
+          "purpose": "search",
+          "path": "/",
+          "decision": "allowed",
+          "parser": "protego",
+          "evidence_ids": [
+            "e-80fd79c6f367350a8aaf"
+          ],
+          "notes": [
+            "Protego解析结果；未提供精确命中行。",
+            "训练策略与搜索/用户触发分别展示，不代表推荐概率。"
+          ]
+        },
+        {
+          "user_agent": "Claude-SearchBot",
+          "purpose": "search",
+          "path": "/",
+          "decision": "allowed",
+          "parser": "protego",
+          "evidence_ids": [
+            "e-80fd79c6f367350a8aaf"
+          ],
+          "notes": [
+            "Protego解析结果；未提供精确命中行。",
+            "训练策略与搜索/用户触发分别展示，不代表推荐概率。"
+          ]
+        },
+        {
+          "user_agent": "PerplexityBot",
+          "purpose": "search",
+          "path": "/",
+          "decision": "allowed",
+          "parser": "protego",
+          "evidence_ids": [
+            "e-80fd79c6f367350a8aaf"
+          ],
+          "notes": [
+            "Protego解析结果；未提供精确命中行。",
+            "训练策略与搜索/用户触发分别展示，不代表推荐概率。"
+          ]
+        },
+        {
+          "user_agent": "Googlebot",
+          "purpose": "search",
+          "path": "/",
+          "decision": "allowed",
+          "parser": "protego",
+          "evidence_ids": [
+            "e-80fd79c6f367350a8aaf"
+          ],
+          "notes": [
+            "Protego解析结果；未提供精确命中行。",
+            "训练策略与搜索/用户触发分别展示，不代表推荐概率。"
+          ]
+        },
+        {
+          "user_agent": "GPTBot",
+          "purpose": "training",
+          "path": "/",
+          "decision": "disallowed",
+          "parser": "protego",
+          "evidence_ids": [
+            "e-80fd79c6f367350a8aaf"
+          ],
+          "notes": [
+            "Protego解析结果；未提供精确命中行。",
+            "训练策略与搜索/用户触发分别展示，不代表推荐概率。"
+          ]
+        },
+        {
+          "user_agent": "GPTBot/1.2",
+          "purpose": "training",
+          "path": "/",
+          "decision": "disallowed",
+          "parser": "protego",
+          "evidence_ids": [
+            "e-80fd79c6f367350a8aaf"
+          ],
+          "notes": [
+            "Protego解析结果；未提供精确命中行。",
+            "训练策略与搜索/用户触发分别展示，不代表推荐概率。"
+          ]
+        },
+        {
+          "user_agent": "ClaudeBot",
+          "purpose": "training",
+          "path": "/",
+          "decision": "allowed",
+          "parser": "protego",
+          "evidence_ids": [
+            "e-80fd79c6f367350a8aaf"
+          ],
+          "notes": [
+            "Protego解析结果；未提供精确命中行。",
+            "训练策略与搜索/用户触发分别展示，不代表推荐概率。"
+          ]
+        },
+        {
+          "user_agent": "ChatGPT-User",
+          "purpose": "user_triggered",
+          "path": "/",
+          "decision": "allowed",
+          "parser": "protego",
+          "evidence_ids": [
+            "e-80fd79c6f367350a8aaf"
+          ],
+          "notes": [
+            "Protego解析结果；未提供精确命中行。",
+            "训练策略与搜索/用户触发分别展示，不代表推荐概率。"
+          ]
+        },
+        {
+          "user_agent": "Claude-User",
+          "purpose": "user_triggered",
+          "path": "/",
+          "decision": "allowed",
+          "parser": "protego",
+          "evidence_ids": [
+            "e-80fd79c6f367350a8aaf"
+          ],
+          "notes": [
+            "Protego解析结果；未提供精确命中行。",
+            "训练策略与搜索/用户触发分别展示，不代表推荐概率。"
+          ]
+        }
+      ]
+    },
+    "evidence": [
+      {
+        "id": "e-5d3c3282633d7b413ba5",
+        "resource_id": "resource-1",
+        "url": "https://acme.example/",
+        "captured_at": "2026-10-22T14:52:17.509782+00:00",
+        "http_status": 200,
+        "content_type": "text/html",
+        "redirects": [],
+        "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc"
+      },
+      {
+        "id": "e-30ff06b3d2d080ddf8a1",
+        "resource_id": "resource-1",
+        "url": "https://acme.example/",
+        "captured_at": "2026-10-22T14:52:17.509782+00:00",
+        "http_status": 200,
+        "content_type": "text/html",
+        "redirects": [],
+        "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+        "source_field": "meta[property=\"og:site_name\"]",
+        "excerpt": "Acme Tea"
+      },
+      {
+        "id": "e-13b06907ff4ba4872262",
+        "resource_id": "resource-1",
+        "url": "https://acme.example/",
+        "captured_at": "2026-10-22T14:52:17.509782+00:00",
+        "http_status": 200,
+        "content_type": "text/html",
+        "redirects": [],
+        "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+        "source_field": "JSON-LD.Product.name",
+        "excerpt": "Green Tea"
+      },
+      {
+        "id": "e-2d905c342a6f315ec5b5",
+        "resource_id": "resource-1",
+        "url": "https://acme.example/",
+        "captured_at": "2026-10-22T14:52:17.509782+00:00",
+        "http_status": 200,
+        "content_type": "text/html",
+        "redirects": [],
+        "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+        "source_field": "body.comparison",
+        "excerpt": "Rival Tea"
+      },
+      {
+        "id": "e-559275a5e508fc7cf4c2",
+        "resource_id": "resource-1",
+        "url": "https://acme.example/",
+        "captured_at": "2026-10-22T14:52:17.509782+00:00",
+        "http_status": 200,
+        "content_type": "text/html",
+        "redirects": [],
+        "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+        "source_field": "body.comparison",
+        "excerpt": "rewing information for customers. Tea leaves and brewing information for customers.\nCompare our tea versus\nRival Tea\n.\nPartner Company\nContact us\nPrivacy policy\nAbout us\nsupport@acme.example"
+      },
+      {
+        "id": "e-0e50a5772a1c341eb766",
+        "resource_id": "resource-1",
+        "url": "https://acme.example/",
+        "captured_at": "2026-10-22T14:52:17.509782+00:00",
+        "http_status": 200,
+        "content_type": "text/html",
+        "redirects": [],
+        "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+        "source_field": "response"
+      },
+      {
+        "id": "e-80fd79c6f367350a8aaf",
+        "resource_id": "resource-2",
+        "url": "https://acme.example/robots.txt",
+        "captured_at": "2026-10-22T14:52:17.523947+00:00",
+        "http_status": 200,
+        "content_type": "text/plain",
+        "redirects": [],
+        "sha256": "54f6fd1edcf3f22736cbfd2643c832438727dfe6a6a1cdb5e4846a3fd5a9b5ec",
+        "source_field": "robots.txt",
+        "excerpt": "User-agent: GPTBot\nDisallow: /\n\nUser-agent: OAI-SearchBot\nDisallow: /private\nAllow: /private/open\n\nUser-agent: *\nAllow: /\n"
+      },
+      {
+        "id": "e-94435df769ffc42c9517",
+        "resource_id": "resource-3",
+        "url": "https://acme.example/llms.txt",
+        "captured_at": "2026-10-22T14:52:17.527181+00:00",
+        "http_status": 200,
+        "content_type": "text/plain",
+        "redirects": [],
+        "sha256": "2446abb1cdeae199cc2aa7e4c1ff98fb7c8d5a7d00433d741595cfd0770087a3",
+        "source_field": "response"
+      },
+      {
+        "id": "e-14390962b2d2059c594b",
+        "resource_id": "resource-4",
+        "url": "https://acme.example/index.md",
+        "captured_at": "2026-10-22T14:52:17.527595+00:00",
+        "http_status": 200,
+        "content_type": "text/markdown",
+        "redirects": [],
+        "sha256": "cd373e7e91a36a2571016b8b40499e9cd1e1073c5d55090904a6293221744023",
+        "source_field": "response"
+      },
+      {
+        "id": "e-0ee4341cf4cdd39fa5e0",
+        "resource_id": "resource-5",
+        "url": "https://acme.example/about",
+        "captured_at": "2026-10-22T14:52:17.528119+00:00",
+        "http_status": 200,
+        "content_type": "text/html",
+        "redirects": [],
+        "sha256": "ef91fa9e70b0dcd8604ba65b4945d5b9a5f8c05c4a2b9e6a2dd03f5c9de43a07",
+        "source_field": "response"
+      },
+      {
+        "id": "e-6322b20f9bfd36c7023e",
+        "resource_id": "resource-1",
+        "url": "https://acme.example/",
+        "captured_at": "2026-10-22T14:52:17.509782+00:00",
+        "http_status": 200,
+        "content_type": "text/html",
+        "redirects": [],
+        "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+        "source_field": "robots",
+        "excerpt": "noindex"
+      },
+      {
+        "id": "e-7550531051d272e11d1a",
+        "resource_id": "resource-1",
+        "url": "https://acme.example/",
+        "captured_at": "2026-10-22T14:52:17.509782+00:00",
+        "http_status": 200,
+        "content_type": "text/html",
+        "redirects": [],
+        "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+        "source_field": "x-robots-tag",
+        "excerpt": "googlebot: noindex"
+      }
+    ],
+    "recommendations": [
+      {
+        "id": "recommend-llms-full",
+        "priority": "low",
+        "check_ids": [
+          "llms-full"
+        ],
+        "evidence_ids": [
+          "e-0e50a5772a1c341eb766"
+        ],
+        "action": "可选提供清晰的公开文本文件并复测；非强制要求。",
+        "retest": "用户明确选择重新检测后核对同规则与同页面。"
+      },
+      {
+        "id": "recommend-indexing-declarations",
+        "priority": "low",
+        "check_ids": [
+          "indexing-declarations"
+        ],
+        "evidence_ids": [
+          "e-6322b20f9bfd36c7023e",
+          "e-7550531051d272e11d1a"
+        ],
+        "action": "核对meta robots/googlebot及X-Robots-Tag的预期收录声明，再重新检测。",
+        "retest": "用户明确选择重新检测后核对同规则与同页面。"
+      },
+      {
+        "id": "recommend-author-date",
+        "priority": "low",
+        "check_ids": [
+          "author-date"
+        ],
+        "evidence_ids": [
+          "e-0e50a5772a1c341eb766"
+        ],
+        "action": "补充页面证据后重新检测。",
+        "retest": "用户明确选择重新检测后核对同规则与同页面。"
+      }
+    ],
+    "model_analysis": {
+      "status": "not_tested",
+      "binding": {
+        "audit_id": "00266c67-0831-4549-9d99-9801ac931db3",
+        "url": "https://acme.example/",
+        "market": "US",
+        "brand_aliases": [
+          "Acme Tea"
+        ]
+      },
+      "job_id": null,
+      "report": null
+    }
+  },
+  "warnings": [],
+  "reused": false,
+  "usage": {
+    "http_requests": 5,
+    "resources_requested": 5,
+    "bytes_received": 5989,
+    "active_duration_ms": 13,
+    "model_calls": 0
+  },
+  "completed_at": "2026-10-22T14:52:17.532616+00:00"
+}

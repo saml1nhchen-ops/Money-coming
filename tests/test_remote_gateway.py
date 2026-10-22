@@ -11,9 +11,6 @@ class FakeAPI:
    self.starts+=1
    if self.fail:raise Failure(502,'upstream_failed')
    self.busy=True;return {'id':str(uuid.uuid4()),'status':'queued','config':body}
-  if path=='diagnose':return {'id':str(uuid.uuid4()),'status':'queued','config':body}
-  if path=='diagnoses':return {'busy':False,'diagnoses':[]}
-  if path.startswith('diagnosis?'):return {'id':path.split('=')[1],'status':'finished','bundle':{'schema_version':'v0.1'}}
   if path.startswith(('run?','export?')):return {'status':'running','error':'raw secret provider error','headers':{'Authorization':'vendor-key'}}
   return {'status':'stop_requested'}
 class HTTPTests(unittest.TestCase):
@@ -30,25 +27,33 @@ class HTTPTests(unittest.TestCase):
  def login(self):
   status,d,_=self.request('/api/workspace/login',{'password':'sixteen-character-password'});self.assertEqual(status,200);return d['token']
  def payload(self):return {'website':'https://cremocompany.com/','market':'US','brand_aliases':['Cremo'],'providers':['gpt','gemini'],'generator':'gpt','count':30,'repeats':1}
+ def test_health_claude_capability_uses_configured_profiles_only(self):
+  self.w.profiles=[{'id':'opaque','manufacturer':'Anthropic','model':'claude-test'},{'id':'gpt','manufacturer':'OpenAI'},{'id':'gemini','manufacturer':'Google'}]
+  code,h,_=self.request('/healthz');self.assertEqual(code,200);self.assertTrue(h['capabilities']['claude_available']);self.assertEqual(h['capabilities']['analysis_manufacturers'],['Anthropic','Google','OpenAI']);self.assertNotIn('claude-test',str(h));self.assertNotIn('opaque',str(h))
  def test_auth_origin_and_routes(self):
   for path in ('state','run?id='+str(uuid.uuid4()),'export?id='+str(uuid.uuid4())):self.assertEqual(self.request('/api/geo/'+path)[0],401)
   t=self.login();self.assertEqual(self.request('/api/geo/state',token=t,origin='null')[0],403);self.assertEqual(self.request('/api/geo/state',token=t,origin=None)[0],200)
   for path in ('/api/geo/session','/api/bai/state','/api/tools/session','/api/geo/resume'):self.assertEqual(self.request(path,{},t)[0],404)
   self.assertEqual(self.request('/api/geo/state?x=1',token=t)[0],400)
   self.assertEqual(self.request('/api/workspace/logout',{},t)[0],200);self.assertEqual(self.request('/api/geo/state',token=t)[0],401)
- def test_diagnosis_routes_need_no_models_or_budget(self):
-  t=self.login();self.w.ready=False;self.w.reason='missing_bai_key';body={'website':'https://cremocompany.com/','market':'US','brand':'Cremo','aliases':['Cremo Company']}
-  status,d,_=self.request('/api/geo/diagnose',body,t);self.assertEqual(status,202);self.assertEqual(d['config']['brand'],'Cremo');self.assertEqual(self.w.budget.state()['reserved'],0)
-  self.assertEqual(self.request('/api/geo/diagnose',{**body,'flow_id':str(uuid.uuid4())},t)[0],202)
-  for change in ({'market':'JP'},{'brand':''},{'aliases':'Cremo'},{'flow_id':'x'},{'providers':['gpt']}):self.assertEqual(self.request('/api/geo/diagnose',{**body,**change},t)[0],400)
-  self.assertEqual(self.request('/api/geo/diagnoses',token=t)[0],200)
-  self.assertEqual(self.request('/api/geo/diagnosis?id='+str(uuid.uuid4()),token=t)[0],200)
-  self.assertEqual(self.request('/api/geo/diagnosis?id=bad',token=t)[0],400)
-  self.assertEqual(self.request('/api/geo/diagnose',body)[0],401)
-  self.w.maintenance_requested.set();self.assertEqual(self.request('/api/geo/diagnose',body,t)[0],503)
  def test_preflight_and_host(self):
   status,d,h=self.request('/api/geo/state',method='OPTIONS',extra={'Access-Control-Request-Method':'GET','Access-Control-Request-Headers':'Authorization'});self.assertEqual(status,204);self.assertNotIn('token',str(d));self.assertEqual(h['Access-Control-Allow-Origin'],ORIGIN)
   self.assertEqual(self.request('/healthz',extra={'Host':'evil.example'})[0],403)
+ def test_health_all_models_and_state_share_actual_unique_capped_count(self):
+  t=self.login()
+  for profiles,expected in [([],0),([{'id':'same'},{'id':'same'}],1),([{'id':'p'+str(n)} for n in range(18)],16)]:
+   self.w.profiles=profiles;code,h,_=self.request('/healthz');self.assertEqual(code,200);self.assertTrue(h['capabilities']['analysis_all_models']);self.assertEqual(h['capabilities']['analysis_max_models'],expected);self.assertEqual(self.request('/api/geo/state',token=t)[1]['remote']['limits']['max_models'],expected)
+ def test_three_configured_manufacturers_select_all_and_reserve93(self):
+  self.w.profiles.append({'id':'claude','manufacturer':'Anthropic'});t=self.login()
+  self.assertEqual(self.request('/api/geo/state',token=t)[1]['remote']['limits']['max_models'],3)
+  for providers in ([],['gpt','gpt'],['gpt','unknown']):
+   self.assertEqual(self.request('/api/geo/start',{**self.payload(),'providers':providers},t)[0],400)
+  self.assertEqual(self.w.budget.state()['reserved'],0)
+  self.assertEqual(self.request('/api/geo/start',{**self.payload(),'providers':['gpt','gemini','claude']},t)[0],202);self.assertEqual(self.w.budget.state()['reserved'],93);self.assertEqual(self.api.starts,1)
+ def test_profile_limit_tracks_actual_directory_with_sixteen_cap(self):
+  self.w.profiles=[{'id':'p'+str(n)} for n in range(17)];t=self.login();self.assertEqual(self.request('/api/geo/state',token=t)[1]['remote']['limits']['max_models'],16)
+  body={**self.payload(),'providers':[p['id'] for p in self.w.profiles],'generator':'p0'};self.assertEqual(self.request('/api/geo/start',body,t)[0],400);self.assertEqual(self.w.budget.state()['reserved'],0)
+  self.w.validate('start',{**body,'providers':body['providers'][:16]})
  def test_limits_and_expiration(self):
   t=self.login();self.w.sessions[t]=time.time()-1;self.assertEqual(self.request('/api/geo/state',token=t)[0],401)
   for _ in range(4):self.assertEqual(self.request('/api/workspace/login',{'password':'wrong'})[0],401)
@@ -143,8 +148,8 @@ class HTTPTests(unittest.TestCase):
     if blocking=='plan':self.assertEqual(results,[503]);self.assertFalse(states[0]['busy']);self.assertEqual(self.w.budget.state()['reserved'],0)
     else:self.assertEqual(results,[202]);self.assertTrue(states[0]['busy']);self.assertIsNotNone(self.w.active);self.assertEqual(self.w.budget.state()['reserved'],63)
  def test_health_metadata_is_optional_and_safe(self):
-  with patch.dict(os.environ,{'SIGNAL_BUILD_REVISION':'','SIGNAL_BUILD_VERSION':''}):self.assertEqual(self.request('/healthz')[1],{'ok':True})
-  with patch.dict(os.environ,{'SIGNAL_BUILD_REVISION':'a'*40,'SIGNAL_BUILD_VERSION':'v1.2.3'}):self.assertEqual(self.request('/healthz')[1],{'ok':True,'revision':'a'*40,'version':'v1.2.3'})
+  with patch.dict(os.environ,{'SIGNAL_BUILD_REVISION':'','SIGNAL_BUILD_VERSION':''}):self.assertEqual(self.request('/healthz')[1],{'ok':True,'capabilities':{'claude_available':False,'analysis_manufacturers':[],'analysis_all_models':True,'analysis_max_models':2}})
+  with patch.dict(os.environ,{'SIGNAL_BUILD_REVISION':'a'*40,'SIGNAL_BUILD_VERSION':'v1.2.3'}):self.assertEqual(self.request('/healthz')[1],{'ok':True,'revision':'a'*40,'version':'v1.2.3','capabilities':{'claude_available':False,'analysis_manufacturers':[],'analysis_all_models':True,'analysis_max_models':2}})
  def test_body_and_session_cap(self):
   self.assertEqual(self.request('/api/workspace/login',{'password':'x'*5000})[0],413)
   self.assertEqual(self.request('/api/workspace/login',[],extra={})[0],400)
