@@ -1,0 +1,26 @@
+name: Read-only public GEO readiness validation
+on:
+  push:
+    branches: ['diagnose/geo-readiness-*']
+permissions:
+  contents: read
+jobs:
+  validate:
+    if: github.event.deleted == false && github.event.forced == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Install hash-locked offline parsers
+        run: |
+          python3 -m venv /tmp/audit-validation
+          /tmp/audit-validation/bin/python -m pip install --only-binary=:all: --require-hashes -r tools/requirements-audit.lock
+      - name: Validate two public websites without a model key or model calls
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: /tmp/audit-validation/bin/python deploy/live_site_audit.py
