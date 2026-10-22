@@ -1,5 +1,5 @@
 """Public, read-only connection probes. No login, credentials or model calls."""
-import base64,datetime,http.client,json,os,pathlib,re,socket,ssl,sys,urllib.error,urllib.request
+import base64,datetime,http.client,json,os,pathlib,re,socket,ssl,sys,urllib.error,urllib.request,subprocess
 HOST='43.154.242.184.sslip.io';BASE='https://'+HOST;ORIGIN='https://saml1nhchen-ops.github.io'
 class NoRedirect(urllib.request.HTTPRedirectHandler):
  def redirect_request(self,*a,**k):return None
@@ -74,6 +74,17 @@ def collect():
  opener=urllib.request.build_opener(NoRedirect,urllib.request.HTTPSHandler(context=context))
  report['http']=[probe(opener,'GET','/healthz'),probe(opener,'GET','/healthz',True),probe(opener,'OPTIONS','/api/workspace/login',True,'POST'),probe(opener,'OPTIONS','/api/geo/state',True,'GET'),probe(opener,'GET','/api/geo/state',True)]
  return report
+def browser_probe():
+ # Do not pass the reporting token (or other runner credentials) into Node/Chrome.
+ env={k:v for k,v in os.environ.items() if not re.search(r'TOKEN|SECRET|PASSWORD|CREDENTIAL|API_KEY|PRIVATE_KEY',k,re.I)}
+ try:
+  result=subprocess.run(['node',str(pathlib.Path(__file__).with_name('browser_connection_diagnostics.mjs'))],env=env,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True,timeout=48)
+  if len(result.stdout)>32768:return {'error':'browser_report_too_large'}
+  report=json.loads(result.stdout)
+  if not isinstance(report,dict):return {'error':'browser_invalid_report'}
+  return report
+ except subprocess.TimeoutExpired:return {'error':'browser_probe_timeout'}
+ except (OSError,ValueError):return {'error':'browser_unavailable'}
 def api(opener,repository,token,method,path,body):
  req=urllib.request.Request('https://api.github.com/repos/'+repository+path,json.dumps(body).encode(),{'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json'},method=method)
  try:
@@ -88,7 +99,7 @@ def publish(report,environ=os.environ):
  api(opener,repository,token,'PUT','/contents/connection-report.json',{'message':'Read-only connection diagnostics '+run,'branch':branch,'content':content})
  return branch
 def main():
- report=collect();pathlib.Path('connection-report.json').write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
+ report=collect();report['browser']=browser_probe();pathlib.Path('connection-report.json').write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
  summary=os.environ.get('GITHUB_STEP_SUMMARY')
  if summary:
   with pathlib.Path(summary).open('a') as out:out.write('Read-only connection diagnostics\n\n```json\n'+json.dumps(report,indent=2,sort_keys=True)+'\n```\n')
