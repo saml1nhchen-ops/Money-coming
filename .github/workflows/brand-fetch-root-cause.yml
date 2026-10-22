@@ -1,0 +1,24 @@
+name: Diagnose public brand page transport and extraction
+on:
+  push:
+    branches: ['diagnose/brand-fetch-root-cause-*']
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - name: Install actual hash-locked parsing libraries
+        run: |
+          python3 -m venv /tmp/brand-diagnosis
+          /tmp/brand-diagnosis/bin/python -m pip install --only-binary=:all: --require-hashes -r tools/requirements-audit.lock
+      - name: Read bounded public page evidence and test actual extraction
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: /tmp/brand-diagnosis/bin/python deploy/brand_fetch_diagnostics.py
