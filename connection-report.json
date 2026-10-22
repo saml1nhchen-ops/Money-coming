@@ -1,0 +1,136 @@
+{
+  "browser": {
+    "credentials_sent": false,
+    "error": "chrome_start_timeout",
+    "page": "https://saml1nhchen-ops.github.io/Money-coming/dist/team.html?v=c7177be#/w/demo/research",
+    "target": "https://43.154.242.184.sslip.io/healthz"
+  },
+  "dns": {
+    "addresses": [
+      "43.154.242.184"
+    ]
+  },
+  "http": [
+    {
+      "body": {
+        "capabilities": {
+          "remember_login": true,
+          "remember_login_max_age_seconds": 2592000
+        },
+        "ok": true,
+        "revision": "e3d326feacf68e2a3c53f74f84716cf56cdb35fc",
+        "version": "v0.3.1"
+      },
+      "cors": {
+        "Vary": [
+          "origin"
+        ]
+      },
+      "expected_status": true,
+      "method": "GET",
+      "origin": false,
+      "path": "/healthz",
+      "status": 200
+    },
+    {
+      "body": {
+        "capabilities": {
+          "remember_login": true,
+          "remember_login_max_age_seconds": 2592000
+        },
+        "ok": true,
+        "revision": "e3d326feacf68e2a3c53f74f84716cf56cdb35fc",
+        "version": "v0.3.1"
+      },
+      "cors": {
+        "Access-Control-Allow-Origin": "https://saml1nhchen-ops.github.io",
+        "Vary": [
+          "origin"
+        ]
+      },
+      "cors_origin_matches": true,
+      "expected_status": true,
+      "method": "GET",
+      "origin": true,
+      "path": "/healthz",
+      "status": 200
+    },
+    {
+      "cors": {
+        "Access-Control-Allow-Headers": [
+          "content-type",
+          "authorization"
+        ],
+        "Access-Control-Allow-Methods": [
+          "get",
+          "post",
+          "options"
+        ],
+        "Access-Control-Allow-Origin": "https://saml1nhchen-ops.github.io",
+        "Vary": [
+          "origin"
+        ]
+      },
+      "cors_origin_matches": true,
+      "expected_status": true,
+      "method": "OPTIONS",
+      "origin": true,
+      "path": "/api/workspace/login",
+      "preflight_headers_allowed": true,
+      "preflight_method_allowed": true,
+      "status": 204
+    },
+    {
+      "cors": {
+        "Access-Control-Allow-Headers": [
+          "content-type",
+          "authorization"
+        ],
+        "Access-Control-Allow-Methods": [
+          "get",
+          "post",
+          "options"
+        ],
+        "Access-Control-Allow-Origin": "https://saml1nhchen-ops.github.io",
+        "Vary": [
+          "origin"
+        ]
+      },
+      "cors_origin_matches": true,
+      "expected_status": true,
+      "method": "OPTIONS",
+      "origin": true,
+      "path": "/api/geo/state",
+      "preflight_headers_allowed": true,
+      "preflight_method_allowed": true,
+      "status": 204
+    },
+    {
+      "body": {
+        "code": "unauthorized"
+      },
+      "cors": {
+        "Access-Control-Allow-Origin": "https://saml1nhchen-ops.github.io",
+        "Vary": [
+          "origin"
+        ]
+      },
+      "cors_origin_matches": true,
+      "expected_status": true,
+      "method": "GET",
+      "origin": true,
+      "path": "/api/geo/state",
+      "status": 401
+    }
+  ],
+  "observed_at": "2026-10-22T13:31:54.091385+00:00",
+  "read_only": true,
+  "schema": 1,
+  "target": "https://43.154.242.184.sslip.io",
+  "tls": {
+    "not_after": "Jan 19 16:28:36 2027 GMT",
+    "not_before": "Oct 21 16:28:37 2026 GMT",
+    "protocol": "TLSv1.3",
+    "verified": true
+  }
+}
