@@ -151,6 +151,8 @@ class FetchBudget:
      if ctype not in ('text/html','application/xhtml+xml'):return fail('unsupported_content','unsupported')
      r['raw_html']=r['text'];r['parsed']=self.run('parse',(r['raw_html'],current));parsed=r['parsed'];check.value['readable_characters']=parsed['metadata'].get('readable_characters',0)
      if website_check.challenge(r['raw_html'],parsed['metadata']):r['parsed']=None;return fail('website_challenge','challenge')
+     if check.value['readable_characters']<100 and len(parsed.get('extracted_text') or '')<100:
+      check.check('content','unknown','content_too_short');check.finding('content_too_short');r['diagnostics']=check.finish('metadata_only');return r
      check.check('content','passed','content_ok')
     elif ctype not in ('text/plain','text/markdown','text/x-markdown'):return fail('unsupported_content','unsupported')
     r['diagnostics']=check.finish('readable');return r

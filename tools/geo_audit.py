@@ -2,7 +2,7 @@
 import concurrent.futures,contextlib,copy,hashlib,importlib.metadata,json,pathlib,re,sqlite3,time,urllib.parse,uuid
 from audit_fetch import FetchBudget,AuditFetchError,origin
 import website_inspection
-VERSION='geo-readiness-v1';RULE='geo-readiness-rules-v1'
+VERSION='geo-readiness-v1';RULE='geo-readiness-rules-v1.1'
 SEARCH=['OAI-SearchBot','Claude-SearchBot','PerplexityBot','Googlebot']
 AGENTS=[('*','usage_control'),('SignalGEO/1.0','usage_control'),*[(a,'search') for a in SEARCH],('GPTBot','training'),('GPTBot/1.2','training'),('ClaudeBot','training'),('ChatGPT-User','user_triggered'),('Claude-User','user_triggered')]
 class AuditError(Exception):
@@ -33,17 +33,26 @@ def preview_candidates(audit,seed):
   row=meta['structured_names'][0];brand=candidate(audit,seed,row['name'],'brand',row['source'])
  elif meta.get('title'):
   name=re.split(r'\s+[|–—-]\s+|[|｜]',meta['title'],maxsplit=1)[0].strip()
-  if name:brand=candidate(audit,seed,name,'brand','title')
+  if name:brand=candidate(audit,seed,name,'brand','Markdown H1' if meta.get('source_format')=='markdown' else 'title',basis='website_text' if meta.get('source_format')=='markdown' else 'website_metadata')
  products=[];seen=set()
  for row in meta.get('product_names',[]):
   if row['name'].casefold() in seen:continue
   seen.add(row['name'].casefold());products.append(candidate(audit,seed,row['name'],'product',row['source']))
+ linked=[]
  for link in meta.get('product_links',[]):
   name=link['text'].strip();url=urllib.parse.urljoin(seed['url'],link['href'])
   try:same=origin(normalize(url))==origin(seed['url'])
   except ValueError:same=False
-  if same and re.search(r'/(?:products?|collections?|categor(?:y|ies))/',urllib.parse.urlsplit(url).path,re.I) and name.casefold() not in seen and name.casefold() not in ('shop','shop all','contact','contact us','购物','联系我们'):
-   seen.add(name.casefold());products.append(candidate(audit,seed,name,'category' if re.search(r'/(?:collections?|categor(?:y|ies))/',url) else 'product','a[href]',basis='website_text'))
+  path=urllib.parse.urlsplit(url).path
+  if not same or not path.strip('/') or not name or len(name)>120 or name.casefold() in ('shop','shop all','shop now','all products','new','new & featured','new arrivals','best sellers','latest drops','men','women','kids','sale','contact','contact us','购物','联系我们'):continue
+  if re.search(r'/(?:help|contact|privacy|terms|login|register|membership|cart|orders|blog|magazine|articles?)(?:/|$)',path,re.I):continue
+  product=bool(link.get('product_marker') or re.search(r'/(?:products?|t)/[^/]+',path,re.I))
+  category=bool(re.search(r'/(?:collections?|categor(?:y|ies)|w)/[^/]+',path,re.I) or re.search(r'^/(?:makeup|skin-care|hair-care|hair-color|shaving|body-care)(?:/|$)',path,re.I))
+  if product or category:linked.append((0 if product else 1,link,url))
+ for priority,link,url in sorted(linked,key=lambda row:row[0]):
+  name=link['text'].strip()
+  if name.casefold() in seen:continue
+  seen.add(name.casefold());field='Markdown link' if meta.get('source_format')=='markdown' else 'a[href]';row=candidate(audit,seed,name,'product' if priority==0 else 'category',field,basis='website_text');row['evidence_ids']=[add_evidence(audit,seed,field,name+' — '+url)];products.append(row)
  competitors=[];body=seed['parsed'].get('text','')
  for link in meta.get('product_links',[]):
   name=link['text'].strip()
@@ -52,6 +61,31 @@ def preview_candidates(audit,seed):
   if match:
    row=candidate(audit,seed,name,'competitor','body.comparison','website_text');eid=add_evidence(audit,seed,'body.comparison',body[max(0,match.start()-100):match.end()+100]);row['evidence_ids']=[eid];competitors.append(row)
  audit['candidates']={'brand':brand,'products':products[:6],'competitors':competitors[:5]}
+
+def preview_fallback(audit,budget):
+ """Only published same-origin Markdown supplements missing page metadata."""
+ data=audit['_internal'];seed=data['resources'][0];base=origin(seed['url'])
+ if seed['url'] in (base+'/robots.txt',base+'/llms.txt'):return
+ robots=budget.fetch(base+'/robots.txt','robots',base);data['resources'].append(robots);add_evidence(audit,robots)
+ policy=robots_policy(robots,budget,seed['url']);data['robots']=policy
+ def permitted(url):
+  if policy['fetch_status']=='not_found':return True
+  if policy['fetch_status']!='available':return False
+  try:return budget.run('robots',(robots['text'],[url],['SignalGEO/1.0']))['SignalGEO/1.0'][url]
+  except AuditFetchError:return False
+ url=base+'/llms.txt'
+ if not permitted(url):return
+ resource=budget.fetch(url,'llms',base,permitted=permitted);data['resources'].append(resource);add_evidence(audit,resource)
+ if resource.get('error'):return
+ text=resource.get('text','');heading=re.search(r'^#\s+([^\n]{1,200})\s*$',text,re.M)
+ links=[{'text':name.strip(),'href':href.strip()} for name,href in re.findall(r'\[([^\]\n]{1,120})\]\(([^\s)]+)\)',text)[:100]]
+ temporary={'evidence':audit['evidence'],'candidates':{}}
+ snapshot={**resource,'parsed':{'metadata':{'source_format':'markdown','title':heading[1].strip() if heading else '','product_links':links},'text':text}}
+ preview_candidates(temporary,snapshot)
+ supplied=False
+ for field in ('brand','products'):
+  if not audit['candidates'][field] and temporary['candidates'][field]:audit['candidates'][field]=temporary['candidates'][field];supplied=True
+ if supplied:audit['warnings'].append('部分识别候选来自官网公开 llms.txt，未将其当作首页正文；请核对来源。')
 
 def validate_confirmation(payload,audit):
  if not isinstance(payload,dict) or set(payload)-{'brand','products','competitors','context'}:raise AuditError(400,'invalid_request')
@@ -66,7 +100,7 @@ def validate_confirmation(payload,audit):
   return result
  result={'brand':{'name':brand['name'].strip(),'aliases':normalized_aliases(brand['name'].strip(),brand['aliases'])}}
  original=audit['candidates'].get('brand')
- result['brand'].update(basis='website_metadata' if original and original['name']==result['brand']['name'] and original['aliases']==result['brand']['aliases'] else 'user_modified' if original else 'user_provided',evidence_ids=original['evidence_ids'] if original and original['name']==result['brand']['name'] and original['aliases']==result['brand']['aliases'] else [])
+ result['brand'].update(basis=original['basis'] if original and original['name']==result['brand']['name'] and original['aliases']==result['brand']['aliases'] else 'user_modified' if original else 'user_provided',evidence_ids=original['evidence_ids'] if original and original['name']==result['brand']['name'] and original['aliases']==result['brand']['aliases'] else [])
  for field in ('products','competitors'):
   rows=payload.get(field,[])
   if not isinstance(rows,list) or len(rows)>(6 if field=='products' else 5):raise AuditError(400,'invalid_request')
@@ -101,7 +135,8 @@ def robots_policy(resource,budget,url):
  return {'resource_id':resource['id'],'fetch_status':status,'agents':agents}
 
 def collect_report_resources(audit,budget):
- data=audit['_internal'];resources=data['resources'];seed=resources[0];base=origin(seed['url']);robots=budget.fetch(base+'/robots.txt','robots',base);resources.append(robots)
+ data=audit['_internal'];resources=data['resources'];seed=resources[0];base=origin(seed['url']);robots=next((r for r in resources if r['kind']=='robots'),None)
+ if robots is None:robots=budget.fetch(base+'/robots.txt','robots',base);resources.append(robots)
  policy=robots_policy(robots,budget,seed['url']);data['robots']=policy
  def permitted(url):
   if policy['fetch_status']=='not_found':return True
@@ -109,6 +144,7 @@ def collect_report_resources(audit,budget):
   try:return budget.run('robots',(robots['text'],[url],['SignalGEO/1.0']))['SignalGEO/1.0'][url]
   except AuditFetchError:return False
  def auxiliary(url,kind):
+  if any(r['kind']==kind and r.get('requested_url',r['url'])==url for r in resources):return
   if audit.get('_stopping') or not permitted(url):audit['warnings'].append('辅助资源未请求：robots策略不允许或获取状态未知。');return
   if budget.remaining()<=0 or budget.usage['resources_requested']>=6 or budget.usage['http_requests']>=10:return
   resources.append(budget.fetch(url,kind,base,permitted=permitted))
@@ -145,7 +181,8 @@ def build_report(audit):
   row=next((a for a in policy['agents'] if a['user_agent']==agent and a['path']==target_path),None);decision=row['decision'] if row else 'unknown'
   check(robots_section,'search-'+agent,agent+'搜索策略',5,'pass' if decision in ('allowed','not_found') else 'fail' if decision=='disallowed' else 'unknown','未发现robots声明，按RFC无已知限制；不是显式Allow。' if decision=='not_found' else '针对本页路径的Protego结论：'+decision,row['evidence_ids'] if row else [],'核对搜索UA与目标路径策略；训练限制单独解释。')
  content=section('content','可提取性与辅助文件')
- check(content,'extraction','Trafilatura正文提取',20,'pass' if parsed and len(parsed.get('extracted_text',''))>=500 else 'fail' if parsed else 'unknown','离线Trafilatura提取正文 '+str(len(parsed.get('extracted_text',''))) +' 字符。' if parsed else '未取得可解析HTML，不能判断正文可提取性。')
+ extracted=parsed.get('extracted_text') if parsed else None
+ check(content,'extraction','Trafilatura正文提取',20,'unknown' if extracted is None else 'pass' if len(extracted)>=500 else 'fail','正文提取未完成，页面元信息与正文分别检查。' if parsed and extracted is None else '离线Trafilatura提取正文 '+str(len(extracted))+' 字符。' if extracted is not None else '未取得可解析HTML，不能判断正文可提取性。')
  check(content,'headings','标题与H1',10,'pass' if parsed and meta.get('title') and meta.get('h1') else 'fail' if parsed else 'unknown','title及H1均可观察。' if meta.get('title') and meta.get('h1') else '本次未同时观察到title与H1；失败读取不视作缺失。')
  check(content,'structured-data','语义结构化数据',10,'pass' if meta.get('semantic_types') else 'fail' if parsed else 'unknown','观察到可解析语义类型：'+', '.join(meta.get('semantic_types',[])) if meta.get('semantic_types') else '未观察到有效语义结构化数据，或页面不可读取。')
  for kind,label in [('llms','llms.txt'),('markdown','Markdown替代'),('llms-full','llms-full.txt')]:
@@ -245,6 +282,8 @@ class AuditManager:
   budget=self.budget_factory();budget.admission=lambda:not self.w.stopping() and not self.w.maintenance_requested.is_set()
   try:
    a['status']='running';self.write(a);seed=budget.fetch(a['website']['requested_url'],'seed');a['_internal']['resources']=[seed];a['access']=seed['diagnostics'];a['website'].update(final_url=seed['url'],origin=origin(seed['url']));add_evidence(a,seed);preview_candidates(a,seed)
+   if seed.get('error') or not a['candidates']['brand'] or seed['diagnostics']['outcome']=='metadata_only':
+    a['stage']='reading_alternate_metadata';self.write(a);preview_fallback(a,budget)
    if seed.get('error'):a['warnings'].append('官网证据不足，仍可手动确认生成包含未知项的完整报告。')
   except Exception:a['warnings'].append('读取未完成，已有证据保留；可手动确认。')
   finally:

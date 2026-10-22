@@ -31,7 +31,10 @@ class WebsiteExtractor(HTMLParser):
   self.links=[];self.link=None;self.title_depth=0;self.h1_depth=0;self.head_depth=0;self.meta={};self.ld=[];self.script_type=None;self.script_parts=[]
  def handle_starttag(self,t,attrs):
   a=dict(attrs)
-  if t=='a':self.link={'href':a.get('href',''),'parts':[]}
+  if t=='a':
+   marker=' '.join(a.get(k,'') for k in ('class','data-testid','data-test'))
+   self.link={'href':a.get('href',''),'parts':[],'label':a.get('aria-label',''),'image_alt':'','product_marker':bool('data-product-id' in a or re.search(r'product[-_]{1,2}(?:card|name|title|link|tile)',marker,re.I))}
+  if t=='img' and self.link is not None and not self.link['image_alt']:self.link['image_alt']=a.get('alt','')[:200]
   if t=='head':self.head_depth+=1
   if t=='title':self.title_depth+=1
   if t=='h1':self.h1_depth+=1
@@ -43,8 +46,8 @@ class WebsiteExtractor(HTMLParser):
   if t in ('script','style','noscript','svg'):self.skip+=1
  def handle_endtag(self,t):
   if t=='a' and self.link is not None:
-   text=' '.join(self.link['parts']).strip()
-   if text and len(self.links)<100:self.links.append({'href':self.link['href'],'text':text[:200]})
+   text=(' '.join(self.link['parts']).strip() or self.link['label'] or self.link['image_alt']).strip()
+   if text and len(self.links)<400:self.links.append({'href':self.link['href'],'text':text[:200],**({'product_marker':True} if self.link['product_marker'] else {})})
    self.link=None
   if t=='script':
    if self.script_type=='application/ld+json':
