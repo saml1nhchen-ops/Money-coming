@@ -31,5 +31,17 @@ jobs:
           for ident in ('39794316730','39794274116','39794082224'):
               data=get(ident);jobs=get(ident+'/jobs?per_page=30').get('jobs',[])
               report['runs'].append({'id':ident,'status':data.get('status'),'conclusion':data.get('conclusion'),'jobs':[{**{k:j.get(k) for k in ('name','status','conclusion','started_at','completed_at')},'steps':[{k:s.get(k) for k in ('name','status','conclusion','started_at','completed_at')} for s in j.get('steps',[])]} for j in jobs]})
+          report['public_checks']=[]
+          for url,kind in (('https://43.154.242.184.sslip.io/healthz','backend'),('https://saml1nhchen-ops.github.io/Money-coming/dist/team.html?v=a8df29c','frontend')):
+              item={'kind':kind}
+              try:
+                  with op.open(urllib.request.Request(url,headers={'Cache-Control':'no-cache'}),timeout=20) as r:
+                      body=r.read(1048576);item['http_status']=r.status
+                  if kind=='backend':
+                      data=json.loads(body);item.update(ok=data.get('ok'),revision=data.get('revision'),version=data.get('version'))
+                  else:
+                      text=body.decode('utf-8','replace');item['website_check_entry']='brand-autofill.js?v=2' in text and 'research-ui.css?v=14' in text
+              except Exception:item['error']='public_probe_unavailable'
+              report['public_checks'].append(item)
           print('Saved workflow states to '+publish(report))
           PYCODE
