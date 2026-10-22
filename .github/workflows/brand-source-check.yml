@@ -30,8 +30,8 @@ jobs:
               page=fetch_website(report['url'],allow_short=True)
               brand,products=website_candidates(page,'US')
               report.update(status='fetched',brand=brand,products=products,captured_at=page['captured_at'],content_sha256=page['content_sha256'])
-          except Exception:
-              report.update(status='failed',error='website_fetch_or_extraction_failed')
+          except Exception as error:
+              report.update(status='failed',error_type=type(error).__name__,error=str(error)[:200])
           print('Saved public source evidence to '+publish(report))
           if report['status']!='fetched':sys.exit(1)
           PYCODE
