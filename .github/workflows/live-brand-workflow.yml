@@ -1,0 +1,24 @@
+name: Validate real brands and anonymous competitor suggestions
+on:
+  push:
+    branches: ['diagnose/brand-workflow-live-*']
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - name: Install hash-locked website parsers
+        run: |
+          python3 -m venv /tmp/brand-workflow
+          /tmp/brand-workflow/bin/python -m pip install --only-binary=:all: --require-hashes -r tools/requirements-audit.lock
+      - name: Run Cremo Nike and Loreal through the real workflow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: /tmp/brand-workflow/bin/python deploy/live_brand_workflow.py
