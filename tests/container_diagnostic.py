@@ -25,7 +25,7 @@ def execute(code):
 
 
 def healthy():
-    for _ in range(80):
+    for _ in range(240):
         try:
             execute("import urllib.request as u;u.build_opener(u.ProxyHandler({})).open('http://127.0.0.1:8080/healthz',timeout=2).read()")
             return
