@@ -1,0 +1,55 @@
+name: Verify GEO readiness release status
+on:
+  push:
+    branches: ['diagnose/readiness-release-state-*']
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - name: Save only workflow states, never logs or credentials
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 - <<'PYCODE'
+          import os,json,sys,urllib.request,time
+          sys.path.insert(0,'deploy')
+          from connection_diagnostics import publish,NoRedirect
+          op=urllib.request.build_opener(NoRedirect)
+          def get(path):
+              req=urllib.request.Request('https://api.github.com/repos/saml1nhchen-ops/Money-coming/actions/runs/'+path,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+              with op.open(req,timeout=20) as r:return json.load(r)
+          for attempt in range(30):
+              state=get('39802643358')
+              if state.get('status')=='completed':break
+              time.sleep(8)
+          report={'kind':'geo_readiness_release_state','runs':[]}
+          for ident in ('39802643358','39802604320','39802435268'):
+              data=get(ident);jobs=get(ident+'/jobs?per_page=30').get('jobs',[])
+              report['runs'].append({'id':ident,'status':data.get('status'),'conclusion':data.get('conclusion'),'jobs':[{**{k:j.get(k) for k in ('name','status','conclusion','started_at','completed_at')},'steps':[{k:s.get(k) for k in ('name','status','conclusion','started_at','completed_at')} for s in j.get('steps',[])]} for j in jobs]})
+          report['public_checks']=[]
+          for url,kind in (('https://43.154.242.184.sslip.io/healthz','backend'),('https://saml1nhchen-ops.github.io/Money-coming/dist/team.html?v=d9a82be','frontend')):
+              item={'kind':kind}
+              try:
+                  with op.open(urllib.request.Request(url,headers={'Cache-Control':'no-cache'}),timeout=20) as r:
+                      body=r.read(1048576);item['http_status']=r.status
+                  if kind=='backend':
+                      data=json.loads(body);item.update(ok=data.get('ok'),revision=data.get('revision'),version=data.get('version'))
+                  else:
+                      text=body.decode('utf-8','replace');item['website_readiness_entry']='site-readiness.js?v=1' in text and 'site-readiness.css?v=1' in text
+              except Exception:item['error']='public_probe_unavailable'
+              report['public_checks'].append(item)
+          try:
+              with op.open('https://saml1nhchen-ops.github.io/Money-coming/dist/site-readiness.js?v=d9a82be',timeout=20) as r:asset=r.read(1048576).decode()
+              report['public_checks'].append({'kind':'readiness_asset','http_status':200,'url_first_flow':'audit-url-form' in asset,'full_export':'siteReadinessHTML' in asset})
+          except Exception:report['public_checks'].append({'kind':'readiness_asset','error':'public_probe_unavailable'})
+          print('Saved workflow states to '+publish(report))
+          PYCODE
