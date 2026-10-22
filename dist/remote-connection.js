@@ -183,10 +183,35 @@
     if (typeof bodyOrId === 'string' && !/^[0-9a-f-]{36}$/i.test(bodyOrId)) throw error('识别编号无效。','invalid_request');
     return request('/api/geo/enrich'+(typeof bodyOrId === 'string' ? '?id='+encodeURIComponent(bodyOrId) : ''),typeof bodyOrId === 'string' ? undefined : payload('enrich',bodyOrId),{generation});
   };
+  // Website audits never require a model, model readiness, or a model budget.
+  window.remoteAudit = async function(action, input) {
+    if (!remoteEnrichmentContext().authenticated) throw error('请先登录团队后台。','unauthorized');
+    const generation = epoch;
+    const names = {preview:'audit',read:'audit',confirm:'audit-confirm',export:'audit-export'};
+    if (!Object.hasOwn(names,action)) throw error('不支持的官网检测操作。','invalid_request');
+    const validID = id => typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (action === 'read' || action === 'export') {
+      if (!validID(input)) throw error('官网检测编号无效。','invalid_request');
+      return request('/api/geo/'+names[action]+'?id='+encodeURIComponent(input),undefined,{generation});
+    }
+    let body;
+    if (action === 'preview') {
+      if (!validID(input?.request_id)) throw error('请求编号无效。','invalid_request');
+      body = {website:input.website,market:input.market,request_id:input.request_id,...(input.refresh === true?{refresh:true}:{})};
+    } else {
+      if (!validID(input?.id) || !input.confirmed) throw error('确认信息无效。','invalid_request');
+      const select = (value,keys) => Object.fromEntries(keys.filter(k=>Object.hasOwn(value || {},k)).map(k=>[k,value[k]]));
+      const c = input.confirmed;
+      body = {id:input.id,confirmed:{brand:select(c.brand,['name','aliases']),products:(c.products || []).map(v=>select(v,['name','aliases','source_candidate_id'])),competitors:(c.competitors || []).map(v=>select(v,['name','aliases','domains','source_candidate_id'])),...(typeof c.context === 'string'?{context:c.context}:{})}};
+    }
+    return request('/api/geo/'+names[action],body,{generation});
+  };
   window.remoteCanRun = canRun;
   window.remoteNormalizeSelection = normalize;
-  window.remoteConnectionMarkup = function() {
+  window.remoteConnectionMarkup = function(options = {}) {
     const s = geoState.remote, budget = s?.budget, limits = s?.limits;
+    if (options.audit === true) return `<section class="ru-remote" id="remote-connection" aria-label="团队后台连接"><h2>团队后台登录</h2><p>网站 GEO 检测通过规则和工具完成，不需要模型密钥或模型额度。</p><p id="remote-current-url" class="mono">当前后台：<code>${esc(connection.url || '尚未选择')}</code></p>${token?`<p>${connection.offline?'后台暂时连接失败':connection.verified?'团队已登录，可以检测官网':'正在验证保存的登录'} · 有效至 ${esc(new Date(connection.expiresAt).toLocaleString())}</p><div class="actions"><button onclick="geoRefresh()">刷新连接状态</button><button onclick="remotePasswordLogin()">重新登录 / 更换后台</button><button onclick="remoteLogout()">退出此设备</button></div>`:`<form onsubmit="remoteLogin(event)"><label class="ru-field"><span>HTTPS 后台地址</span><input id="remote-backend-url" type="url" value="${esc(connection.url)}" autocomplete="off" onchange="remoteBackendChanged(this.value)" required></label><label class="ru-field"><span>团队密码</span><input id="remote-password" type="password" autocomplete="off" required></label><label><input id="remote-remember" type="checkbox" ${connection.rememberChoice?'checked':''}> 在此设备保持登录（仅可信设备）</label><button class="primary" ${connection.busy?'disabled':''}>连接并登录</button><button type="button" onclick="remoteUseConfiguredBackend()">使用已配置的后台</button></form>`}${connection.message?`<p role="status">${esc(connection.message)}</p>`:''}${connection.notice?`<p class="sr-muted">${esc(connection.notice)}</p>`:''}${s?.reason==='maintenance'?'<p>后台正在维护，请稍后明确重试。</p>':''}<p class="sr-muted">登录与恢复只验证连接，不自动读取官网或调用模型。</p></section>`;
+
     return `<section class="ru-remote" id="remote-connection" aria-label="团队后台连接"><h2>连接团队分析后台</h2><p id="remote-current-url" class="mono" style="overflow-wrap:anywhere">当前后台：<code>${esc(connection.url || '尚未选择')}</code></p><button type="button" onclick="remoteUseConfiguredBackend()">使用已配置的后台</button><p>授权团队成员共享模型连接、报告和停止权限。B.AI 密钥由管理员配置在服务器，团队密码仅用于身份验证。</p>${token ? `<p><b>${connection.offline ? '后台连接失败' : !connection.verified ? '正在验证保存的登录' : s?.ready ? '团队后台已连接 · 运行依赖已就绪' : '团队已登录 · 暂不能开始分析'}</b> · 登录有效至 ${esc(new Date(connection.expiresAt).toLocaleString())}</p><p class="mono">${esc(connection.url)}</p><div class="actions"><button onclick="geoRefresh()">刷新后台状态</button><button onclick="remotePasswordLogin()">重新登录 / 更换后台</button><button onclick="remoteLogout()">退出此设备</button></div>` : `<form onsubmit="remoteLogin(event)"><label class="ru-field" for="remote-backend-url"><span>HTTPS 后台地址</span><input id="remote-backend-url" type="url" value="${esc(connection.url)}" placeholder="https://你的团队分析后台" autocomplete="off" onchange="remoteBackendChanged(this.value)" required></label><label class="ru-field" for="remote-password"><span>团队密码</span><input id="remote-password" type="password" autocomplete="off" required></label><label><input id="remote-remember" type="checkbox" ${connection.rememberChoice ? 'checked' : ''}> 在此设备保持登录（仅可信设备）</label><button class="primary" ${connection.busy ? 'disabled' : ''}>${connection.busy ? '正在登录…' : '连接并登录'}</button><button type="button" onclick="remoteLogout()">取消 / 退出此设备</button></form>`}<p class="ru-help">默认保持登录，后台支持时最长 30 天；只保存此后台的登录令牌和到期时间，不保存团队密码或供应商密钥。登录与恢复只读取状态，不自动开始分析。</p>${connection.notice ? `<p class="ru-help" role="status">${esc(connection.notice)}</p>` : ''}${connection.message ? `<p class="ru-warning" role="status">${esc(connection.message)}</p>` : ''}${token && s?.ready !== true ? `<p class="ru-warning">${esc(messages[s?.reason] || '后台就绪状态未知，请刷新或联系管理员。')}</p>` : ''}${token ? `<p>中国 / 美国分开测量 · ${esc(limits?.count ?? '未知')} 题 · 最多 ${esc(limits?.max_models ?? '未知')} 个模型 · 每题 ${esc(limits?.repeats ?? '未知')} 次</p><p>UTC ${esc(budget?.date ?? '未知日期')}：已预约 ${esc(budget?.reserved ?? '未知')} / ${esc(budget?.limit ?? '未知')} 次，剩余 ${esc(budget?.remaining ?? '未知')} 次。预约调用数不是实际账单，失败或停止不自动退还。</p>${!Number.isFinite(budget?.remaining) ? '<p class="ru-warning">预算状态未知，已暂停新付费任务，请刷新状态。</p>' : budget.remaining === 0 ? '<p class="ru-warning">今日额度已用完；已有报告仍可查看和导出。</p>' : ''}<details><summary>服务端固定模型与目录时间</summary>${geoState.runner.profiles.length ? geoState.runner.profiles.map(p => `<p><code>${esc(p.model)}</code> · ${esc(p.protocol)} · ${esc((p.markets || []).join('/'))} · 目录可见，调用兼容性需实际验证。</p>`).join('') : '<p>模型目录暂不可用，不代表测评分数为零。</p>'}<p>${esc(geoState.runner.fetched_at || '后台未提供目录时间')}</p></details>` : ''}</section>`;
   };
   window.remoteLogin = async function(event) {
