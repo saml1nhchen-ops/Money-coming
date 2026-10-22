@@ -19,7 +19,12 @@ jobs:
           python3 -m venv .venv
           .venv/bin/python -m pip install --only-binary=:all: --require-hashes -r tools/requirements-audit.lock
       - name: Backend regressions
-        run: .venv/bin/python -m unittest discover -s tests -p 'test_*.py'
+        run: |
+          set +e
+          .venv/bin/python -m unittest discover -s tests -p 'test_*.py' > backend-validation.log 2>&1
+          result=$?
+          tail -n 100 backend-validation.log
+          exit "$result"
       - name: Real public-source diagnostics without model calls
         run: .venv/bin/python deploy/check_diagnostic_sources.py
       - name: Publish bounded validation evidence
@@ -33,5 +38,7 @@ jobs:
           from connection_diagnostics import publish
           p=pathlib.Path('diagnostic-source-report.json')
           report=json.loads(p.read_text()) if p.exists() else {'kind':'real_diagnostic_sources','status':'validation_failed','model_calls':0}
+          log=pathlib.Path('backend-validation.log')
+          if log.exists():report['backend_test_tail']=log.read_text()[-20000:]
           print('Validation evidence: '+publish(report))
           PY

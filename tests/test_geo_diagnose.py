@@ -105,4 +105,17 @@ class HTTPDiagnostics(unittest.TestCase):
   _,d=self.req('POST','/api/diagnostics',self.payload());d=self.done(d['id']);_,share=self.req('POST','/api/diagnostics/share',{'id':d['id']});second=DiagnosticManager(self.w,self.m.path,self.root);self.addCleanup(second.pool.shutdown,True);self.assertEqual(second.shared(share['share_token'])['diagnostic']['brand'],'Acme Tea');self.assertEqual(self.req('GET','/api/shared-report?token=x&token=y',auth=False)[0],400);self.assertEqual(self.req('GET','/api/shared-report?token=x',auth=False)[0],404);self.assertEqual(self.req('GET','/api/diagnostics/detail?id=bad')[0],400)
  def test_incomparable_configuration_does_not_report_lift(self):
   _,d=self.req('POST','/api/diagnostics',self.payload());d=self.done(d['id']);changed=copy.deepcopy(d);changed['comparison_config']['market']='CN';trend=self.m.compare(d,changed);self.assertFalse(trend['comparable']);self.assertIsNone(trend['delta'])
+ def test_project_question_reuse_requires_same_brand_site_and_market(self):
+  self.w.budget.limit=1000
+  body=self.payload('full');_,d=self.req('POST','/api/diagnostics',body);d=self.done(d['id'])
+  same={**body,'request_id':str(uuid.uuid4())};code,repeat=self.req('POST','/api/diagnostics',same);self.assertEqual(code,202);repeat=self.done(repeat['id']);self.assertEqual(repeat['plan']['generation_calls'],0)
+  changed={**body,'request_id':str(uuid.uuid4()),'confirmed':{**body['confirmed'],'brand':{'name':'Different Brand','aliases':['Different Brand']}}}
+  code,other=self.req('POST','/api/diagnostics',changed);self.assertEqual(code,202);other=self.done(other['id']);self.assertEqual(other['plan']['generation_calls'],3)
+  for website,market in [('https://different.example/','US'),('https://acme.example/','CN')]:
+   aid=str(uuid.uuid4());self.assertEqual(self.req('POST','/api/geo/audit',{'request_id':aid,'website':website,'market':market})[0],202);self.wait_audit(aid)
+   code,next_run=self.req('POST','/api/diagnostics',{**body,'audit_id':aid,'request_id':str(uuid.uuid4())});self.assertEqual(code,202);next_run=self.done(next_run['id']);self.assertEqual(next_run['plan']['generation_calls'],3)
+ def test_actual_model_conditions_and_incomplete_samples_break_trend(self):
+  _,d=self.req('POST','/api/diagnostics',self.payload('full'));d=self.done(d['id'])
+  for key,value in [('platform','another-returned-model'),('citation_supported',True),('truncated',True),('cached',True)]:
+   changed=copy.deepcopy(d);changed['bundle']['answers'][0][key]=value;trend=self.m.compare(d,changed);self.assertFalse(trend['comparable'],key);self.assertIsNone(trend['delta'])
 if __name__=='__main__':unittest.main()

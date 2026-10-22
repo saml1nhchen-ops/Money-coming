@@ -60,7 +60,7 @@ def bundle_for(record,audit,flow=None,extra=None):
  for r in rules:
   if r['status'] not in ('fail','unknown'):continue
   findings.append({'finding_id':'F-'+r['rule_id'],'scope':'本次有限官网页面','status':r['status'],'finding_type':'supported_gap' if r['status']=='fail' else 'unknown','priority':'P1' if r['status']=='fail' else '待验证','question_ids':[],'evidence_ids':r['evidence_ids'],'rule_ids':[r['rule_id']],'target_pages':[r['target_page']],'observed_gap':r['reason'],'alternative_explanations':'抓取、地区、页面范围或缺少事实核验均可能影响观察；不能推断模型推荐因果。','recommended_action':r['action'],'owner':'项目负责人','effort_band':'待评估','verification':r['verification'],'priority_reason':'基于本次限定范围的证据或证据缺口。','publication_status':'unpublished'})
- manifest={'run_id':record['id'],'brand':config['confirmed']['brand']['name'] or '未识别品牌','domains':[urllib.parse.urlsplit(config['website']).hostname],'market':config['market'],'language':'zh' if config['market']=='CN' else 'en','mode':'full' if config['mode']=='full' else 'page','rule_version':RULES['version'],'parser_version':RULES['parser_version'],'judge_version':'deterministic-observations-v1','question_set_version':digest([q['question'] for q in questions]),'page_set_version':digest(sorted(e['url'] for e in evidence)),'configuration':digest(record['comparison_config']),'sampled_at':record['created_at'],'planned':record['plan']['answer_calls'],'attempted':len(answers),'page_weighting':'有限代表页；规则按维度权重，不将页面数量当质量。'}
+ manifest={'run_id':record['id'],'brand':config['confirmed']['brand']['name'] or '未识别品牌','domains':[urllib.parse.urlsplit(config['website']).hostname],'market':config['market'],'language':'zh' if config['market']=='CN' else 'en','mode':'full' if config['mode']=='full' else 'page','rule_version':RULES['version'],'parser_version':RULES['parser_version'],'judge_version':'deterministic-observations-v1','question_set_version':digest([q['question'] for q in questions]),'page_set_version':digest(sorted({e['url'] for e in evidence})),'configuration':digest(record['comparison_config']),'sampled_at':record['created_at'],'planned':record['plan']['answer_calls'],'attempted':len(answers),'page_weighting':'有限代表页；规则按维度权重，不将页面数量当质量。'}
  b={'schema_version':'v0.1','demo':False,'run_manifest':manifest,'rules':rules,'questions':questions,'answers':answers,'findings':findings,'evidence':evidence,'scores':score(rules),'dimension_scores':[{'dimension':d,**score([r for r in rules if r['dimension']==d])} for d in ('access','entity','questions','trust','structure','maintenance')],'performance':{k:copy.deepcopy(v) for k,v in ((flow or {}).get('report') or {}).items() if k!='samples'} if flow else None,'competitor_gaps':copy.deepcopy(((flow or {}).get('report') or {}).get('gaps',[])),'source_snapshot':copy.deepcopy(report),'limitations':['官网规则准备度与模型问答表现分开；不是平台排名或事实认证。','未逐条核验的问题覆盖、事实完整性和跨页一致性保持unknown。','最多8资源/10HTTP/4MiB/累计60秒，遵守同源、robots及安全连接约束。']}
  return b
 
@@ -150,7 +150,9 @@ class DiagnosticManager:
    if any(p not in selected or audit['market'] not in selected[p].get('markets',[]) for p in profiles):raise DiagnosticError(400,'invalid_request')
    cfg={'audit_id':aid,'website':audit['website']['requested_url'],'market':audit['market'],'confirmed':confirmed,'profile_ids':profiles,'mode':mode}
    comparison={'website':cfg['website'],'market':cfg['market'],'confirmed':confirmation_input(confirmed),'profiles':[selected[p] for p in profiles],'rule_version':RULES['version'],'parser_version':RULES['parser_version']}
-   project_questions=json.loads(project[2]).get('question_set',[])
+   project_config=json.loads(project[2])
+   question_context={'website':cfg['website'],'market':cfg['market'],'brand_aliases':sorted({a.casefold() for a in confirmed['brand']['aliases']})}
+   project_questions=project_config.get('question_set',[]) if project_config.get('question_context')==question_context else []
    if project_questions and (len(project_questions)!=30 or len({q.strip().casefold() for q in project_questions})!=30):raise DiagnosticError(400,'invalid_question_set')
    plan={'generation_calls':3 if mode=='full' and not baseline and not project_questions else 0,'answer_calls':30*len(profiles) if mode=='full' else 0,'count':30,'repeats':1};plan['maximum_calls']=plan['generation_calls']+plan['answer_calls']
    if mode=='full':
@@ -162,7 +164,7 @@ class DiagnosticManager:
    elif project_questions and mode=='full':d['frozen_prompts']=copy.deepcopy(project_questions);d['question_set_version']=digest(project_questions)
    with self.db() as c:
     c.execute('INSERT INTO diagnostics VALUES(?,?,?,?)',(did,d['project_id'],key,json.dumps(self.w.sanitize(d),ensure_ascii=False)))
-    c.execute('UPDATE projects SET config=? WHERE id=?',(json.dumps({'brand':d['brand'],'market':d['market'],'question_set':d.get('frozen_prompts',[])}),d['project_id']))
+    c.execute('UPDATE projects SET config=? WHERE id=?',(json.dumps({'brand':d['brand'],'website':d['website'],'market':d['market'],'question_context':question_context,'question_set':d.get('frozen_prompts',[])}),d['project_id']))
    self.w.diagnostic_active=did
    try:self.pool.submit(self.execute,d,baseline)
    except RuntimeError:self.w.diagnostic_active=None;d.update(status='interrupted',stage='interrupted',error_code='interrupted');self.save(d);raise DiagnosticError(503,'diagnostic_unavailable') from None
@@ -245,6 +247,12 @@ class DiagnosticManager:
   if baseline.get('comparison_config')!=current.get('comparison_config'):differences.append('configuration')
   for key in ('rule_version','parser_version','question_set_version','page_set_version','judge_version'):
    if baseline.get('bundle',{}).get('run_manifest',{}).get(key)!=current.get('bundle',{}).get('run_manifest',{}).get(key):differences.append(key)
+  def sampling_signature(record):
+   rows=(record.get('bundle') or {}).get('answers',[])
+   fields=('question_id','question','question_version','question_type','platform','entry','market','language','region','citation_supported','citation_type')
+   return sorted((digest([row.get(k) for k in fields]) for row in rows))
+  if sampling_signature(baseline)!=sampling_signature(current):differences.append('actual_sampling_conditions')
+  if any(a.get('cached') or a.get('truncated') for d in (baseline,current) for a in (d.get('bundle') or {}).get('answers',[])):differences.append('cached_or_truncated_samples')
   comparable=not differences
   return {'baseline_id':baseline['id'],'comparable':comparable,'differences':differences,'baseline':baseline.get('summary'),'current':current.get('summary'),'delta':{k:round(current['summary'][k]-baseline['summary'][k],2) for k in ('lower','upper') if comparable and current['summary'].get(k) is not None and baseline['summary'].get(k) is not None} if comparable else None,'note':'配置一致不证明因果效果；网站准备度与模型表现分别解读。'}
  def retest(self,data):
