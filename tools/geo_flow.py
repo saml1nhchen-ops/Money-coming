@@ -10,9 +10,10 @@ import geo_analysis,geo_plan
 import website_inspection
 import pinned_http
 import website_check
+import geo_diagnose
 ROOT=pathlib.Path(__file__).resolve().parents[1];DATA=ROOT/'runtime/geo-flows';PORT=8772
 TOKEN=secrets.token_urlsafe(32);POOL=concurrent.futures.ThreadPoolExecutor(max_workers=1);GUARD=threading.Lock();BUSY=False;CANCEL=set()
-SITE='https://signal-geo-workbench-lh.saml1nhchen.chatgpt.site';SESSIONS={}
+SITE='https://signal-geo-workbench-lh.saml1nhchen.chatgpt.site';SESSIONS={};DIAGNOSES=None
 
 def bridge(path,body=None):
  prefix='/api/bai/';base='http://127.0.0.1:8771'
@@ -348,6 +349,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
    if u.path.startswith('/api/geo/'):
     if not self.auth():return
     if u.path=='/api/geo/state':return self.reply({'runner':catalog(),'busy':BUSY,'runs':[{'id':j['id'],'created_at':j['created_at'],'status':j['status'],'market':j['config']['market'],'brand':j['config']['brand_aliases'][0]} for j in [json.loads(p.read_text('utf-8')) for p in sorted(DATA.glob('*/flow.json'),key=lambda p:p.stat().st_mtime,reverse=True)[:40]]]})
+    if u.path=='/api/geo/diagnoses':return self.reply(DIAGNOSES.list())
+    if u.path=='/api/geo/diagnosis':return self.reply(DIAGNOSES.get(q['id'][0]))
     if u.path in ('/api/geo/run','/api/geo/export'):
      job=get(q['id'][0])
      if u.path.endswith('export'):job['raw_evidence']={p.name:json.loads(p.read_text('utf-8')) for p in folder(job['id']).glob('*.json') if p.name!='flow.json'}
@@ -367,6 +370,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
    if self.path=='/api/geo/sample':return self.reply(start_manual(d),202)
    if self.path=='/api/geo/analyze':return self.reply(reanalyze(d),201)
    if self.path=='/api/geo/plan':return self.reply(geo_plan.plan(validate(d),bool(d.get('manual'))))
+   if self.path=='/api/geo/diagnose':return self.reply(DIAGNOSES.start(d),202)
    if self.path=='/api/geo/resume':return self.reply(resume(d),202)
    if self.path=='/api/geo/stop':
     job=get(d['id']);CANCEL.add(job['id']);return self.reply({'status':'stop_requested'})
@@ -374,7 +378,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
   except Exception as e:self.reply({'error':str(e) if isinstance(e,ValueError) else '无法提交任务'},400)
 
 if __name__=='__main__':
- DATA.mkdir(parents=True,exist_ok=True)
+ DATA.mkdir(parents=True,exist_ok=True);DIAGNOSES=geo_diagnose.Store(flows=get)
  for p in DATA.glob('*/flow.json'):
   try:
    j=json.loads(p.read_text('utf-8'))

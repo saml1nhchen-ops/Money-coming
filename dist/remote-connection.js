@@ -171,7 +171,7 @@
   const common = ['website','market','brand_aliases','skus','competitors','focus','context','count','repeats','providers','generator'];
   function payload(name, body) {
     if (body === undefined) return undefined;
-    const fields = {enrich:['website','market','request_id'],inspect:['website','market'],plan:[...common,'generate_only','manual'],start:[...common,'generate_only'],sample:[...common,'prompts'],analyze:['id','brand_aliases','skus','competitors'],stop:['id']}[name];
+    const fields = {enrich:['website','market','request_id'],inspect:['website','market'],plan:[...common,'generate_only','manual'],start:[...common,'generate_only'],sample:[...common,'prompts'],analyze:['id','brand_aliases','skus','competitors'],stop:['id'],diagnose:['website','market','brand','aliases','flow_id']}[name];
     if (!fields) throw error('该操作不属于团队接口。');
     return Object.fromEntries(fields.filter(key => Object.hasOwn(body,key)).map(key => [key,body[key]]));
   }

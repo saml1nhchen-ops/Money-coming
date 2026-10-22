@@ -137,6 +137,11 @@ class Workspace:
  def validate(self,path,d):
   common={'website','market','brand_aliases','skus','competitors','focus','context','count','repeats','providers','generator'}
   fields={'inspect':{'website','market'},'start':common|{'generate_only'},'sample':common|{'prompts'},'plan':common|{'generate_only','manual'},'analyze':{'id','brand_aliases','skus','competitors'},'stop':{'id'}}
+  if path=='diagnose':
+   if set(d)-{'website','market','brand','aliases','flow_id'} or d.get('market') not in ('CN','US') or not isinstance(d.get('website'),str) or not isinstance(d.get('brand'),str) or not 0<len(d['brand'].strip())<=200:raise Failure(400,'invalid_request')
+   if 'aliases' in d and (not isinstance(d['aliases'],list) or len(d['aliases'])>10 or any(not isinstance(a,str) or len(a)>200 for a in d['aliases'])):raise Failure(400,'invalid_request')
+   if d.get('flow_id') is not None and (not isinstance(d['flow_id'],str) or not UUID.fullmatch(d['flow_id'])):raise Failure(400,'invalid_request')
+   return
   if set(d)-fields[path]:raise Failure(400,'invalid_request')
   if path in ('analyze','stop'):
    if not isinstance(d.get('id'),str) or not UUID.fullmatch(d['id']):raise Failure(400,'invalid_request')
@@ -185,6 +190,11 @@ class Workspace:
    except EnrichmentError as error:raise Failure(error.status,error.code) from None
   if d is None:return self.api.call('geo',path),200
   name=path;self.validate(name,d)
+  if name=='diagnose':
+   # Website reads only: no model calls and no budget reservation.
+   with self.lock:
+    if self.maintenance_requested.is_set() or self.stopping():raise Failure(503,'maintenance')
+    return self.api.call('geo',name,d),202
   if name=='plan':
    with self.lock:
     self.require_admission();result=self.api.call('geo',name,d);self.require_admission();return result,200
@@ -238,7 +248,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
    if len(origins)>1 or origins and origins[0]!=ORIGIN:raise Failure(403,'origin_forbidden')
    u=urllib.parse.urlsplit(self.path)
    if u.scheme or u.netloc or u.fragment:raise Failure(400,'invalid_request')
-   get={'/api/geo/state','/api/geo/run','/api/geo/export','/api/geo/enrich'};post={'/api/workspace/login','/api/workspace/logout',*[f'/api/geo/{p}' for p in ('inspect','plan','start','sample','analyze','stop','enrich')]}
+   get={'/api/geo/state','/api/geo/run','/api/geo/export','/api/geo/enrich','/api/geo/diagnoses','/api/geo/diagnosis'};post={'/api/workspace/login','/api/workspace/logout',*[f'/api/geo/{p}' for p in ('inspect','plan','start','sample','analyze','stop','enrich','diagnose')]}
    if self.command=='OPTIONS':
     if u.path not in get|post or not origins or self.headers.get('Access-Control-Request-Method') not in ('GET','POST') or any(h.strip().lower() not in ('content-type','authorization') for h in self.headers.get('Access-Control-Request-Headers','').split(',') if h.strip()):raise Failure(403,'origin_forbidden')
     return self.reply({},204)
@@ -250,7 +260,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     if w.session_store is not None and w.session_store.usable():metadata['capabilities']={'remember_login':True,'remember_login_max_age_seconds':MAX_AGE}
     return self.reply({'ok':not w.stopping(),**metadata},200 if not w.stopping() else 503)
    if u.path not in (get if self.command=='GET' else post):raise Failure(404,'not_found')
-   if u.path in ('/api/geo/run','/api/geo/export','/api/geo/enrich') and self.command=='GET':
+   if u.path in ('/api/geo/run','/api/geo/export','/api/geo/enrich','/api/geo/diagnosis') and self.command=='GET':
     q=urllib.parse.parse_qs(u.query,keep_blank_values=True,strict_parsing=True)
     if set(q)!={'id'} or len(q['id'])!=1 or not UUID.fullmatch(q['id'][0]):raise Failure(400,'invalid_request')
    elif u.query:raise Failure(400,'invalid_request')

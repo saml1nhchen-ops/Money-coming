@@ -11,6 +11,9 @@ class FakeAPI:
    self.starts+=1
    if self.fail:raise Failure(502,'upstream_failed')
    self.busy=True;return {'id':str(uuid.uuid4()),'status':'queued','config':body}
+  if path=='diagnose':return {'id':str(uuid.uuid4()),'status':'queued','config':body}
+  if path=='diagnoses':return {'busy':False,'diagnoses':[]}
+  if path.startswith('diagnosis?'):return {'id':path.split('=')[1],'status':'finished','bundle':{'schema_version':'v0.1'}}
   if path.startswith(('run?','export?')):return {'status':'running','error':'raw secret provider error','headers':{'Authorization':'vendor-key'}}
   return {'status':'stop_requested'}
 class HTTPTests(unittest.TestCase):
@@ -33,6 +36,16 @@ class HTTPTests(unittest.TestCase):
   for path in ('/api/geo/session','/api/bai/state','/api/tools/session','/api/geo/resume'):self.assertEqual(self.request(path,{},t)[0],404)
   self.assertEqual(self.request('/api/geo/state?x=1',token=t)[0],400)
   self.assertEqual(self.request('/api/workspace/logout',{},t)[0],200);self.assertEqual(self.request('/api/geo/state',token=t)[0],401)
+ def test_diagnosis_routes_need_no_models_or_budget(self):
+  t=self.login();self.w.ready=False;self.w.reason='missing_bai_key';body={'website':'https://cremocompany.com/','market':'US','brand':'Cremo','aliases':['Cremo Company']}
+  status,d,_=self.request('/api/geo/diagnose',body,t);self.assertEqual(status,202);self.assertEqual(d['config']['brand'],'Cremo');self.assertEqual(self.w.budget.state()['reserved'],0)
+  self.assertEqual(self.request('/api/geo/diagnose',{**body,'flow_id':str(uuid.uuid4())},t)[0],202)
+  for change in ({'market':'JP'},{'brand':''},{'aliases':'Cremo'},{'flow_id':'x'},{'providers':['gpt']}):self.assertEqual(self.request('/api/geo/diagnose',{**body,**change},t)[0],400)
+  self.assertEqual(self.request('/api/geo/diagnoses',token=t)[0],200)
+  self.assertEqual(self.request('/api/geo/diagnosis?id='+str(uuid.uuid4()),token=t)[0],200)
+  self.assertEqual(self.request('/api/geo/diagnosis?id=bad',token=t)[0],400)
+  self.assertEqual(self.request('/api/geo/diagnose',body)[0],401)
+  self.w.maintenance_requested.set();self.assertEqual(self.request('/api/geo/diagnose',body,t)[0],503)
  def test_preflight_and_host(self):
   status,d,h=self.request('/api/geo/state',method='OPTIONS',extra={'Access-Control-Request-Method':'GET','Access-Control-Request-Headers':'Authorization'});self.assertEqual(status,204);self.assertNotIn('token',str(d));self.assertEqual(h['Access-Control-Allow-Origin'],ORIGIN)
   self.assertEqual(self.request('/healthz',extra={'Host':'evil.example'})[0],403)
