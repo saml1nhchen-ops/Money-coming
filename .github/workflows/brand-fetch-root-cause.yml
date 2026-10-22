@@ -18,6 +18,7 @@ jobs:
         run: |
           python3 -m venv /tmp/brand-diagnosis
           /tmp/brand-diagnosis/bin/python -m pip install --only-binary=:all: --require-hashes -r tools/requirements-audit.lock
+          /tmp/brand-diagnosis/bin/python -m pip install playwright==1.55.0
       - name: Read bounded public page evidence and test actual extraction
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

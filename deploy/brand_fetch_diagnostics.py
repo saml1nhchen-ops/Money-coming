@@ -1,5 +1,5 @@
 """Bounded public transport/parser diagnostics. No credentials, models or cookies."""
-import hashlib,http.client,json,multiprocessing,pathlib,re,socket,sys,urllib.error,urllib.request
+import hashlib,http.client,json,multiprocessing,pathlib,re,socket,sys,urllib.error,urllib.request,time,shutil
 ROOT=pathlib.Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'tools'));sys.path.insert(0,str(ROOT/'deploy'))
 import audit_fetch as f,pinned_http,website_inspection
 from geo_audit import preview_candidates
@@ -36,8 +36,21 @@ def observed_worker(op,args,timeout):
   if p.is_alive():p.kill();p.join(timeout=.2)
 def main():
  report={'kind':'brand_fetch_root_cause','models_called':0,'client':'production SignalGEO pinned urllib + actual offline parsers','sites':[]}
- for url in ('https://cremocompany.com/','https://www.nike.com/','https://www.lorealparisusa.com/','https://www.lorealparis.com.cn/','https://example.com/'):
-  OBSERVED.clear();budget=f.FetchBudget(worker=observed_worker);r=budget.fetch(url);parsed=r.get('parsed') or {};meta=parsed.get('metadata') or {};a={'evidence':[],'candidates':{'brand':None,'products':[],'competitors':[]}};preview_candidates(a,r)
-  report['sites'].append({'url':url,'requests':list(OBSERVED),'error':r.get('error'),'access':r.get('diagnostics'),'usage':budget.finish(),'metadata':meta,'extracted_characters':len(parsed.get('extracted_text','')),'visible_text_excerpt':parsed.get('extracted_text','')[:1500],'candidates':a['candidates']})
+ for url in ('https://cremocompany.com/','https://www.nike.com/','https://www.lorealparisusa.com/','https://www.lorealparis.com.cn/','https://example.com/','https://cremocompany.com/llms.txt'):
+  OBSERVED.clear();budget=f.FetchBudget(worker=observed_worker);r=budget.fetch(url,'llms',f.origin(url)) if url.endswith('/llms.txt') else budget.fetch(url);parsed=r.get('parsed') or {};meta=parsed.get('metadata') or {};a={'evidence':[],'candidates':{'brand':None,'products':[],'competitors':[]}};preview_candidates(a,r)
+  report['sites'].append({'url':url,'requests':list(OBSERVED),'error':r.get('error'),'access':r.get('diagnostics'),'usage':budget.finish(),'metadata':meta,'extracted_characters':len(parsed.get('extracted_text','')),'script_loader_observed':bool(re.search(r'<script[^>]+src=',r.get('raw_html',''),re.I)),'visible_text_excerpt':(r.get('text','')[:8000] if url.endswith('/llms.txt') else parsed.get('extracted_text','')[:1500]),'candidates':a['candidates']})
+ try:
+  from playwright.sync_api import sync_playwright
+  time.sleep(65) # honor the baseline Cremo Retry-After before one ordinary browser navigation
+  with sync_playwright() as pw:
+   browser=pw.chromium.launch(executable_path=shutil.which('google-chrome') or shutil.which('chromium'),args=['--no-sandbox']);page=browser.new_page();n=[0]
+   def route_handler(route):
+    from urllib.parse import urlsplit
+    request=route.request;host=urlsplit(request.url).hostname
+    if request.is_navigation_request() and request.frame==page.main_frame and host in ('cremocompany.com','www.cremocompany.com') and n[0]<4:n[0]+=1;route.continue_()
+    else:route.abort()
+   page.route('**/*',route_handler);response=page.goto('https://cremocompany.com/',wait_until='domcontentloaded',timeout=20000)
+   report['ordinary_browser']={'status':response.status,'title':page.title(),'final_url':page.url,'main_requests':n[0],'user_agent':page.evaluate('navigator.userAgent'),'text_excerpt':page.locator('body').inner_text(timeout=3000)[:1000]};browser.close()
+ except Exception as e:report['ordinary_browser']={'error':type(e).__name__}
  pathlib.Path('connection-report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n');print('Read-only diagnosis report: '+publish(report))
 if __name__=='__main__':main()
