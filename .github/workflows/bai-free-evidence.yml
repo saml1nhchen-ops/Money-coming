@@ -1,0 +1,61 @@
+name: Inspect public B.AI free-model evidence
+on:
+  push:
+    branches: ['diagnose/bai-free-*']
+permissions:
+  contents: read
+jobs:
+  inspect:
+    if: github.event.deleted == false && github.event.forced == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - name: Read public documentation without a B.AI credential or chat call
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import json,sys,urllib.request,urllib.error,re
+          from html.parser import HTMLParser
+          sys.path.insert(0,'deploy')
+          from connection_diagnostics import publish
+          class Text(HTMLParser):
+              def __init__(self):super().__init__();self.skip=0;self.lines=[]
+              def handle_starttag(self,t,a):
+                  if t in ('script','style'):self.skip+=1
+              def handle_endtag(self,t):
+                  if t in ('script','style'):self.skip=max(0,self.skip-1)
+              def handle_data(self,d):
+                  if not self.skip and d.strip():self.lines.append(' '.join(d.split()))
+          urls=['https://docs.b.ai/llms.txt','https://docs.b.ai/llms-full.txt','https://docs.b.ai/pricing','https://api.b.ai/v1/models']
+          report={'kind':'public_bai_free_model_evidence','authenticated_bai':False,'chat_calls':0,'sources':[]}
+          for url in urls:
+              item={'url':url}
+              try:
+                  req=urllib.request.Request(url,headers={'User-Agent':'SignalGEO-public-docs/1.0'})
+                  with urllib.request.urlopen(req,timeout=20) as response:
+                      raw=response.read(524289);item['status']=response.status;item['truncated']=len(raw)>524288
+                  text=raw[:524288].decode('utf-8','replace')
+                  if url.endswith('/models'):
+                      data=json.loads(text);models=data.get('data',[])
+                      def clean(v,depth=0):
+                          if depth>5:return 'nested'
+                          if isinstance(v,dict):return {str(k)[:80]:clean(x,depth+1) for k,x in list(v.items())[:30] if not re.search(r'key|token|secret|authorization',str(k),re.I)}
+                          if isinstance(v,list):return [clean(x,depth+1) for x in v[:20]]
+                          return v[:1200] if isinstance(v,str) else v
+                      item['gemini_models']=[clean(m) for m in models if isinstance(m,dict) and 'gemini' in str(m.get('id','')).lower()][:20]
+                  else:
+                      if '<html' in text.lower() or '<!doctype' in text.lower():p=Text();p.feed(text);lines=p.lines
+                      else:lines=text.splitlines()
+                      item['relevant_lines']=[line[:1600] for line in lines if re.search(r'gemini|pricing|free|billing|免费|计费',line,re.I)][:80]
+              except urllib.error.HTTPError as error:item['status']=error.code
+              except Exception:item['error']='public_source_unavailable'
+              report['sources'].append(item)
+          branch=publish(report)
+          print('Public evidence report saved to '+branch+'/connection-report.json; no B.AI credential or chat used.')
+          PY
