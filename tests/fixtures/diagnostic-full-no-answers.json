@@ -1,0 +1,202 @@
+{
+  "id": "00000000-0000-4000-8000-000000000053",
+  "status": "partial",
+  "stage": "done",
+  "error_code": "sampling_incomplete",
+  "config": {
+    "mode": "full",
+    "profile_ids": [
+      "profile-a",
+      "profile-b"
+    ]
+  },
+  "plan": {
+    "maximum_calls": 63,
+    "answer_calls": 60
+  },
+  "website": "https://brand.example/?gclid=redacted",
+  "bundle": {
+    "run_manifest": {
+      "run_id": "00000000-0000-4000-8000-000000000053",
+      "brand": "示例品牌",
+      "domains": [
+        "brand.example"
+      ],
+      "mode": "full",
+      "market": "CN"
+    },
+    "rules": [
+      {
+        "rule_id": "R-access-response",
+        "dimension": "access",
+        "weight": 5,
+        "status": "pass",
+        "partial_credit": 0.5,
+        "reason": "保存的页面检查结果",
+        "rubric": "保存的规则口径",
+        "verification": "核对本次页面",
+        "evidence_ids": [
+          "WEB-sanitized"
+        ]
+      },
+      {
+        "rule_id": "R-access-extraction",
+        "dimension": "access",
+        "weight": 10,
+        "status": "pass",
+        "partial_credit": 0.5,
+        "reason": "保存的页面检查结果",
+        "rubric": "保存的规则口径",
+        "verification": "核对本次页面",
+        "evidence_ids": [
+          "WEB-sanitized"
+        ]
+      },
+      {
+        "rule_id": "R-access-tls",
+        "dimension": "access",
+        "weight": 5,
+        "status": "pass",
+        "partial_credit": 0.5,
+        "reason": "保存的页面检查结果",
+        "rubric": "保存的规则口径",
+        "verification": "核对本次页面",
+        "evidence_ids": [
+          "WEB-sanitized"
+        ]
+      },
+      {
+        "rule_id": "R-access-search",
+        "dimension": "access",
+        "weight": 5,
+        "status": "fail",
+        "partial_credit": 0.5,
+        "reason": "保存的页面检查结果",
+        "rubric": "保存的规则口径",
+        "verification": "核对本次页面",
+        "evidence_ids": [
+          "WEB-sanitized"
+        ]
+      },
+      {
+        "rule_id": "R-entity-identity",
+        "dimension": "entity",
+        "weight": 10,
+        "status": "pass",
+        "partial_credit": 0.5,
+        "reason": "保存的页面检查结果",
+        "rubric": "保存的规则口径",
+        "verification": "核对本次页面",
+        "evidence_ids": [
+          "WEB-sanitized"
+        ]
+      },
+      {
+        "rule_id": "R-entity-products",
+        "dimension": "entity",
+        "weight": 10,
+        "status": "unknown",
+        "partial_credit": 0.5,
+        "reason": "保存的页面检查结果",
+        "rubric": "保存的规则口径",
+        "verification": "核对本次页面",
+        "evidence_ids": []
+      },
+      {
+        "rule_id": "R-questions-coverage",
+        "dimension": "questions",
+        "weight": 20,
+        "status": "unknown",
+        "partial_credit": 0.5,
+        "reason": "保存的页面检查结果",
+        "rubric": "保存的规则口径",
+        "verification": "核对本次页面",
+        "evidence_ids": []
+      },
+      {
+        "rule_id": "R-trust-contact",
+        "dimension": "trust",
+        "weight": 5,
+        "status": "pass",
+        "partial_credit": 0.5,
+        "reason": "保存的页面检查结果",
+        "rubric": "保存的规则口径",
+        "verification": "核对本次页面",
+        "evidence_ids": [
+          "WEB-sanitized"
+        ]
+      },
+      {
+        "rule_id": "R-trust-policy",
+        "dimension": "trust",
+        "weight": 5,
+        "status": "pass",
+        "partial_credit": 0.5,
+        "reason": "保存的页面检查结果",
+        "rubric": "保存的规则口径",
+        "verification": "核对本次页面",
+        "evidence_ids": [
+          "WEB-sanitized"
+        ]
+      },
+      {
+        "rule_id": "R-trust-facts",
+        "dimension": "trust",
+        "weight": 5,
+        "status": "unknown",
+        "partial_credit": 0.5,
+        "reason": "保存的页面检查结果",
+        "rubric": "保存的规则口径",
+        "verification": "核对本次页面",
+        "evidence_ids": []
+      },
+      {
+        "rule_id": "R-structure-headings",
+        "dimension": "structure",
+        "weight": 5,
+        "status": "fail",
+        "partial_credit": 0.5,
+        "reason": "保存的页面检查结果",
+        "rubric": "保存的规则口径",
+        "verification": "核对本次页面",
+        "evidence_ids": [
+          "WEB-sanitized"
+        ]
+      },
+      {
+        "rule_id": "R-structure-data",
+        "dimension": "structure",
+        "weight": 5,
+        "status": "pass",
+        "partial_credit": 0.5,
+        "reason": "保存的页面检查结果",
+        "rubric": "保存的规则口径",
+        "verification": "核对本次页面",
+        "evidence_ids": [
+          "WEB-sanitized"
+        ]
+      },
+      {
+        "rule_id": "R-maintenance-consistency",
+        "dimension": "maintenance",
+        "weight": 10,
+        "status": "unknown",
+        "partial_credit": 0.5,
+        "reason": "保存的页面检查结果",
+        "rubric": "保存的规则口径",
+        "verification": "核对本次页面",
+        "evidence_ids": []
+      }
+    ],
+    "answers": [],
+    "questions": [],
+    "evidence": [
+      {
+        "evidence_id": "WEB-sanitized",
+        "url": "https://brand.example/robots.txt",
+        "excerpt": "User-agent: *\nDisallow: *gclid="
+      }
+    ],
+    "findings": []
+  }
+}

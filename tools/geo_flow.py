@@ -232,7 +232,7 @@ def call(job,pid,prompts,kind):
 def execute(job):
  global BUSY
  try:
-  job['status']='running';job['stage']='website';persist(job);cfg=job['config']
+  job['status']='running';job['stage']='preparing_material' if 'source_snapshot' in job else 'website';persist(job);cfg=job['config']
   if 'source_snapshot' in job:
    material=validate_source_snapshot(job['source_snapshot'],cfg['website'])
    job['website']={'url':cfg['website'],'text':material['text'],'source':'audited_snapshot','evidence_signature':material['evidence_signature'],'read_status':'captured' if material['text'] else 'unavailable','material_note':'仅使用已审计网页摘录，不再次请求官网。' if material['text'] else '官网未取得可读材料；仅依据用户确认品牌/产品/竞品与背景出题，未声称读取成功。'}

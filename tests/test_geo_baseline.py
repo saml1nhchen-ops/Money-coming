@@ -21,11 +21,11 @@ class BaselineTests(unittest.TestCase):
    f.generate_bank(job);job['prompt_hash']=p.fingerprint(job['prompts']);f.collect(job)
    self.assertEqual(len(job['prompts']),30);self.assertEqual(len(job['samples']),30);self.assertEqual(called.call_count,33);self.assertEqual(job['status'],'finished');self.assertEqual(job['report']['groups']['discovery']['question_count'],21)
    before=called.call_count;f.collect(job);self.assertEqual(called.call_count,before)
- def test_same_manufacturer_cannot_be_double_counted(self):
+ def test_distinct_actual_profiles_from_same_manufacturer_can_be_selected(self):
   cfg=config();cfg.update(providers=['p','q'],generator='p')
-  state={'configured':True,'profiles':[{'id':'p','markets':['US'],'model':'gemini-test','provider':'bai'},{'id':'q','markets':['US'],'model':'gemini-test','provider':'gemini'}]}
+  state={'configured':True,'profiles':[{'id':'p','markets':['US'],'model':'gemini-test','provider':'bai'},{'id':'q','markets':['US'],'model':'gemini-pro-test','provider':'gemini'}]}
   with patch.object(f,'catalog',return_value=state):
-   with self.assertRaisesRegex(ValueError,'厂商'):f.validate(cfg)
+   actual=f.validate(cfg);self.assertEqual(actual['providers'],['p','q']);actual['count']=30;self.assertEqual(p.plan(actual)['maximum_calls'],63)
  def test_repeat_rejected_for_new_jobs(self):
   cfg=config();cfg['repeats']=2
   with self.assertRaisesRegex(ValueError,'只调用一次'):f.validate(cfg)

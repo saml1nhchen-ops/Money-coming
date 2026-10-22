@@ -73,8 +73,8 @@
   const terminal = status => ['finished','partial','failed','interrupted'].includes(status);
   const uuid = value => typeof value==='string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
   const statusLabel = s => ({queued:'等待开始',running:'诊断进行中',finished:'已完成',partial:'部分完成',failed:'未完成',interrupted:'已中断'})[s] || '状态未知';
-  const diagnosticError = code => ({sampling_incomplete:'部分回答未完成，已有结果仍可查看。',maintenance:'后台正在更新，请稍后再试。',daily_budget_exceeded:'今日额度不足，请核对额度后再明确开始。',interrupted:'任务曾中断，已有证据仍保留。',diagnostic_failed:'部分诊断步骤未完成，已有证据仍保留。',upstream_failed:'回答服务暂未完成请求，已有结果仍保留。'})[code] || '部分步骤未完成，请结合已有证据核对。';
-  const stageLabel = s => ({website:'读取官网',preview:'读取官网',confirmation:'确认品牌信息',reading_policies:'检查官网',building_report:'整理官网证据',audit:'检查官网',generating:'生成问题',sampling:'收集回答',report:'整理诊断报告',done:'报告完成',starting:'准备诊断',awaiting_confirmation:'确认品牌信息'})[s] || '正在整理诊断';
+  const diagnosticError = code => ({sampling_incomplete:'模型分析未完整完成，已保存的官网证据仍可查看。',runner_observation_lost:'暂时无法确认执行结果，请读取最新进度核对。',maintenance:'后台正在更新，请稍后再试。',daily_budget_exceeded:'今日额度不足，请核对额度后再明确开始。',interrupted:'任务曾中断，已有证据仍保留。',diagnostic_failed:'部分诊断步骤未完成，已有证据仍保留。',upstream_failed:'回答服务暂未完成请求，已有结果仍保留。'})[code] || '部分步骤未完成，请结合已有证据核对。';
+  const stageLabel = s => ({preparing_material:'整理已保存的官网资料',model_submitting:'准备问答诊断',reconciliation_required:'核对执行状态',website:'读取官网',preview:'读取官网',confirmation:'确认品牌信息',reading_policies:'检查官网',building_report:'整理官网证据',audit:'检查官网',generating:'生成问题',sampling:'收集回答',report:'整理诊断报告',done:'报告完成',starting:'准备诊断',awaiting_confirmation:'确认品牌信息'})[s] || '正在整理诊断';
   function params() { return new URLSearchParams(location.hash.split('?')[1] || ''); }
   function onWorkflow() { return page==='research' || page==='diagnostic'; }
   function route(view='',id='') {
@@ -88,14 +88,19 @@
   function connectionHTML() {
     return `<details class="sr-login"><summary>${identity().authenticated?'团队连接管理':'登录团队后台'}</summary>${remoteConnectionMarkup({audit:true})}</details>`;
   }
+  function clearDetail(s) {s.detail=null;s.detailID=null;s.detailLoading=false;s.detailLoaded=false;s.detailReadState='idle';s.detailReadError='';s.retestConfirm=false;s.shareURL='';}
+  function detailCurrent(j) {return visible() && j.sequence===sequence && identity().key===j.key && remoteDiagnosticsContext().canRead && session().screen==='detail' && session().detailID===j.detailID && params().get('diagnostic')===j.detailID;}
+  function bundleMatches(d,publicView=false) {const id=d?.bundle?.run_manifest?.run_id;return !!d?.bundle && (publicView?id==='shared-report':!!d.id && id===d.id);}
+  function finalReport(d,publicView=false) {return ['finished','partial'].includes(d?.status) && (!d.stage || d.stage==='done') && d.progress?.runner_status!=='unknown' && bundleMatches(d,publicView);}
+  function selectedDetail(s) {return s.screen==='detail' && s.detailID===params().get('diagnostic') && s.detail?.id===s.detailID?s.detail:null;}
   function syncRoute(s) {
     const p=params(),key=location.hash;
     if(s.route===key)return;
     stop();s.route=key;s.pending=false;s.message='';s.dialog=null;
     const shared=p.get('share'),id=p.get('diagnostic');
-    if(shared){s.screen='shared';s.shareToken=shared;return;}
-    s.shareToken=null;
-    if(id){s.screen='detail';s.detailID=id;s.detail=null;s.detailLoaded=false;return;}
+    if(shared){clearDetail(s);if(s.shareToken!==shared){s.publicDetail=null;s.publicLoaded=false;s.publicLoading=false;s.shareExpires=null;}s.screen='shared';s.shareToken=shared;return;}
+    s.shareToken=null;clearDetail(s);
+    if(id){s.screen='detail';s.detailID=id;return;}
     const view=p.get('view');if(view==='projects')s.returnScreen='history';
     s.screen=view==='history'?'history':view==='projects'?'projects':view==='legacy'?'legacy':view==='import'?'import':'url';
   }
@@ -107,18 +112,23 @@
     s.workspaceLoading=false;s.workspaceLoaded=true;
     for(let i=0;i<results.length;i++){
       const r=results[i];if(r.status==='fulfilled')s[['clients','projects','diagnostics'][i]]=array(r.value[['clients','projects','diagnostics'][i]]);
-      else s.message=r.reason.message;
+      else if(s.screen==='detail')s.workspaceNotice='客户项目列表暂未刷新，不影响已提交的诊断。';else s.message=r.reason.message;
     }
     if(s.refreshWorkspaceAfterLoad){s.refreshWorkspaceAfterLoad=false;s.workspaceLoaded=false;}
     if(!array(s.projects).some(p=>p.id===s.projectID && !p.internal))s.projectID=array(s.projects).find(p=>!p.internal)?.id || '';
     repaint();
   }
+  function detailFailure(j,error,clear=false) {
+    if(!detailCurrent(j))return;clearTimeout(pollTimer);const s=session();
+    if(clear)s.detail=null;
+    s.detailLoading=false;s.detailLoaded=true;s.detailReadState=clear?'mismatch':'error';s.detailReadError=error.message || '暂时无法读取最新进度。';s.message='';repaint();
+  }
   async function ensureDetail(s) {
-    if(s.detailLoading || s.detailLoaded || !s.detailID || !identity().authenticated || !workspaceReady())return;
-    if(!uuid(s.detailID)){s.detailLoaded=true;s.message='诊断链接无效。';repaint();return;}
-    const j=job();s.detailLoading=true;
-    try { const d=await remoteWorkspace('detail',s.detailID);if(current(j)){s.detailLoaded=true;s.detailLoading=false;acceptDiagnostic(j,d);} }
-    catch(e){if(current(j)){s.detailLoading=false;s.detailLoaded=true;s.message=e.message;repaint();}}
+    if(s.detailLoading || s.detailLoaded || !s.detailID || !remoteDiagnosticsContext().canRead)return;
+    if(!uuid(s.detailID)){s.detailLoaded=true;s.detailReadState='error';s.detailReadError='诊断链接无效。';repaint();return;}
+    const j={...job(),detailID:s.detailID};s.detailLoading=true;s.detailReadState='loading';s.detailReadError='';s.message='';repaint();
+    try {acceptDiagnostic(j,await remoteWorkspace('detail',j.detailID));}
+    catch(e){detailFailure(j,e);}
   }
   async function ensureShared(s) {
     if(s.publicLoading || s.publicLoaded)return;
@@ -130,9 +140,9 @@
     if(!onWorkflow())return;
     const s=session();syncRoute(s);
     if(s.screen==='shared'){void ensureShared(s);return;}
+    if(s.screen==='detail')void ensureDetail(s);
     if(!identity().authenticated || !workspaceReady())return;
     void ensureWorkspace(s);
-    if(s.screen==='detail')void ensureDetail(s);
   }
   function steps(s) {
     const n=s.screen==='confirm'?2:s.screen==='models'?3:s.screen==='detail'?4:s.screen==='progress'&&s.draft?2:1;
@@ -229,21 +239,40 @@
   function answerHTML(a) {
     return `<article class="sr-card wf-answer"><h3>${text(a.platform || '未提供来源')} · ${text(a.status==='success'?'已返回':a.status==='failed'?'失败':a.status==='no_answer'?'未返回回答':'未知')}</h3><p>${text(a.entry || '')} · ${text(a.collected_at || '')}</p>${a.truncated || a.cached?'<p>本条标记为截断或缓存，不能作为完整新采样。</p>':''}<h4>原始回答</h4><pre>${text(a.raw_answer || '没有返回原文。')}</pre><h4>引用来源</h4>${array(a.citations).map(c=>{const url=safeLink(c.url);return url?`<p><a href="${text(url)}" target="_blank" rel="noopener noreferrer">${text(c.title || url)}</a>${c.support?`<blockquote>${text(c.support)}</blockquote>`:''}</p>`:'<p>无效引用地址已忽略。</p>';}).join('') || '<p>未提供可核验引用；不据此推断未访问任何来源。</p>'}<details><summary>本条完整证据</summary><pre>${text(JSON.stringify(a,null,2))}</pre></details></article>`;
   }
-  function reportHTML(d,full=false) {
-    const b=d?.bundle;if(!b)return '<section class="sr-card"><h2>暂无完整报告快照</h2><p>已有进度仍保留；请查看状态或旧格式证据。</p></section>';
-    const score=scoreRules(array(b.rules)),m=b.run_manifest || {},fold=(label,html)=>full?`<section><h3>${text(label)}</h3>${html}</section>`:`<details><summary>${text(label)}</summary>${html}</details>`;
-    const value=score.total!==null?`${num(score.total)} / 100`:score.applicable_weight?`${num(score.lower)}–${num(score.upper)}（证据未完整）`:'证据不足，无法评分';
-    const findings=array(b.findings),questions=questionList(b);
-    return `<section class="sr-card"><h1>${text(m.brand || '品牌')} · GEO 诊断报告</h1><p class="sr-score">${text(value)}</p><p>证据覆盖 ${score.coverage===null?'未知':num(score.coverage*100)+'%'} · ${text(m.market)} · ${text(m.sampled_at || d.created_at)}</p><h2>主要结论</h2>${findings.slice(0,3).map(f=>`<p>${text(f.observed_gap)}</p>`).join('') || '<p>暂无足够证据形成主要结论，请结合未知项核对。</p>'}${fold('评分范围与口径',`<p>沿用 v0.1 六维规则、未知项和不适用项处理。网站准备度不等于模型推荐概率，实际回答提及与引用分别统计。区间为规则分数学边界，不是概率区间。</p><pre>${text(JSON.stringify(m,null,2))}</pre>`)}</section>${competitorHTML(b,fold)}<section class="sr-card"><h2>官网问题与六维诊断</h2>${array(b.rules).map(r=>`<article class="sr-check"><h3>${text(r.reason)}</h3><p>${text(({pass:'通过',partial:'部分满足',fail:'未满足',unknown:'证据不足',not_applicable:'不适用'})[r.status] || '未知')}</p>${fold('查看规则与依据',`<p>${text(r.rule_id)} · ${text(r.dimension)} · 权重 ${text(r.weight)}</p><p>${text(r.rubric)}</p><p>复核方法：${text(r.verification)}</p>${array(r.evidence_ids).map(id=>{const e=array(b.evidence).find(e=>e.evidence_id===id);return e?evidenceHTML(e):`<p>证据 ${text(id)}</p>`;}).join('')}`)}</article>`).join('')}</section><section class="sr-card"><h2>问题回答与引用证据</h2><p>逐题查看各来源的原文与引用；失败、截断与缺少引用分别保留。</p><div class="wf-questions">${questions.map((q,i)=>full?`<article><h3>${text(q.question)}</h3>${array(b.answers).filter(a=>a.question_id===q.question_id).map(answerHTML).join('') || '<p>尚无回答。</p>'}</article>`:`<button class="wf-question" data-wf-question="${i}"><span>${i+1}</span><b>${text(q.question)}</b><small>${array(b.answers).filter(a=>a.question_id===q.question_id && a.status==='success').length} 条已返回 · 查看原文与引用 →</small></button>`).join('') || '<p>本次仅检查官网，没有模型回答。</p>'}</div>${fold('平台表现与统计口径',`<pre>${text(JSON.stringify(diagnosticMetrics(b).map(({answers,...row})=>row),null,2))}</pre>`)}</section><section class="sr-card"><h2>优先行动</h2>${findings.map(f=>`<article class="sr-check"><h3>${text(f.priority)} · ${text(f.recommended_action)}</h3><p>${text(f.observed_gap)}</p><p>复核：${text(f.verification)}</p>${fold('行动依据与其他解释',`<p>${text(f.alternative_explanations)}</p><p>${text(f.priority_reason)}</p><p>${array(f.target_pages).map(text).join('、')}</p><pre>${text(JSON.stringify(f,null,2))}</pre>`)}</article>`).join('') || '<p>暂无可落地建议。应先补足未知检查的证据。</p>'}</section><section class="sr-card"><h2>完整证据</h2>${fold('页面与事实证据',array(b.evidence).map(evidenceHTML).join('') || '<p>未取得页面证据。</p>')}</section>`;
+  function diagnosticMode(d) {if(d?.config?.mode==='website')return 'website';if(d?.config?.mode==='full' || d?.plan?.answer_calls>0 || array(d?.config?.profile_ids).length)return 'full';return d?.bundle?.run_manifest?.mode==='page'?'website':['full','retest','answers'].includes(d?.bundle?.run_manifest?.mode)?'full':'unknown';}
+  function businessRule(r,b,d) {
+    const entries={
+      'R-access-search':['本次检测路径存在访问限制','核对本次页面的访问规则，并确认需要公开的内容可被读取。'],
+      'R-structure-headings':['本次读取未识别出完整的页面标题','核对页面标题和主标题能否被直接读取。'],
+      'R-access-response':['本次页面未能顺利读取','核对官网链接和该页面的访问情况。'],
+      'R-access-extraction':['本次页面的主要内容未完整读出','核对重要介绍能否以直接可读的文字提供。'],
+      'R-entity-identity':['本次页面的品牌信息不够清楚','核对页面是否明确说明品牌名称与业务。'],
+      'R-entity-products':['本次页面的产品信息不够完整','补充本页产品名称、用途与适用条件。'],
+      'R-trust-contact':['本次页面的联系信息不够完整','核对公开联系信息是否清楚可读。'],
+      'R-trust-policy':['本次页面的政策信息不够完整','核对适用政策的公开入口与文字内容。']};
+    let [title,action]=entries[r.rule_id] || ['本次页面有一项内容需要改善','结合下方页面证据，核对并完善这项内容。'];
+    if(r.rule_id==='R-access-search')try{const u=new URL(d.website || d.config?.website || array(b.evidence).find(e=>e.url)?.url);const keys=[...u.searchParams.keys()];const evidence=array(r.evidence_ids).map(id=>array(b.evidence).find(e=>e.evidence_id===id)?.excerpt || '').join('\n');if(keys.some(k=>/^(gclid|fbclid|utm_.+)$/i.test(k) && evidence.includes(k+'=') && /Disallow:/i.test(evidence))){title='本次带广告参数的网址受访问规则限制';action='使用不含广告跟踪参数的官网链接重新核对。';}}catch{}
+    return {title,action};
   }
-  function competitorHTML(b,fold) {
+  function reportHTML(d,full=false) {
+    const b=d?.bundle;if(!finalReport(d,!d?.id && b?.run_manifest?.run_id==='shared-report'))return '<section class="sr-card"><h2>本次诊断尚未完成</h2><p>请读取最新进度；过程资料不作为完整报告。</p></section>';
+    const score=scoreRules(array(b.rules)),m=b.run_manifest || {},fold=(label,html)=>`<details><summary>${text(label)}</summary>${html}</details>`;
+    const value=score.total!==null?`${num(score.total)} / 100`:score.applicable_weight?`${num(score.lower)}–${num(score.upper)} / 100`:'证据不足，无法评分';
+    const rules=array(b.rules),unknown=rules.filter(r=>r.status==='unknown'),passed=rules.filter(r=>r.status==='pass'),issues=rules.filter(r=>['fail','partial'].includes(r.status)&&array(r.evidence_ids).some(id=>array(b.evidence).some(e=>e.evidence_id===id))),questions=questionList(b),mode=diagnosticMode(d);
+    const details=r=>fold('查看本次页面的依据',`<p>${text(r.reason)}</p><p>${text(r.rule_id)} · ${text(r.dimension)} · 权重 ${text(r.weight)}</p><p>${text(r.rubric)}</p><p>复核方法：${text(r.verification)}</p>${array(r.evidence_ids).map(id=>{const e=array(b.evidence).find(e=>e.evidence_id===id);return e?evidenceHTML(e):`<p>证据 ${text(id)}</p>`;}).join('')}`);
+    const metrics=diagnosticMetrics(b),discovery=metrics.filter(g=>g.question_type==='discovery'),aggregate=k=>discovery.reduce((v,g)=>({numerator:v.numerator+g[k].numerator,denominator:v.denominator+g[k].denominator}),{numerator:0,denominator:0}),metric=k=>{const v=aggregate(k);return v.denominator?`${num(v.numerator/v.denominator*100)}%（${v.numerator} / ${v.denominator} 条有效回答）`:'暂无足够有效回答';};
+    const noAnswers=!array(b.answers).some(a=>a.status==='success'&&!a.cached&&!a.truncated);
+    const conclusions=issues.slice(0,2).map(r=>businessRule(r,b,d).title);if(mode==='full'&&noAnswers)conclusions.unshift('模型分析未完成：本次未取得模型回答。');else if(unknown.length)conclusions.push('部分内容仍需进一步核对。');
+    return `<section class="sr-card"><h1>${text(m.brand || '品牌')} · GEO 诊断报告</h1>${d.status==='partial'&&mode==='full'?'<p>本报告保留已取得的结果，部分诊断步骤未完成。</p>':''}<h2>官网准备度</h2><p class="sr-score">${text(value)}</p><p>${score.coverage===null?'现有证据不足以评分。':`已核验${num(score.coverage*100)}%的评分项（按权重）。`}</p>${score.total===null&&score.applicable_weight?`<p>目前还不能确定总分：已确认${num(score.lower)}分，另有${num(score.upper-score.lower)}分待核实。现有证据还不足以确定单一分数。</p>`:''}<p>官网准备度与AI回答表现分别统计。</p><h2>主要结论</h2>${conclusions.slice(0,3).map(v=>`<p>${text(v)}</p>`).join('') || '<p>本次已核验项目中未发现明确缺口；这不覆盖未检测的页面。</p>'}${fold('检测范围与评分依据',`<p>本报告基于保存时取得的页面证据。规则分区间是现有证据的数学边界，不是推荐概率。市场沿用本次选择，未自动调整。</p><pre>${text(JSON.stringify(m,null,2))}</pre>`)}</section>${mode==='full'?`<section class="sr-card"><h2>AI回答表现</h2>${noAnswers?'<h3>模型分析未完成</h3><p>本次未取得模型回答，暂时无法判断实际提及和引用表现。</p>':`<p>自然发现问题中，本品牌被提及：${text(metric('mention'))}。</p><p>本品牌官网获得原生引用：${text(metric('owned_citation'))}。</p>`}${fold('回答统计口径',`<p>仅统计成功、未截断且非缓存的有效回答；提及仅使用明确判定，原生引用仅使用支持且完整捕获的引用。不同题型分别统计，不将原文网址当成原生引用。</p><pre>${text(JSON.stringify(metrics.map(({answers,...row})=>row),null,2))}</pre>`)}</section>`:''}${competitorHTML(b,fold,full)}<section class="sr-card"><h2>官网需要改善的内容</h2>${issues.map(r=>{const v=businessRule(r,b,d);return `<article class="sr-check"><h3>${text(v.title)}</h3><p>${text(v.action)}</p>${details(r)}</article>`;}).join('') || '<p>本次证据中没有足以列为明确问题的项目。</p>'}${fold(`已通过的检查（${passed.length}项）`,passed.map(details).join(''))}${fold(`还需要补充的信息（${unknown.length}项）`,`<p>部分内容仍需进一步核对，不将未知项直接列为优先整改问题。</p>${unknown.map(details).join('')}`)}</section><section class="sr-card"><h2>问题回答与引用证据</h2><p>逐题查看各来源的原文与引用；失败、截断与缺少引用分别保留。</p><div class="wf-questions">${questions.map((q,i)=>full?`<article><h3>${text(q.question)}</h3>${array(b.answers).filter(a=>a.question_id===q.question_id).map(answerHTML).join('') || '<p>尚无回答。</p>'}</article>`:`<button class="wf-question" data-wf-question="${i}"><span>${i+1}</span><b>${text(q.question)}</b><small>${array(b.answers).filter(a=>a.question_id===q.question_id && a.status==='success').length} 条已返回 · 查看原文与引用 →</small></button>`).join('') || (diagnosticMode(d)==='website'?'<p>本次选择仅检查官网，没有问答采集。</p>':diagnosticMode(d)==='full'?'<p>本次未取得模型回答。可读取最新进度，核对本次是否完整完成。</p>':'<p>尚无可显示的问题回答，请核对已保存的诊断范围。</p>')}</div>${fold('平台表现与统计口径',`<pre>${text(JSON.stringify(diagnosticMetrics(b).map(({answers,...row})=>row),null,2))}</pre>`)}</section><section class="sr-card"><h2>优先行动</h2>${issues.slice(0,3).map(r=>{const v=businessRule(r,b,d);return `<article class="sr-check"><h3>${text(v.action)}</h3><p>${text(v.title)}</p>${details(r)}</article>`;}).join('') || '<p>暂无有明确页面证据支持的优先整改行动。</p>'}</section><section class="sr-card"><h2>证据与附录</h2>${fold('页面与事实证据',array(b.evidence).map(evidenceHTML).join('') || '<p>未取得页面证据。</p>')}${fold('完整检查与行动记录',`<pre>${text(JSON.stringify({rules:b.rules,findings:b.findings,failure:d.failure},null,2))}</pre>`)}</section>`;
+  }
+  function competitorHTML(b,fold,full=false) {
     const performance=b.performance || {},models=array(performance.groups?.discovery?.models || performance.models),brands=new Map();
     for(const model of models)for(const v of array(model.brands)){
       const key=String(v.name);if(!brands.has(key))brands.set(key,{name:v.name,own:v.own,hits:0,total:0});
       const row=brands.get(key);row.hits+=Number(v.mentions)||0;row.total+=Number(v.denominator)||0;
     }
     const own=[...brands.values()].find(v=>v.own),competitors=[...brands.values()].filter(v=>!v.own),gaps=array(b.competitor_gaps).length?array(b.competitor_gaps):array(performance.gaps);
-    return `<section class="sr-card"><h2>竞品差距</h2>${competitors.length?`<p>同一组自然发现问题中的实际提及，按有效回答分母合并；不代表推荐概率或市场排名。</p><table><thead><tr><th>品牌</th><th>被提及的有效回答</th><th>提及率</th></tr></thead><tbody>${[own,...competitors].filter(Boolean).map(v=>`<tr><td>${text(v.name)}${v.own?'（本品牌）':''}</td><td>${v.hits} / ${v.total}</td><td>${v.total?num(v.hits/v.total*100)+'%':'未知'}</td></tr>`).join('')}</tbody></table>`:'<p>尚无足够的配对竞品证据，不能据此判断没有差距。</p>'}${gaps.length?`<h3>竞品出现而本品牌缺席的问题</h3>${gaps.map(g=>`<article class="sr-check"><h3>${text(g.prompt || g.question || '配对回答')}</h3><p>出现的竞品：${array(g.competitors).map(text).join('、') || text(g.competitor || g.name || '详见证据')}</p>${fold('查看配对证据与来源',`<pre>${text(JSON.stringify(g,null,2))}</pre>`)}</article>`).join('')}`:competitors.length?'<p>本次未观察到“竞品出现而本品牌缺席”的配对回答；不代表没有其他差距。</p>':''}</section>`;
+    return `<section class="sr-card"><h2>竞品差距</h2>${competitors.length?`<p>同一组自然发现问题中的实际提及，按有效回答分母合并；不代表推荐概率或市场排名。</p><table><thead><tr><th>品牌</th><th>被提及的有效回答</th><th>提及率</th></tr></thead><tbody>${[own,...competitors].filter(Boolean).map(v=>`<tr><td>${text(v.name)}${v.own?'（本品牌）':''}</td><td>${v.hits} / ${v.total}</td><td>${v.total?num(v.hits/v.total*100)+'%':'未知'}</td></tr>`).join('')}</tbody></table>`:'<p>尚无足够的配对竞品证据，不能据此判断没有差距。</p>'}${gaps.length?`<h3>竞品出现而本品牌缺席的问题</h3>${(full?gaps:gaps.slice(0,3)).map(g=>`<article class="sr-check"><h3>${text(g.prompt || g.question || '配对回答')}</h3><p>出现的竞品：${array(g.competitors).map(text).join('、') || text(g.competitor || g.name || '详见证据')}</p>${fold('查看配对证据与来源',`<pre>${text(JSON.stringify(g,null,2))}</pre>`)}</article>`).join('')}${!full && gaps.length>3?fold('查看其余'+(gaps.length-3)+'道问题',gaps.slice(3).map(g=>`<article class="sr-check"><h3>${text(g.prompt || g.question || '配对回答')}</h3><p>出现的竞品：${array(g.competitors).map(text).join('、') || text(g.competitor || g.name || '详见证据')}</p>${fold('查看配对证据与来源',`<pre>${text(JSON.stringify(g,null,2))}</pre>`)}</article>`).join('')):''}`:competitors.length?'<p>本次未观察到“竞品出现而本品牌缺席”的配对回答；不代表没有其他差距。</p>':''}</section>`;
   }
   function trendHTML(d) {
     const trend=d.trend;
@@ -252,11 +281,18 @@
     const bound=v=>Number.isFinite(v)?Math.max(0,Math.min(100,v)):0;
     return `<section class="sr-card"><h2>复测趋势</h2><p>${comparable?'本次与基线条件可比；分数变化仍不能证明因果效果。':'本次与基线条件不完全一致，不能合并为统一提升数字。'}</p>${array(trend.differences).map(v=>`<p>${text(v)}</p>`).join('')}<table><thead><tr><th>诊断</th><th>准备度 / 证据边界</th><th>证据覆盖</th></tr></thead><tbody>${points.map(v=>`<tr><td>${text(v.label || v.created_at || v.sampled_at)}</td><td>${v.total!==null && Number.isFinite(v.total)?num(v.total):Number.isFinite(v.lower)&&Number.isFinite(v.upper)?num(v.lower)+'–'+num(v.upper):'未知'}<div class="wf-trend-bar" role="img" aria-label="规则分边界 ${text(v.lower)} 至 ${text(v.upper)}"><i style="width:${bound(v.lower)}%"></i><em style="left:${bound(v.lower)}%;width:${Math.max(0,bound(v.upper)-bound(v.lower))}%"></em></div></td><td>${Number.isFinite(v.coverage)?num(v.coverage*100)+'%':'未知'}</td></tr>`).join('')}</tbody></table>${comparable && trend.delta?`<p>规则分边界变化：下界 ${text(trend.delta.lower)}，上界 ${text(trend.delta.upper)}。不等同于曝光或推荐提升。</p>`:''}<details><summary>查看完整比较依据</summary><pre>${text(JSON.stringify(trend,null,2))}</pre></details></section>`;
   }
+  function diagnosticProgress(d) {
+    const p=d?.progress || {},count=(a,b)=>Number.isFinite(a)&&Number.isFinite(b)&&b>0?`${a} / ${b}`:'等待最新记录';
+    const stage=d?.stage==='website' && d?.bundle && diagnosticMode(d)==='full'?'model_submitting':d?.stage;
+    return `<p>${text(stageLabel(stage))}。任务保存在后台，可稍后从历史诊断返回。</p>${Number.isFinite(p.questions_generated)?`<p>问题已整理：${text(count(p.questions_generated,p.questions_planned))} · 回答已返回：${text(count(p.answers_complete,p.answers_planned))}</p>`:''}${p.last_read_error?'<p>正在核对最新执行进度，不会重新提交问答任务。</p>':''}<progress></progress>`;
+  }
   function detailHTML(s,publicView=false) {
-    const d=publicView?s.publicDetail:s.detail;
-    if(!d)return '<section class="sr-card"><p>正在读取诊断…</p></section>';
-    const ready=!!d.bundle;
-    return `${!publicView?`<section class="sr-card"><h2>${text(statusLabel(d.status))}</h2>${!terminal(d.status)?`<p>${text(stageLabel(d.stage))}。任务保存在后台，可离开后通过此链接返回。</p><progress></progress>`:''}${d.error_code?`<p>本次未完整完成，已取得的证据仍保留。</p><details><summary>查看失败原因</summary><p>${text(({sampling_incomplete:'部分回答尚未收集完整',maintenance:'后台正在更新，请稍后重试',daily_budget_exceeded:'今日分析额度已用完',interrupted:'任务已中断，已有结果已保留',upstream_failed:'模型服务暂未返回完整结果',diagnostic_failed:'部分检查未完成，已有结果已保留'})[d.error_code] || '部分检查未完成，已有结果已保留')}</p></details>`:''}<div class="sr-actions"><button data-wf="detail-refresh">读取最新进度</button><button data-wf="history">历史诊断</button></div></section>`:`<p>只读报告 · 有效期至 ${text(s.shareExpires)}</p>`}${ready?reportHTML(d):d.legacy?legacyHTML(d):'<section class="sr-card"><p>报告尚未完成，请稍后读取进度。不会自动重发任务。</p></section>'}${ready?trendHTML(d):''}${ready?`<div class="sr-actions"><button class="primary" data-wf="html">导出完整报告（HTML）</button><button data-wf="json">下载证据 JSON</button><button data-wf="print">打印为 PDF</button>${!publicView?'<button data-wf="retest-confirm">手动复测</button>':''}</div>`:''}${!publicView && ready?shareHTML(s,d):''}${s.retestConfirm?retestHTML(d):''}`;
+    const d=publicView?s.publicDetail:selectedDetail(s),readError=!publicView && ['error','mismatch'].includes(s.detailReadState),loading=!publicView && (s.detailLoading || s.detailReadState==='loading');
+    const ready=(publicView || s.detailReadState==='ready') && finalReport(d,publicView);
+    if(publicView && !ready)return '<section class="sr-card"><p>这份分享暂无完整报告，无法展示过程资料。</p></section>';
+    const unknownRunner=d?.error_code==='runner_observation_lost';
+    const heading=readError?'进度读取暂时中断':loading||!d?'正在读取最新进度':unknownRunner?'执行状态待确认':statusLabel(d.status);
+    return `${!publicView?`<section class="sr-card wf-diagnostic-status"><h2>${text(heading)}</h2>${readError?'<p>当前页面暂时无法确认最新进度，后台任务可能仍在继续。重新读取只会查询状态，不会再次开始诊断。</p>':loading?'<p>正在核对当前任务，请稍候。</p>':d&&!terminal(d.status)?diagnosticProgress(d):unknownRunner?'<p>暂时无法确认问答任务的最终结果，不能据此认定任务已停止。请重新读取进度核对。</p>':''}${d?.error_code&&!readError?`<p>${text(d.failure?.reason || diagnosticError(d.error_code))}</p>`:''}${readError?`<details><summary>连接情况</summary><p>${text(s.detailReadError)}</p>${d?`<p>上次保存状态：${text(statusLabel(d.status))}</p>`:''}</details>`:''}<div class="sr-actions"><button data-wf="detail-refresh" ${loading?'disabled':''}>${readError?'重新读取进度':'读取最新进度'}</button><button data-wf="history">历史诊断</button></div></section>`:`<p>只读报告 · 有效期至 ${text(s.shareExpires)}</p>`}${ready?reportHTML(d):d?.legacy&&!readError&&!loading?legacyHTML(d):!readError&&!loading?'<section class="sr-card"><p>报告仍在整理，完成前不显示结论或提供成品导出。</p></section>':''}${ready?trendHTML(d):''}${ready?`<div class="sr-actions"><button class="primary" data-wf="html">导出完整报告（HTML）</button><button data-wf="json">下载证据 JSON</button><button data-wf="print">打印为 PDF</button>${!publicView?'<button data-wf="retest-confirm">手动复测</button>':''}</div>`:''}${!publicView && ready?shareHTML(s,d):''}${ready&&s.retestConfirm?retestHTML(d):''}`;
   }
   function legacyHTML(d) {
     const legacy=d.legacy || {}, payload=legacy.payload || legacy.audit || legacy.flow;
@@ -305,6 +341,7 @@
     const s=session();if(s.pending)return;s.url=document.getElementById('audit-url')?.value || s.url;
     const url=normalize(s.url);if(!url){s.message='请输入公开、安全的 HTTP(S) 官网地址，不包含账号密码或私网地址。';repaint();return;}
     if(!identity().authenticated){s.message='请先展开下方团队登录，再读取官网。';repaint();return;}
+    clearDetail(s);s.startRequestID=null;
     const j=job();s.url=url;s.pending=true;s.message='';s.audit=null;s.draft=null;s.screen='progress';
     repaint();try{accept(j,await remoteAudit('preview',{website:url,market:geoMarket,request_id:crypto.randomUUID(),...(refresh?{refresh:true}:{})}));}catch(e){s.screen='url';failure(j,e);}
   }
@@ -329,18 +366,21 @@
     const backendLimit=geoState.remote?.limits?.max_models;
     if(mode==='full' && Number.isFinite(backendLimit) && backendLimit>0 && ids.length>backendLimit){startError('后台正在更新，请稍后重新读取状态。已保留你的全部选择，不会减少后自动提交。','workflow-profile-group');return;}
     if(mode==='full' && !s.costConsent){startError('请勾选本次诊断的范围与费用确认。','workflow-cost-consent');return;}
+    clearDetail(s);
     const j=job();s.pending=true;s.message='';s.startError='';s.startNotice='';s.startRequestID ||= crypto.randomUUID();repaint();
     const payload={audit_id:s.audit.id,confirmed:confirmed(s),profile_ids:mode==='full'?ids:[],project_id:s.projectID,request_id:s.startRequestID,mode};
-    try{const d=await remoteWorkspace('start',payload);if(!current(j))return;s.pending=false;s.startRequestID=null;s.detail=d;s.detailLoaded=true;s.detailID=d.id;s.workspaceLoaded=false;route('',d.id);}
+    try{const d=await remoteWorkspace('start',payload);if(!current(j))return;if(!uuid(d.id))throw Error('提交结果未确认，请先核对历史诊断。');s.pending=false;s.startRequestID=null;s.detail=d;s.detailLoaded=true;s.detailID=d.id;s.workspaceLoaded=false;route('',d.id);}
     catch(e){if(current(j)){s.pending=false;startError(e.message+' 不会自动重新提交；结果未确认时请先核对历史诊断。');}}
   }
   function acceptDiagnostic(j,d) {
-    if(!current(j))return;const s=session();
+    if(!detailCurrent(j))return;
+    if(d?.id!==j.detailID || d.bundle && !bundleMatches(d)){detailFailure(j,new Error('收到的资料与当前诊断不一致，已停止展示，请重新读取。'),true);return;}
+    const s=session();
     if(terminal(d.status) && s.lastTerminalRefresh!==d.id){s.lastTerminalRefresh=d.id;s.workspaceLoaded=false;if(s.workspaceLoading)s.refreshWorkspaceAfterLoad=true;}
-    s.detail=d;s.detailID=d.id;s.pending=false;s.message='';s.detailLoading=false;s.detailLoaded=true;
-    if(!terminal(d.status))pollTimer=setTimeout(()=>pollDiagnostic(j,d.id),1500);repaint();
+    s.detail=d;s.pending=false;s.message='';s.detailLoading=false;s.detailLoaded=true;s.detailReadState='ready';s.detailReadError='';
+    if(!terminal(d.status))pollTimer=setTimeout(()=>pollDiagnostic(j),1500);repaint();
   }
-  async function pollDiagnostic(j,id) {if(!current(j))return;try{acceptDiagnostic(j,await remoteWorkspace('detail',id));}catch(e){failure(j,e);}}
+  async function pollDiagnostic(j) {if(!detailCurrent(j))return;try{acceptDiagnostic(j,await remoteWorkspace('detail',j.detailID));}catch(e){detailFailure(j,e);}}
   async function manage(kind) {
     const s=session();if(s.managementPending)return;
     const name=document.getElementById(kind==='client'?'workflow-client-name':'workflow-project-name')?.value.trim(),client=document.getElementById('workflow-project-client')?.value;
@@ -350,13 +390,13 @@
     catch(e){if(sameContext(key)){s.managementPending=false;s.message=e.message;repaint();}}
   }
   async function retest() {
-    const s=session();if(s.pending || !s.detail)return;
+    const s=session();if(s.pending || !selectedDetail(s) || s.detailReadState!=='ready' || !finalReport(s.detail))return;
     const j=job();s.pending=true;s.retestRequestID ||= crypto.randomUUID();repaint();
     try{const d=await remoteWorkspace('retest',{id:s.detail.id,request_id:s.retestRequestID});if(!current(j))return;s.pending=false;s.retestConfirm=false;s.retestRequestID=null;s.workspaceLoaded=false;route('',d.id);}
     catch(e){failure(j,e);}
   }
   async function share(revokeID) {
-    const s=session();if(s.sharing || !s.detail?.bundle)return;const j={...identity(),sequence};s.sharing=true;
+    const s=session();if(s.sharing || !selectedDetail(s) || s.detailReadState!=='ready' || !finalReport(s.detail))return;const j={...identity(),sequence};s.sharing=true;
     try{
       const result=await remoteWorkspace(revokeID?'revoke':'share',revokeID?{share_id:revokeID}:{id:s.detail.id});if(!current(j))return;
       if(!revokeID){const token=result.share_token;if(typeof token!=='string')throw Error('分享响应无效，未生成链接。');const url=new URL(location.href);url.search='';url.hash='/w/demo/research?share='+encodeURIComponent(token);s.shareURL=url.href;}
@@ -365,20 +405,21 @@
     }catch(e){if(current(j)){s.sharing=false;s.message=e.message;repaint();}}
   }
   function offlineHTML(d) {
-    const css='body{font:15px/1.7 system-ui,sans-serif;max-width:1100px;margin:30px auto;padding:0 20px;color:#242235}section{margin:22px 0;padding:18px;border:1px solid #ddd;border-radius:10px}table{width:100%;border-collapse:collapse}td,th{padding:10px;border:1px solid #ddd;text-align:left}pre,blockquote{white-space:pre-wrap;overflow-wrap:anywhere;background:#f6f4fa;padding:12px}.sr-score{font-size:32px}h2,h3{break-after:avoid} @media print{body{margin:0}details>*{display:block!important}section{break-inside:avoid}}';
-    return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none';style-src 'unsafe-inline';script-src 'none';img-src 'none'"><title>Signal GEO · 完整品牌诊断报告</title><style>${css}</style></head><body><p><b>Signal GEO · 品牌诊断报告</b></p><p>完整保存快照 · 可使用浏览器打印为 PDF。网站规则与实际回答表现分别解释。</p>${reportHTML(d,true)}${trendHTML(d)}<section><h2>完整保存快照与原始证据</h2><pre>${text(JSON.stringify(d,null,2))}</pre></section></body></html>`;
+    if(!finalReport(d,!d?.id && d?.bundle?.run_manifest?.run_id==='shared-report'))throw Error('诊断尚未完成，不能导出成品报告。');
+    const css='body{font:15px/1.7 system-ui,sans-serif;max-width:1100px;margin:30px auto;padding:0 20px;color:#242235}section{margin:22px 0;padding:18px;border:1px solid #ddd;border-radius:10px}table{width:100%;border-collapse:collapse}td,th{padding:10px;border:1px solid #ddd;text-align:left}pre,blockquote{white-space:pre-wrap;overflow-wrap:anywhere;background:#f6f4fa;padding:12px}.sr-score{font-size:32px}h2,h3{break-after:avoid} @media print{body{margin:0}section{break-inside:avoid}}';
+    return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none';style-src 'unsafe-inline';script-src 'none';img-src 'none'"><title>Signal GEO · 完整品牌诊断报告</title><style>${css}</style></head><body><p><b>Signal GEO · 品牌诊断报告</b></p><p>完整保存快照 · 可使用浏览器打印为 PDF。网站规则与实际回答表现分别解释。</p>${reportHTML(d,true)}${trendHTML(d)}<section><details><summary>完整保存快照与原始证据</summary><pre>${text(JSON.stringify(d,null,2))}</pre></details></section></body></html>`;
   }
   function download(content,name,type) {const u=URL.createObjectURL(new Blob([content],{type})),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
   async function exportReport(format) {
     const s=session(),key=identity().key,hash=location.hash;
-    try{const d=s.screen==='shared'?s.publicDetail:await remoteWorkspace('export',s.detail.id);if(identity().key!==key || location.hash!==hash)return;
+    try{const shared=s.screen==='shared',expected=s.detailID;if(!shared && (!selectedDetail(s) || s.detailReadState!=='ready' || !finalReport(s.detail)))throw Error('诊断尚未完成，请先读取最新进度。');const d=shared?s.publicDetail:await remoteWorkspace('export',expected);if(identity().key!==key || location.hash!==hash)return;if((!shared && d?.id!==expected) || !finalReport(d,shared))throw Error('当前资料尚未完成或与所选诊断不一致，未导出。');
       if(format==='json')download(JSON.stringify(d,null,2),'brand-diagnostic.json','application/json;charset=utf-8');
       else if(format==='html')download(offlineHTML(d),'brand-diagnostic.html','text/html;charset=utf-8');
       else{const frame=document.createElement('iframe');frame.title='完整品牌诊断打印报告';frame.style.cssText='position:fixed;left:-10000px;width:1000px;height:1000px';frame.setAttribute('sandbox','allow-same-origin allow-modals');frame.srcdoc=offlineHTML(d);frame.onload=()=>{frame.contentWindow.focus();frame.contentWindow.print();setTimeout(()=>frame.remove(),1000);};document.body.append(frame);}
     }catch(e){if(identity().key===key){s.message=e.message;repaint();}}
   }
   function questionDialog(index) {
-    const s=session(),b=(s.screen==='shared'?s.publicDetail:s.detail)?.bundle,q=questionList(b || {})[index];if(!q)return;
+    const s=session(),d=s.screen==='shared'?s.publicDetail:selectedDetail(s);if(!finalReport(d,s.screen==='shared'))return;const b=d.bundle,q=questionList(b || {})[index];if(!q)return;
     const answers=array(b.answers).filter(a=>a.question_id===q.question_id);
     drawer(`<div class="card-head"><h2>${text(q.question)}</h2><button onclick="closeOverlay(false)">关闭</button></div>${answers.map(answerHTML).join('') || '<p>本题暂无返回。</p>'}`,'workflow-question',String(index));
   }

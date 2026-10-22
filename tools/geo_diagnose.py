@@ -9,6 +9,7 @@ RULES=json.loads(pathlib.Path(__file__).with_name('diagnostic_rules.json').read_
 TERMINAL={'finished','partial','failed','interrupted'}
 UUID=re.compile(r'[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}\Z')
 SHARE_AGE=30*86400
+RUN_READ_BACKOFF=(1,2,4,8)
 class DiagnosticError(Exception):
  def __init__(self,status,code):self.status=status;self.code=code
 
@@ -26,6 +27,32 @@ def confirmation_input(c):
 def score(rules):
  applicable=[r for r in rules if r['status']!='not_applicable'];a=sum(r['weight'] for r in applicable);u=sum(r['weight'] for r in applicable if r['status']=='unknown');p=sum(r['weight']*(1 if r['status']=='pass' else r['partial_credit'] if r['status']=='partial' else 0) for r in applicable)
  return {'applicable_weight':a,'unknown_weight':u,'earned':p,'lower':round(100*p/a,2) if a else None,'upper':round(100*(p+u)/a,2) if a else None,'coverage':(a-u)/a if a else None,'total':round(100*p/a,2) if a and u==0 else None}
+
+def flow_failure(workspace,flow):
+ """Expose only known local error vocabulary, never arbitrary provider bodies."""
+ raw=workspace.redact_text(str(flow.get('error') or ''))[:2000]
+ generating=flow.get('stage') in ('queued','preparing_material','generating') or len(flow.get('prompts',[]))<30
+ code='question_generation_failed' if generating else 'sampling_failed'
+ reason='题集生成未完成，尚未获得模型回答。' if generating else '部分模型回答未完成，已有结果已保留。'
+ detail='执行器未返回可公开的具体错误；请核对后台原始记录。'
+ known={
+  'NiubiGEO Node/tsx 环境缺失，请运行原始运行环境安装脚本':('generator_runtime_unavailable','出题所需运行环境不可用，尚未开始采样。'),
+  'NiubiGEO 生成器解析失败：模型应返回完整的结构化题目，原始输出已保留':('generator_parse_failed','出题返回格式未能解析，尚未开始采样。'),
+  '题库去重后不足目标题数，已保留现有题目。请审核后使用可编辑题集；没有自动补题或开始采样':('question_set_incomplete','生成的不同问题不足30题，未自动补题或开始采样。'),
+  '执行器等待超时；请查看原始调用记录，流程未自动重试':('runner_wait_timeout','等待执行器超时；已有调用未自动重试，需核对实际状态。'),
+  '模型执行器拒绝请求；请检查本机连接和配置':('runner_request_rejected','执行器拒绝请求，需要核对连接或配置。'),
+  '本地流程处理失败；已完成证据保留':('local_processing_failed','出题或采样处理未完成，已有证据已保留。')}
+ if raw in known:code,reason=known[raw];detail=raw
+ else:
+  http=re.fullmatch(r'(?:自动出题失败：)?B\.AI HTTP ([1-5][0-9]{2}); check key, balance, permissions and protocol',raw)
+  if http:
+   status=int(http[1]);code='provider_http_'+http[1];reason='供应商拒绝本次请求，请核对账户、权限和请求配置。';detail=raw
+   if status==429:reason='供应商返回访问或频率限制，本次未自动重试。'
+  elif raw in ('自动出题失败：回答不完整','自动出题失败：没有返回样本','自动出题失败：API request/response processing failed'):
+   code='generation_response_incomplete';reason='未获得完整的出题响应，尚未开始采样。';detail=raw
+ if flow.get('status') in ('finished','partial'):
+  code='saved_report_incomplete';reason='执行任务已有结束记录，但原报告未同步完整结果，需要核对原始任务。';detail='本次仅核对执行状态，没有重新采样，也没有修改原报告证据。'
+ return {'code':code,'reason':reason,'detail':workspace.redact_text(detail)[:600],'flow_status':flow.get('status') if flow.get('status') in ('queued','running','finished','partial','failed','stopped','interrupted') else 'unknown','failed_stage':flow.get('stage') if flow.get('stage') in ('queued','website','preparing_material','generating','sampling','report') else 'unknown','questions_generated':len(flow.get('prompts',[])),'answers_attempted':len(flow.get('samples',[])),'observed_at':now()}
 
 def bundle_for(record,audit,flow=None,extra=None):
  """Adapt observable rules; Q&A outcomes never manufacture website coverage/facts."""
@@ -60,13 +87,13 @@ def bundle_for(record,audit,flow=None,extra=None):
  for r in rules:
   if r['status'] not in ('fail','unknown'):continue
   findings.append({'finding_id':'F-'+r['rule_id'],'scope':'本次有限官网页面','status':r['status'],'finding_type':'supported_gap' if r['status']=='fail' else 'unknown','priority':'P1' if r['status']=='fail' else '待验证','question_ids':[],'evidence_ids':r['evidence_ids'],'rule_ids':[r['rule_id']],'target_pages':[r['target_page']],'observed_gap':r['reason'],'alternative_explanations':'抓取、地区、页面范围或缺少事实核验均可能影响观察；不能推断模型推荐因果。','recommended_action':r['action'],'owner':'项目负责人','effort_band':'待评估','verification':r['verification'],'priority_reason':'基于本次限定范围的证据或证据缺口。','publication_status':'unpublished'})
- manifest={'run_id':record['id'],'brand':config['confirmed']['brand']['name'] or '未识别品牌','domains':[urllib.parse.urlsplit(config['website']).hostname],'market':config['market'],'language':'zh' if config['market']=='CN' else 'en','mode':'full' if config['mode']=='full' else 'page','rule_version':RULES['version'],'parser_version':RULES['parser_version'],'judge_version':'deterministic-observations-v1','question_set_version':digest([q['question'] for q in questions]),'page_set_version':digest(sorted({e['url'] for e in evidence})),'configuration':digest(record['comparison_config']),'sampled_at':record['created_at'],'planned':record['plan']['answer_calls'],'attempted':len(answers),'page_weighting':'有限代表页；规则按维度权重，不将页面数量当质量。'}
+ manifest={'run_id':record['id'],'diagnostic_mode':config['mode'],'brand':config['confirmed']['brand']['name'] or '未识别品牌','domains':[urllib.parse.urlsplit(config['website']).hostname],'market':config['market'],'language':'zh' if config['market']=='CN' else 'en','mode':'full' if config['mode']=='full' else 'page','rule_version':RULES['version'],'parser_version':RULES['parser_version'],'judge_version':'deterministic-observations-v1','question_set_version':digest([q['question'] for q in questions]),'page_set_version':digest(sorted({e['url'] for e in evidence})),'configuration':digest(record['comparison_config']),'sampled_at':record['created_at'],'planned':record['plan']['answer_calls'],'attempted':len(answers),'page_weighting':'有限代表页；规则按维度权重，不将页面数量当质量。'}
  b={'schema_version':'v0.1','demo':False,'run_manifest':manifest,'rules':rules,'questions':questions,'answers':answers,'findings':findings,'evidence':evidence,'scores':score(rules),'dimension_scores':[{'dimension':d,**score([r for r in rules if r['dimension']==d])} for d in ('access','entity','questions','trust','structure','maintenance')],'performance':{k:copy.deepcopy(v) for k,v in ((flow or {}).get('report') or {}).items() if k!='samples'} if flow else None,'competitor_gaps':copy.deepcopy(((flow or {}).get('report') or {}).get('gaps',[])),'source_snapshot':copy.deepcopy(report),'limitations':['官网规则准备度与模型问答表现分开；不是平台排名或事实认证。','未逐条核验的问题覆盖、事实完整性和跨页一致性保持unknown。','最多8资源/10HTTP/4MiB/累计60秒，遵守同源、robots及安全连接约束。']}
  return b
 
 class DiagnosticManager:
  def __init__(self,workspace,path,root=None,poll_interval=.25):
-  self.w=workspace;self.path=pathlib.Path(path);self.path.parent.mkdir(parents=True,exist_ok=True);self.root=pathlib.Path(root) if root else self.path.parents[2];self.poll_interval=poll_interval;self.pool=concurrent.futures.ThreadPoolExecutor(max_workers=1)
+  self.w=workspace;self.path=pathlib.Path(path);self.path.parent.mkdir(parents=True,exist_ok=True);self.root=pathlib.Path(root) if root else self.path.parents[2];self.poll_interval=poll_interval;self.observation_lock=threading.Lock();self.reconciling=set();self.pool=concurrent.futures.ThreadPoolExecutor(max_workers=1)
   with self.db() as c:
    c.executescript('CREATE TABLE IF NOT EXISTS clients(id TEXT PRIMARY KEY,name TEXT NOT NULL,internal INTEGER NOT NULL,created_at TEXT NOT NULL); CREATE TABLE IF NOT EXISTS projects(id TEXT PRIMARY KEY,client_id TEXT NOT NULL,name TEXT NOT NULL,internal INTEGER NOT NULL,created_at TEXT NOT NULL,config TEXT NOT NULL); CREATE TABLE IF NOT EXISTS diagnostics(id TEXT PRIMARY KEY,project_id TEXT NOT NULL,request_hash TEXT NOT NULL,payload TEXT NOT NULL); CREATE TABLE IF NOT EXISTS shares(id TEXT PRIMARY KEY,diagnostic_id TEXT NOT NULL,token_hash TEXT UNIQUE NOT NULL,created_at TEXT NOT NULL,expires REAL NOT NULL,revoked INTEGER NOT NULL,snapshot TEXT NOT NULL);')
    c.execute('INSERT OR IGNORE INTO clients VALUES(?,?,?,?)',('internal-history','历史记录',1,now()))
@@ -95,6 +122,10 @@ class DiagnosticManager:
   except ValueError:raise DiagnosticError(503,'diagnostic_store_unavailable') from None
  def detail(self,did):
   d=self.raw(did)
+  if d.get('error_code')=='runner_observation_lost' and d.get('job_id'):
+   self.reconcile_once(d)
+  elif d.get('error_code')=='sampling_incomplete' and d.get('job_id') and not d.get('failure'):
+   self.failure_once(d)
   with self.db() as c:d['shares']=[{'share_id':r[0],'created_at':r[1],'expires_at':datetime.datetime.fromtimestamp(r[2],datetime.timezone.utc).isoformat(),'revoked':bool(r[3])} for r in c.execute('SELECT id,created_at,expires,revoked FROM shares WHERE diagnostic_id=? ORDER BY created_at DESC',(did,))]
   return d
  def listing(self):
@@ -213,6 +244,78 @@ class DiagnosticManager:
   snapshot={'version':'audited-material-v1','website':d['website'],'captured_at':now(),'text':'\n\n'.join(parts)[:24000],'resources':[{'url':r['url'],'http_status':r.get('status'),'error_code':r.get('error'),'sha256':r.get('sha256')} for r in resources],'usage':usage,'limits':{'resources':8,'http_requests':10,'bytes':4*1024*1024,'active_seconds':60}}
   snapshot['evidence_signature']=digest(snapshot)
   return snapshot
+ def failure_once(self,d):
+  # Backfill only missing execution metadata for old terminal reports. Scores,
+  # original bundle evidence and already-issued share snapshots stay immutable.
+  with self.observation_lock:
+   if d['id'] in self.reconciling:return
+   self.reconciling.add(d['id'])
+  try:
+   current=self.raw(d['id'])
+   if current.get('failure') or current.get('error_code')!='sampling_incomplete':d.clear();d.update(current);return
+   try:flow=self.w.api.call('geo','run?id='+current['job_id'])
+   except Exception:return
+   current['failure']=flow_failure(self.w,flow)
+   current.setdefault('progress',{}).update(runner_status=current['failure']['flow_status'],questions_generated=len(flow.get('prompts',[])),answers_attempted=len(flow.get('samples',[])),answers_complete=sum(s.get('status')=='complete' for s in flow.get('samples',[])),last_observed_at=now())
+   if flow.get('status') in ('queued','running'):
+    current.pop('failure',None);current.update(status='interrupted',stage='reconciliation_required',error_code='runner_observation_lost');current.pop('completed_at',None)
+   self.save(current);d.clear();d.update(current)
+  finally:
+   with self.observation_lock:self.reconciling.discard(d['id'])
+ def mirror_flow(self,d,flow,audit=None,extra=None):
+  stage=flow.get('stage','sampling');stage='model_submitting' if stage=='queued' else 'preparing_material' if stage=='website' and flow.get('source_snapshot') else stage
+  d['stage']=stage;rows=flow.get('samples',[]);d['progress']={'phase':stage,'questions_generated':len(flow.get('prompts',[])),'questions_planned':30,'answers_attempted':len(rows),'answers_complete':sum(s.get('status')=='complete' for s in rows),'answers_planned':d['plan']['answer_calls'],'models_selected':len(d['config']['profile_ids']),'generation_batches_complete':flow.get('generation_progress',{}).get('complete',len(flow.get('generations',[]))),'runner_status':flow.get('status','unknown'),'last_observed_at':now(),'last_read_error':None,'read_failures':0}
+  if audit is not None:d['bundle']=bundle_for(d,self.w.auditor.public(audit),flow,extra)
+  elif d.get('bundle'):
+   # Reconciliation updates sampling fields, retaining original website snapshot,
+   # evidence/rules and original page weighting instead of recollecting anything.
+   audit=self.w.auditor.get_internal(d['audit_id']);fresh=bundle_for(d,self.w.auditor.public(audit),flow)
+   for key in ('answers','questions','performance','competitor_gaps'):d['bundle'][key]=fresh[key]
+   for key in ('question_set_version','planned','attempted'):d['bundle']['run_manifest'][key]=fresh['run_manifest'][key]
+  if d.get('bundle'):d['summary']=d['bundle']['scores']
+  if flow.get('status') not in ('queued','running','finished','partial'):d['failure']=flow_failure(self.w,flow)
+ def reconcile_once(self,d):
+  with self.observation_lock:
+   if d['id'] in self.reconciling:return
+   self.reconciling.add(d['id'])
+  try:
+   current=self.raw(d['id'])
+   if current.get('error_code')=='runner_observation_lost':self._reconcile_once(current)
+   d.clear();d.update(current)
+  finally:
+   with self.observation_lock:self.reconciling.discard(d['id'])
+ def _reconcile_once(self,d):
+  # One bounded read per explicit GET, never submit or resume paid work.
+  try:flow=self.w.api.call('geo','run?id='+d['job_id'])
+  except Exception:return
+  self.mirror_flow(d,flow)
+  if flow.get('status') not in ('queued','running'):
+   d['frozen_prompts']=[p['text'] if isinstance(p,dict) else p for p in flow.get('prompts',[])];d['question_set_version']=digest(d['frozen_prompts']);d.update(status='partial',stage='done',error_code=None if flow.get('status') in ('finished','partial') else 'sampling_incomplete',completed_at=now())
+   if d.get('baseline_id'):d['trend']=self.compare(self.raw(d['baseline_id']),d)
+  else:
+   # Observer remains interrupted; actual runner may still be working. A later
+   # explicit read can reconcile it without reinstating an unbounded worker.
+   d['stage']='reconciliation_required'
+  self.save(d)
+ def observe_flow(self,d,audit,extra):
+  # geo_flow.call already bounds each provider wait to 145*1+30 seconds.
+  deadline=time.monotonic()+max(300,d['plan']['maximum_calls']*175+120);failures=0;signature=None
+  while True:
+   if self.w.stopping():raise DiagnosticError(503,'interrupted')
+   if time.monotonic()>=deadline:raise DiagnosticError(503,'runner_observation_lost')
+   try:flow=self.w.api.call('geo','run?id='+d['job_id'])
+   except Exception as error:
+    if getattr(error,'status',None) not in (502,503,504) and not isinstance(error,(OSError,TimeoutError)):raise
+    failures+=1;d.setdefault('progress',{}).update(last_read_error='runner_read_unavailable',read_failures=failures);self.save(d)
+    if failures>len(RUN_READ_BACKOFF):raise DiagnosticError(503,'runner_observation_lost')
+    if self.w.shutdown_requested.wait(RUN_READ_BACKOFF[failures-1]):raise DiagnosticError(503,'interrupted')
+    continue
+   failures=0
+   current=digest([flow.get('status'),flow.get('stage'),len(flow.get('prompts',[])),len(flow.get('samples',[])),flow.get('generation_progress'),flow.get('blocked_models')])
+   if current!=signature or d.get('progress',{}).get('last_read_error'):
+    self.mirror_flow(d,flow,audit,extra);self.save(d);signature=current
+   if flow['status'] not in ('queued','running'):return flow
+   if self.w.shutdown_requested.wait(self.poll_interval):raise DiagnosticError(503,'interrupted')
  def execute(self,d,baseline=None):
   try:
    d.update(status='running',stage='website');self.save(d)
@@ -232,13 +335,9 @@ class DiagnosticManager:
     cfg={'website':d['website'],'market':d['market'],'brand_aliases':confirmed['brand']['aliases'],'skus':[{k:p[k] for k in ('name','aliases')} for p in confirmed['products']],'competitors':[{k:p.get(k,[]) for k in ('name','aliases','domains')} for p in confirmed['competitors']],'context':confirmed.get('context',''),'providers':profiles,'generator':profiles[0],'count':30,'repeats':1}
     path='sample' if d.get('frozen_prompts') else 'start'
     if d.get('frozen_prompts'):cfg['prompts']=d['frozen_prompts']
-    d['stage']='model_submitting';self.save(d)
+    d['stage']='model_submitting';d['progress']={'phase':'model_submitting','questions_generated':len(d.get('frozen_prompts',[])),'questions_planned':30,'answers_attempted':0,'answers_complete':0,'answers_planned':d['plan']['answer_calls'],'models_selected':len(profiles),'generation_batches_complete':0,'runner_status':'unknown','last_observed_at':None,'last_read_error':None,'read_failures':0};self.save(d)
     result,_=self.w.dispatch(path,cfg,_diagnostic=d['id'],_source_snapshot=self.source_material(d,audit,extra,usage) if path=='start' else None);d['job_id']=result['id'];d['stage']='sampling';self.save(d)
-    while True:
-     flow=self.w.api.call('geo','run?id='+d['job_id'])
-     if flow['status'] not in ('queued','running'):break
-     if self.w.stopping():raise DiagnosticError(503,'interrupted')
-     time.sleep(self.poll_interval)
+    flow=self.observe_flow(d,audit,extra)
     d['frozen_prompts']=[p['text'] if isinstance(p,dict) else p for p in flow.get('prompts',[])];d['question_set_version']=digest(d['frozen_prompts'])
     d['bundle']=bundle_for(d,self.w.auditor.public(audit),flow,extra);d['summary']=d['bundle']['scores']
     if flow['status'] not in ('finished','partial'):d['error_code']='sampling_incomplete'
@@ -249,7 +348,11 @@ class DiagnosticManager:
     row=c.execute('SELECT config FROM projects WHERE id=?',(d['project_id'],)).fetchone();pc=json.loads(row[0]);pc['question_set']=d['frozen_prompts'];pc['question_set_version']=d['question_set_version'];c.execute('UPDATE projects SET config=? WHERE id=?',(json.dumps(pc,ensure_ascii=False),d['project_id']))
    self.save(d)
   except Exception as e:
-   code=getattr(e,'code','diagnostic_failed');d.update(status='partial' if d.get('bundle') else 'interrupted' if code=='interrupted' else 'failed',stage='done',error_code=code if re.fullmatch(r'[a-z_]{1,64}',str(code)) else 'diagnostic_failed',completed_at=now());self.save(d)
+   code=getattr(e,'code','diagnostic_failed')
+   if code=='runner_observation_lost':
+    d.update(status='interrupted',stage='reconciliation_required',error_code=code);d.setdefault('progress',{}).update(runner_status='unknown',last_read_error='runner_read_unavailable');d.pop('completed_at',None)
+   else:d.update(status='partial' if d.get('bundle') else 'interrupted' if code=='interrupted' else 'failed',stage='done',error_code=code if re.fullmatch(r'[a-z_]{1,64}',str(code)) else 'diagnostic_failed',completed_at=now())
+   self.save(d)
   finally:
    with self.w.lock:
     if self.w.diagnostic_active==d['id']:self.w.diagnostic_active=None
@@ -269,7 +372,7 @@ class DiagnosticManager:
  def retest(self,data):
   if set(data)!={'id','request_id'}:raise DiagnosticError(400,'invalid_request')
   original=self.raw(data['id'])
-  if original.get('legacy') or original['status'] not in ('finished','partial') or not original.get('bundle'):raise DiagnosticError(409,'diagnostic_not_retestable')
+  if original.get('legacy') or original['status'] not in ('finished','partial') or not original.get('bundle') or original.get('progress',{}).get('runner_status')=='unknown':raise DiagnosticError(409,'diagnostic_not_retestable')
   if original['config']['mode']=='full' and len(original.get('frozen_prompts',[]))!=30:raise DiagnosticError(409,'question_set_unavailable')
   cfg=original['config'];return self.create({'audit_id':original['audit_id'],'confirmed':confirmation_input(cfg['confirmed']),'profile_ids':cfg['profile_ids'],'project_id':original['project_id'],'request_id':data['request_id'],'mode':cfg['mode']},original)
  def share(self,data):
@@ -278,8 +381,9 @@ class DiagnosticManager:
   with self.db() as c:
    project=c.execute('SELECT internal FROM projects WHERE id=?',(d['project_id'],)).fetchone()
    if not project or project[0] or d.get('legacy'):raise DiagnosticError(403,'internal_project_not_shareable')
-   if d['status'] not in ('finished','partial') or not d.get('bundle'):raise DiagnosticError(409,'diagnostic_not_shareable')
+   if d['status'] not in ('finished','partial') or not d.get('bundle') or d.get('progress',{}).get('runner_status')=='unknown':raise DiagnosticError(409,'diagnostic_not_shareable')
    snapshot={k:copy.deepcopy(d[k]) for k in ('brand','website','market','created_at','status','summary','bundle')};snapshot['bundle']['run_manifest']['run_id']='shared-report'
+   if d.get('failure'):snapshot['failure']=copy.deepcopy(d['failure'])
    snapshot['bundle'].get('source_snapshot',{}).pop('model_analysis',None)
    share_token=secrets.token_urlsafe(32);sid=str(uuid.uuid4());created=now();expires=time.time()+SHARE_AGE
    c.execute('INSERT INTO shares VALUES(?,?,?,?,?,0,?)',(sid,d['id'],hashlib.sha256(share_token.encode()).hexdigest(),created,expires,json.dumps(snapshot,ensure_ascii=False)))

@@ -1,18 +1,21 @@
 """Durable diagnostics via actual gateway HTTP and real offline parsers.
 Model API is a test double with the existing geo_flow job/sample shape.
 """
-import copy,http.client,json,pathlib,sqlite3,sys,tempfile,threading,time,unittest,uuid
+import copy,http.client,json,os,pathlib,sqlite3,sys,tempfile,threading,time,unittest,uuid
 from unittest.mock import patch
 sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[1]/'tools'))
 from test_geo_audit import Synthetic
 import audit_fetch as f,geo_analysis
 from geo_audit import AuditManager
-from geo_diagnose import DiagnosticManager,DiagnosticError,score,RULES
+from geo_diagnose import DiagnosticManager,DiagnosticError,score,RULES,flow_failure
 from remote_gateway import Workspace,Budget,Server
 class FlowAPI:
  def __init__(self):self.calls=[];self.jobs={};self.hold=False;self.busy=False
  def call(self,service,path,body=None):
-  if path=='diagnostic-start':path='start';body=body['config']
+  if path=='diagnostic-start':
+   delay=min(5,max(0,float(os.environ.get('SIGNAL_TEST_START_DELAY','0'))))
+   if delay:time.sleep(delay)
+   path='start';body=body['config']
   self.calls.append((service,path,copy.deepcopy(body)))
   if service!='geo':raise AssertionError('No vendor API in tests')
   if path=='state':return {'runner':{},'busy':self.busy,'runs':[]}
@@ -60,11 +63,11 @@ class HTTPDiagnostics(unittest.TestCase):
    time.sleep(.005)
   self.fail('diagnostic timeout')
  def test_http_complete_v01_and_share_snapshot_revocation_expiry(self):
-  body=self.payload();code,queued=self.req('POST','/api/diagnostics',body);self.assertEqual(code,202);d=self.done(queued['id']);self.assertEqual(d['status'],'partial');self.assertIsNone(d['error_code']);self.assertEqual(d['bundle']['schema_version'],'v0.1');self.assertEqual(sum(r['weight'] for r in d['bundle']['rules']),100);self.assertIsNone(d['summary']['total']);self.assertEqual(self.w.budget.state()['reserved'],0)
+  body=self.payload();code,queued=self.req('POST','/api/diagnostics',body);self.assertEqual(code,202);d=self.done(queued['id']);self.assertEqual(d['status'],'partial');self.assertIsNone(d['error_code']);self.assertEqual(d['bundle']['schema_version'],'v0.1');self.assertEqual(d['bundle']['run_manifest']['diagnostic_mode'],'website');self.assertEqual(sum(r['weight'] for r in d['bundle']['rules']),100);self.assertIsNone(d['summary']['total']);self.assertEqual(self.w.budget.state()['reserved'],0)
   self.assertEqual(self.req('POST','/api/diagnostics',body)[0],200);changed={**body,'mode':'full','profile_ids':['gpt']};self.assertEqual(self.req('POST','/api/diagnostics',changed)[0],409)
   self.assertEqual(self.req('GET','/healthz',auth=False)[1]['capabilities']['diagnostics_v1'],True)
   self.assertEqual(self.req('GET','/api/diagnostics',auth=False)[0],401)
-  code,share=self.req('POST','/api/diagnostics/share',{'id':d['id']});self.assertEqual(code,201);token=share['share_token'];code,pub=self.req('GET','/api/shared-report?token='+token,auth=False);self.assertEqual(code,200);self.assertNotIn('project_id',json.dumps(pub));self.assertNotIn(d['id'],json.dumps(pub));self.assertNotIn('context',pub['diagnostic']);self.assertEqual(len(self.req('GET','/api/diagnostics/detail?id='+d['id'])[1]['shares']),1)
+  code,share=self.req('POST','/api/diagnostics/share',{'id':d['id']});self.assertEqual(code,201);token=share['share_token'];code,pub=self.req('GET','/api/shared-report?token='+token,auth=False);self.assertEqual(code,200);self.assertNotIn('project_id',json.dumps(pub));self.assertNotIn(d['id'],json.dumps(pub));self.assertNotIn('context',pub['diagnostic']);self.assertEqual(pub['diagnostic']['bundle']['run_manifest']['diagnostic_mode'],'website');self.assertEqual(len(self.req('GET','/api/diagnostics/detail?id='+d['id'])[1]['shares']),1)
   with sqlite3.connect(self.m.path) as c:rows=c.execute('SELECT token_hash,snapshot FROM shares').fetchall();self.assertNotIn(token,json.dumps(rows))
   original=pub['diagnostic'];d['bundle']['rules'][0]['reason']='changed later';self.m.save(d);self.assertEqual(self.req('GET','/api/shared-report?token='+token,auth=False)[1]['diagnostic'],original)
   self.assertEqual(self.req('POST','/api/diagnostics/revoke',{'share_id':share['share_id']})[0],200);self.assertEqual(self.req('GET','/api/shared-report?token='+token,auth=False)[0],404)
@@ -73,7 +76,7 @@ class HTTPDiagnostics(unittest.TestCase):
   self.assertEqual(self.req('GET','/api/shared-report?token='+share['share_token'],auth=False)[0],404)
   pathlib.Path('/tmp/diagnostic-contract-fixture.json').write_text(json.dumps(self.m.detail(d['id']),ensure_ascii=False,indent=2))
  def test_real_flow_shape_budget_mentions_rank_and_frozen_retest(self):
-  code,d=self.req('POST','/api/diagnostics',self.payload('full'));self.assertEqual(code,202);d=self.done(d['id']);self.assertEqual(d['status'],'partial');self.assertIsNone(d['error_code']);self.assertEqual(self.w.budget.state()['reserved'],33);self.assertEqual(len(d['bundle']['answers']),30);self.assertTrue(d['bundle']['answers'][0]['mention']);self.assertFalse(d['bundle']['answers'][1]['mention']);self.assertIsNone(d['bundle']['answers'][0]['recommendation']);self.assertEqual(d['bundle']['answers'][0]['ranking'][0]['rank']['position'],1);self.assertFalse(d['bundle']['answers'][0]['citation_supported']);pathlib.Path('/tmp/diagnostic-full-contract-fixture.json').write_text(json.dumps(d,ensure_ascii=False,indent=2))
+  code,d=self.req('POST','/api/diagnostics',self.payload('full'));self.assertEqual(code,202);d=self.done(d['id']);self.assertEqual(d['status'],'partial');self.assertIsNone(d['error_code']);self.assertEqual(self.w.budget.state()['reserved'],33);self.assertEqual(len(d['bundle']['answers']),30);self.assertEqual(d['bundle']['run_manifest']['diagnostic_mode'],'full');self.assertTrue(d['bundle']['answers'][0]['mention']);self.assertFalse(d['bundle']['answers'][1]['mention']);self.assertIsNone(d['bundle']['answers'][0]['recommendation']);self.assertEqual(d['bundle']['answers'][0]['ranking'][0]['rank']['position'],1);self.assertFalse(d['bundle']['answers'][0]['citation_supported']);pathlib.Path('/tmp/diagnostic-full-contract-fixture.json').write_text(json.dumps(d,ensure_ascii=False,indent=2))
   code,r=self.req('POST','/api/diagnostics/retest',{'id':d['id'],'request_id':str(uuid.uuid4())});self.assertEqual(code,202);r=self.done(r['id']);self.assertIsNone(r['error_code']);self.assertEqual(r['frozen_prompts'],d['frozen_prompts']);self.assertEqual(self.w.budget.state()['reserved'],63);self.assertEqual(r['plan']['maximum_calls'],30);self.assertTrue(r['trend']['comparable']);self.assertTrue(any(p=='sample' for _,p,_ in self.api.calls));self.assertEqual([p for _,p,_ in self.api.calls].count('start'),1)
  def test_mutual_exclusion_maintenance_and_rejected_paid_budget(self):
   body=self.payload('full');self.api.hold=True;code,d=self.req('POST','/api/diagnostics',body);self.assertEqual(code,202)
@@ -98,6 +101,7 @@ class HTTPDiagnostics(unittest.TestCase):
    if path in ('start','diagnostic-start'):self.api.calls.append((service,'start',copy.deepcopy(body)));raise Failure(502,'upstream_failed')
    return original(service,path,body)
   self.api.call=fail;_,d=self.req('POST','/api/diagnostics',self.payload('full'));d=self.done(d['id']);self.assertEqual(d['status'],'partial');self.assertEqual(d['error_code'],'upstream_failed');self.assertEqual(self.w.budget.state()['reserved'],33);self.assertEqual(sum(p=='start' for _,p,_ in self.api.calls),1)
+  self.assertEqual(d['progress']['runner_status'],'unknown');self.assertEqual(self.req('POST','/api/diagnostics/share',{'id':d['id']})[0],409);self.assertEqual(self.req('POST','/api/diagnostics/retest',{'id':d['id'],'request_id':str(uuid.uuid4())})[0],409);self.assertEqual(self.w.budget.state()['reserved'],33);self.assertEqual(sum(p=='start' for _,p,_ in self.api.calls),1)
  def test_three_model_diagnostic_exports90_and_frozen_retest_budget_is90(self):
   self.w.profiles.extend([{'id':p,'model':p+'-test','manufacturer':vendor,'protocol':'chat','markets':['US','CN'],'search':False} for p,vendor in [('gemini','Google'),('claude','Anthropic')]])
   body=self.payload('full');body['profile_ids']=['gpt','gemini','claude']
@@ -111,6 +115,69 @@ class HTTPDiagnostics(unittest.TestCase):
   # Simulate a subsequent UTC day by clearing only the test ledger; production
   # daily limit stays 126 and no budget reset endpoint exists.
   self.w.budget.path.write_text('{}');code,r=self.req('POST','/api/diagnostics/retest',{'id':d['id'],'request_id':str(uuid.uuid4())});self.assertEqual(code,202);self.assertEqual(r['plan']['maximum_calls'],90);self.assertEqual(r['plan']['generation_calls'],0);r=self.done(r['id']);self.assertIsNone(r['error_code']);self.assertEqual(r['frozen_prompts'],d['frozen_prompts']);self.assertEqual(len(r['bundle']['answers']),90);self.assertEqual(self.w.budget.state()['reserved'],90);self.assertEqual(self.w.budget.limit,126)
+ def test_detail_authentication_does_not_wait_for_paid_submission_lock(self):
+  body=self.payload('full');original=self.api.call;entered=threading.Event();release=threading.Event()
+  def blocked(service,path,payload=None):
+   if path=='diagnostic-start':entered.set();release.wait(3)
+   return original(service,path,payload)
+  self.api.call=blocked;_,d=self.req('POST','/api/diagnostics',body);self.assertTrue(entered.wait(2));self.assertTrue(self.w.lock._is_owned() is False)
+  try:
+   started=time.monotonic();code,current=self.req('GET','/api/diagnostics/detail?id='+d['id']);self.assertEqual(code,200);self.assertLess(time.monotonic()-started,1);self.assertEqual(current['status'],'running');self.assertEqual(current['stage'],'model_submitting');self.assertTrue(current['bundle']);self.assertEqual(current['bundle']['answers'],[]);self.assertEqual(current['config']['mode'],'full');self.assertEqual(current['progress']['answers_planned'],30)
+   self.assertEqual(self.req('POST','/api/diagnostics/share',{'id':d['id']})[0],409)
+  finally:release.set()
+  self.done(d['id'])
+ def test_read_only_transient_recovers_and_mirrors_real_progress(self):
+  from remote_gateway import Failure
+  self.api.hold=True;original=self.api.call;reads=[]
+  def transient(service,path,payload=None):
+   if path.startswith('run?id='):
+    reads.append(path)
+    if len(reads)==1:raise Failure(502,'upstream_failed')
+   return original(service,path,payload)
+  self.api.call=transient
+  with patch('geo_diagnose.RUN_READ_BACKOFF',(.01,.01,.01,.01)):
+   _,d=self.req('POST','/api/diagnostics',self.payload('full'))
+   for _ in range(1000):
+    current=self.m.raw(d['id'])
+    if current.get('progress',{}).get('answers_complete')==30:break
+    time.sleep(.005)
+   self.assertEqual(current['status'],'running');self.assertEqual(current['progress']['questions_generated'],30);self.assertEqual(current['progress']['answers_complete'],30);self.assertEqual(len(current['bundle']['answers']),30);self.assertIsNone(current['progress']['last_read_error']);self.assertEqual(sum(p=='start' for _,p,_ in self.api.calls),1)
+   for job in self.api.jobs.values():job['status']='finished'
+   final=self.done(d['id']);self.assertIsNone(final['error_code']);self.assertEqual(self.w.budget.state()['reserved'],33)
+ def test_bounded_read_failure_keeps_unknown_runner_and_manual_get_reconciles_once(self):
+  from remote_gateway import Failure
+  original=self.api.call;broken=[True];reads=[]
+  def transient(service,path,payload=None):
+   if path.startswith('run?id='):
+    reads.append(path)
+    if broken[0]:raise Failure(502,'upstream_failed')
+   return original(service,path,payload)
+  self.api.call=transient
+  with patch('geo_diagnose.RUN_READ_BACKOFF',(.01,.01,.01,.01)):
+   _,d=self.req('POST','/api/diagnostics',self.payload('full'))
+   for _ in range(1000):
+    d=self.m.raw(d['id'])
+    if d['status']=='interrupted' and self.w.diagnostic_active is None:break
+    time.sleep(.005)
+  self.assertEqual(len(reads),5);self.assertEqual(d['status'],'interrupted');self.assertEqual(d['stage'],'reconciliation_required');self.assertEqual(d['progress']['runner_status'],'unknown');self.assertNotIn('completed_at',d);self.assertEqual(self.req('POST','/api/diagnostics/share',{'id':d['id']})[0],409);self.assertEqual(self.w.budget.state()['reserved'],33)
+  broken[0]=False;entered=threading.Event();release=threading.Event();reconciles=[];previous=self.api.call
+  def blocked(service,path,payload=None):
+   if path.startswith('run?id='):reconciles.append(path);entered.set();release.wait(2)
+   return previous(service,path,payload)
+  self.api.call=blocked;result=[];reader=threading.Thread(target=lambda:result.append(self.req('GET','/api/diagnostics/detail?id='+d['id'])));reader.start();self.assertTrue(entered.wait(1))
+  try:
+   _,still_unknown=self.req('GET','/api/diagnostics/detail?id='+d['id']);self.assertEqual(still_unknown['status'],'interrupted');self.assertEqual(len(reconciles),1)
+  finally:release.set();reader.join(2)
+  recovered=result[0][1];self.assertEqual(recovered['status'],'partial');self.assertIsNone(recovered['error_code']);self.assertEqual(len(recovered['bundle']['answers']),30);count=len(reads)
+  self.req('GET','/api/diagnostics/detail?id='+d['id']);self.assertEqual(len(reads),count);self.assertEqual(sum(p=='start' for _,p,_ in self.api.calls),1)
+ def test_old_incomplete_report_does_not_mislabel_finished_runner_as_failed(self):
+  _,d=self.req('POST','/api/diagnostics',self.payload('full'));d=self.done(d['id']);d['error_code']='sampling_incomplete';d.pop('failure',None);d['bundle']['questions']=[];d['bundle']['answers']=[];self.m.save(d)
+  bundle=copy.deepcopy(d['bundle']);summary=copy.deepcopy(d['summary']);submits=sum(p in ('start','sample') for _,p,_ in self.api.calls);reserved=self.w.budget.state()['reserved']
+  code,observed=self.req('GET','/api/diagnostics/detail?id='+d['id']);self.assertEqual(code,200);self.assertEqual(observed['failure']['code'],'saved_report_incomplete');self.assertEqual(observed['failure']['flow_status'],'finished');self.assertNotIn('部分模型回答未完成',observed['failure']['reason']);self.assertEqual(observed['bundle'],bundle);self.assertEqual(observed['summary'],summary);self.assertEqual(self.w.budget.state()['reserved'],reserved);self.assertEqual(sum(p in ('start','sample') for _,p,_ in self.api.calls),submits)
+ def test_failure_detail_only_allows_safe_local_error_vocabulary(self):
+  with patch.dict('os.environ',{'SIGNAL_BAI_API_KEY':'synthetic-secret-value'}):
+   failure=flow_failure(self.w,{'status':'failed','stage':'generating','prompts':[],'samples':[],'error':'untrusted Authorization: Bearer synthetic-secret-value https://private.example/?token=other-private-value'})
+  self.assertNotIn('secret-value',str(failure));self.assertNotIn('other-private-value',str(failure));self.assertNotIn('Authorization',str(failure));self.assertNotIn('private.example',str(failure));self.assertLessEqual(len(failure['detail']),600)
  def test_restart_history_and_store_failure_no_replay(self):
   body=self.payload();_,d=self.req('POST','/api/diagnostics',body);d=self.done(d['id']);d.update(status='running',stage='model_submitting');self.m.save(d);calls=len(self.api.calls)
   second=DiagnosticManager(self.w,self.m.path,self.root);self.addCleanup(second.pool.shutdown,True);self.assertEqual(second.detail(d['id'])['status'],'interrupted');self.assertEqual(len(self.api.calls),calls);history=[x for x in second.listing()['diagnostics'] if x.get('legacy_type')];self.assertTrue(history);self.assertEqual(self.req('POST','/api/diagnostics/share',{'id':history[0]['id']})[0],403)

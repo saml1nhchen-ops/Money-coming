@@ -203,10 +203,11 @@
     }
     return request('/api/geo/'+names[action],body,{generation});
   };
-  window.remoteDiagnosticsContext = () => ({...remoteEnrichmentContext(),supported:connection.capabilities?.diagnostics_v1 === true});
+  window.remoteDiagnosticsContext = () => ({...remoteEnrichmentContext(),supported:connection.capabilities?.diagnostics_v1 === true,canRead:Boolean(token && Date.now() < connection.expiresAt)});
   window.remoteWorkspace = async function(action, input) {
-    if (!remoteEnrichmentContext().authenticated) throw error('请先登录团队后台。','unauthorized');
-    if (!remoteDiagnosticsContext().supported) throw error('后台正在升级，新的诊断功能尚未就绪。不会自动启动旧分析。','diagnostics_unavailable');
+    const readOnly=['clients','projects','list','detail','export'].includes(action);
+    if (!(readOnly?remoteDiagnosticsContext().canRead:remoteEnrichmentContext().authenticated)) throw error('请先登录团队后台。','unauthorized');
+    if (!readOnly && !remoteDiagnosticsContext().supported) throw error('后台正在升级，新的诊断功能尚未就绪。不会自动启动旧分析。','diagnostics_unavailable');
     const generation = epoch, validID = v => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
     const get = {clients:'/api/clients',projects:'/api/projects',list:'/api/diagnostics',detail:'/api/diagnostics/detail',export:'/api/diagnostics/export'};
     if (Object.hasOwn(get,action)) {

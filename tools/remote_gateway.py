@@ -67,7 +67,7 @@ class Workspace:
   if len(password)<16:raise ValueError('Workspace password must contain at least 16 characters')
   parts=host.split(':')
   if len(parts)>2 or len(parts)==2 and (not parts[1].isdigit() or not 1<=int(parts[1])<=65535) or len(parts[0])>253 or any(not re.fullmatch(r'[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?',label) for label in parts[0].split('.')):raise ValueError('Invalid public host')
-  self.digest=hashlib.sha256(password.encode()).digest();self.host=host.lower();self.budget=budget;self.api=api or LocalAPI();self.lock=threading.RLock();self.sessions={};self.attempts=collections.defaultdict(collections.deque);self.global_attempts=collections.deque();self.ready=False;self.reason='missing_bai_key';self.profiles=[];self.closing=False;self.active=None;self.shutdown_requested=threading.Event();self.maintenance_requested=threading.Event();self.session_store=session_store;self.enrich_active=None;self.enricher=None;self.audit_active=None;self.auditor=None;self.diagnostic_active=None;self.diagnostics=None
+  self.digest=hashlib.sha256(password.encode()).digest();self.host=host.lower();self.budget=budget;self.api=api or LocalAPI();self.lock=threading.RLock();self.session_lock=threading.RLock();self.sessions={};self.attempts=collections.defaultdict(collections.deque);self.global_attempts=collections.deque();self.ready=False;self.reason='missing_bai_key';self.profiles=[];self.closing=False;self.active=None;self.shutdown_requested=threading.Event();self.maintenance_requested=threading.Event();self.session_store=session_store;self.enrich_active=None;self.enricher=None;self.audit_active=None;self.auditor=None;self.diagnostic_active=None;self.diagnostics=None
  def begin_shutdown(self):
   self.shutdown_requested.set()
   # Serialize shutdown with the complete reserve/submit/active publication.
@@ -77,7 +77,7 @@ class Workspace:
   if self.maintenance_requested.is_set():raise Failure(503,'maintenance')
   if not self.ready or self.stopping():raise Failure(503,self.reason or 'backend_unavailable')
  def login(self,password,source,remember=False):
-  with self.lock:
+  with self.session_lock:
    now=time.time()
    for q in (self.attempts[source],self.global_attempts):
     while q and q[0]<=now-900:q.popleft()
@@ -101,7 +101,7 @@ class Workspace:
  def auth(self,value):
   token=value[7:] if value.startswith('Bearer ') else ''
   if not token or len(token)>256:raise Failure(401,'unauthorized')
-  with self.lock:
+  with self.session_lock:
    if token.startswith('td1_'):
     if self.session_store is None:raise Failure(503,'session_store_unavailable')
     try:valid=self.session_store.authenticate(token)
@@ -111,7 +111,7 @@ class Workspace:
    elif self.sessions.get(token,0)<=time.time():self.sessions.pop(token,None);raise Failure(401,'unauthorized')
   return token
  def logout(self,token):
-  with self.lock:
+  with self.session_lock:
    if token.startswith('td1_'):
     if self.session_store is None:raise Failure(503,'session_store_unavailable')
     try:self.session_store.revoke(token)

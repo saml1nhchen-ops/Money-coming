@@ -19,3 +19,16 @@ for(const outcome of ['limited','challenge','readable']){legacy.access.outcome=o
 // Browser direct entry is unaffected: the unified module exits before referring to team globals.
 const direct={window:{SIGNAL_GEO_MODE:'browser'}};vm.createContext(direct);vm.runInContext(fs.readFileSync('dist/site-readiness.js','utf8'),direct);assert.equal(direct.window.unifiedDiagnosticHTML,undefined);
 console.log('Unified rendering: real saved v0.1 fixture score parity, native-vs-unsafe citations, full escaped raw evidence/export, real competitor performance/gaps, two-point range/coverage trend, legacy access diagnostics, direct-browser isolation passed.');
+// Reduced, de-identified structure from the user-provided terminal full/no-answer snapshot.
+const incomplete=JSON.parse(fs.readFileSync('tests/fixtures/diagnostic-full-no-answers.json','utf8'));
+const incompleteHTML=ctx.window.unifiedDiagnosticHTML(incomplete);
+assert(incompleteHTML.includes('模型分析未完成'));assert(incompleteHTML.includes('本次未取得模型回答'));assert(!incompleteHTML.includes('本次选择仅检查官网'));assert(incompleteHTML.includes('已确认45分，另有45分待核实'));assert(incompleteHTML.includes('已核验55%的评分项'));assert(incompleteHTML.includes('本次带广告参数的网址受访问规则限制'));assert(incompleteHTML.includes('本次读取未识别出完整的页面标题'));
+const running=structuredClone(incomplete);running.status='running';assert.throws(()=>ctx.window.unifiedDiagnosticHTML(running));
+const wrongRun=structuredClone(incomplete);wrongRun.bundle.run_manifest.run_id='other';assert.throws(()=>ctx.window.unifiedDiagnosticHTML(wrongRun));
+const generic=structuredClone(incomplete);generic.website='https://brand.example/';assert(!ctx.window.unifiedDiagnosticReport(generic).includes('本次带广告参数的网址受访问规则限制'));
+console.log('Real terminal full/no-answer shape: 45–90/55% preserved, incomplete model wording, narrow advertising-path evidence, pending/mismatched snapshot export rejected.');
+
+const uncertain=structuredClone(incomplete);uncertain.progress={runner_status:'unknown'};assert.throws(()=>ctx.window.unifiedDiagnosticHTML(uncertain));
+const manyGaps=structuredClone(d);manyGaps.bundle.competitor_gaps=Array.from({length:5},(_,i)=>({question:'Gap '+i,competitors:['Rival']}));const compact=ctx.window.unifiedDiagnosticReport(manyGaps);assert(compact.includes('查看其余2道问题'));for(let i=0;i<5;i++)assert(compact.includes('Gap '+i));assert(!ctx.window.unifiedDiagnosticHTML(manyGaps).includes('查看其余2道问题'));
+
+assert(incompleteHTML.includes('<details><summary>完整保存快照与原始证据</summary>'));assert(!incompleteHTML.includes('details>*{display:block!important}'));

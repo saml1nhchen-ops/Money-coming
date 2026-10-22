@@ -53,6 +53,18 @@ class Sources(diagnosis_tests.HTTPDiagnostics):
    return original(operation,args,timeout)
   self.a.budget_factory=lambda usage=None:__import__('audit_fetch').FetchBudget(usage,worker=limited)
   body=self.payload('full');_,d=self.req('POST','/api/diagnostics',body);d=self.done(d['id']);self.assertIsNone(d['error_code']);self.fetch.assert_not_called();self.assertEqual(len(website_attempts),1);job=flow.get(d['job_id']);self.assertEqual(job['website']['text'],'');self.assertEqual(job['website']['read_status'],'unavailable');self.assertIn('仅依据用户确认',job['website']['material_note']);self.assertTrue(all('官网未取得可读材料' in m for m in self.materials));self.assertEqual(job['source_snapshot']['resources'][0]['http_status'],429);self.assertEqual(len(d['bundle']['answers']),30)
+ def test_real_generator_parse_failure_retains_safe_detail_and_backfills_old_report(self):
+  original=self.format_prompt
+  def malformed(operation,cfg,**extra):
+   if operation=='parse':raise ValueError('NiubiGEO 生成器解析失败：模型应返回完整的结构化题目，原始输出已保留')
+   return original(operation,cfg,**extra)
+  with patch.object(flow,'niubi',side_effect=malformed):
+   _,d=self.req('POST','/api/diagnostics',self.payload('full'));d=self.done(d['id'])
+  self.assertEqual(d['status'],'partial');self.assertEqual(d['error_code'],'sampling_incomplete');self.assertEqual(d['bundle']['questions'],[]);self.assertEqual(d['bundle']['answers'],[]);self.assertEqual(d['failure']['code'],'generator_parse_failed');self.assertEqual(d['failure']['failed_stage'],'generating');self.assertEqual(self.runner_submits,1);self.assertEqual(self.w.budget.state()['reserved'],33)
+  original_bundle=copy.deepcopy(d['bundle']);d.pop('failure');self.m.save(d)
+  _,share=self.req('POST','/api/diagnostics/share',{'id':d['id']});_,before=self.req('GET','/api/shared-report?token='+share['share_token'],auth=False)
+  code,backfill=self.req('GET','/api/diagnostics/detail?id='+d['id']);self.assertEqual(code,200);self.assertEqual(backfill['failure']['code'],'generator_parse_failed');self.assertEqual(backfill['bundle'],original_bundle);self.assertEqual(backfill['summary'],d['summary']);self.assertEqual(self.runner_submits,1)
+  self.assertEqual(self.req('GET','/api/shared-report?token='+share['share_token'],auth=False)[1],before)
  def test_public_payload_rejects_snapshot_and_private_route(self):
   cfg={'website':'https://acme.example/','market':'US','brand_aliases':['Acme Tea'],'providers':['gpt'],'generator':'gpt','count':30,'repeats':1}
   for name in ('snapshot','source_snapshot','skip_fetch'):
