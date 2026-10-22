@@ -37,3 +37,5 @@
 实际 Protego/Trafilatura 解析、真实 gateway 与 Chromium 三步流程、完整导出和旧问题卡/报告回归已验证；合成官网数据不算真实品牌诊断。`tests/test_site_readiness_integration.cjs` 可通过 `SIGNAL_TEST_PYTHON` 指定已安装锁定依赖的 Python。`tests/container_audit.py` 验证真实非 root 容器在无模型密钥、无外部网络时仍能生成 unknown 报告，报告与设备登录可在重启后恢复。
 
 真实公开网站验证：[运行记录](https://github.com/saml1nhchen-ops/Money-coming/actions/runs/39802435268)。Cremo 首页返回429，robots与llms均200，共3次HTTP；因此可报告策略及辅助文件，但品牌/产品内容与完整分数保持未知。参考站example.com返回200，完整规则报告与导出成功。两站均0次模型调用。结果仅对应检测时间和执行网络，不推断所有外部AI访问情况。
+
+已发布 v0.4.0：[正式发布与部署](https://github.com/saml1nhchen-ops/Money-coming/actions/runs/39802643358)。公网后台版本/代码、前端入口及完整导出模块均已实际核对。最终189项Python检查通过；线上回滚尚未演练。
