@@ -16,21 +16,21 @@ def actual_tool(operation,args):
  if not pipe.value['ok']:raise f.AuditFetchError(pipe.value['error'])
  return pipe.value['value']
 class Synthetic:
- def __init__(self):self.calls=[];self.robots=ROBOTS;self.robots_status=200;self.seed_error=None;self.seed_html=HTML;self.slow=False
+ def __init__(self):self.calls=[];self.robots=ROBOTS;self.robots_status=200;self.seed_error=None;self.seed_status=200;self.seed_html=HTML;self.slow=False
  def __call__(self,operation,args,timeout):
   self.calls.append((operation,args,timeout));assert 0<timeout<=10
   if operation=='dns':return [(2,1,6,'',('93.184.216.34',443))]
   if operation in ('parse','robots'):return actual_tool(operation,args)
   url,addresses,limit,accept,request_timeout=args;path=__import__('urllib.parse',fromlist=['urlsplit']).urlsplit(url).path
   if self.seed_error and path=='/':raise f.AuditFetchError(self.seed_error)
-  status=200;kind='text/plain';body=''
-  if path=='/':body=self.seed_html;kind='text/html'
+  status=200;kind='text/plain';body='';headers={'Content-Type':kind}
+  if path=='/':body=self.seed_html;kind='text/html';status=self.seed_status;headers={'Content-Type':kind,'Retry-After':'120'} if status==429 else {'Content-Type':kind}
   elif path=='/robots.txt':body=self.robots;status=self.robots_status
   elif path=='/index.md':body='# Acme Tea\nPublic products';kind='text/markdown'
   elif path=='/llms.txt':body='# Acme Tea\nSupplemental website information'
   elif path=='/about':body='<html><h1>About</h1><p>Public company details</p></html>';kind='text/html'
   else:status=404
-  return {'status':status,'headers':{'Content-Type':kind,'X-Robots-Tag':'googlebot: noindex'} if path=='/' else {'Content-Type':kind},'raw':body.encode()[:limit+1]}
+  return {'status':status,'headers':{**headers,**({'X-Robots-Tag':'googlebot: noindex'} if path=='/' and status==200 else {})},'raw':body.encode()[:limit+1]}
 class API:
  def __init__(self):self.busy=False
  def call(self,service,path,body=None):
@@ -77,6 +77,11 @@ class AuditWorkflowTests(unittest.TestCase):
   self.assertIn('robots_disallowed',json.dumps(full))
  def test_failure_still_confirms_empty_brand_and_exports_unknown_report(self):
   self.synthetic.seed_error='dns_failed';self.synthetic.robots_status=503;_,j=self.start();preview=self.done(j['id']);self.assertIsNone(preview['candidates']['brand']);self.assertEqual(self.confirm(preview)[0],202);full=self.done(j['id'],False);self.assertIsNone(full['report']['summary']['score']);self.assertIsNone(full['report']['summary']['partial_score']);self.assertEqual(full['report']['target']['brand'],'');self.assertEqual(self.request('GET','/api/geo/audit-export?id='+j['id'])[0],200)
+ def test_seed_429_retry_after_does_not_retry_seed_as_markdown(self):
+  self.synthetic.seed_status=429;_,j=self.start();preview=self.done(j['id']);self.assertIsNone(preview['candidates']['brand']);self.assertEqual(preview['access']['http_status'],429);self.assertIsNotNone(preview['access']['retry_after']);seed_urls=[c[1][0] for c in self.synthetic.calls if c[0]=='http' and c[1][0]=='https://acme.example/'];self.assertEqual(seed_urls,['https://acme.example/'])
+  start=len(self.synthetic.calls);self.assertEqual(self.confirm(preview)[0],202);full=self.done(j['id'],False);report=full['report'];requested=[c[1][0] for c in self.synthetic.calls[start:] if c[0]=='http']
+  self.assertNotIn('https://acme.example/',requested);self.assertIn('https://acme.example/robots.txt',requested);self.assertIn('https://acme.example/llms.txt',requested);self.assertEqual(sum(url=='https://acme.example/' for url in [c[1][0] for c in self.synthetic.calls if c[0]=='http']),1)
+  self.assertIsNone(report['summary']['score']);self.assertIsNone(report['summary']['partial_score']);checks={c['id']:c for section in report['sections'] for c in section['checks']};self.assertEqual(checks['response']['status'],'unknown');self.assertEqual(checks['extraction']['status'],'unknown');self.assertEqual(checks['markdown']['status'],'unknown');self.assertEqual(full['usage']['model_calls'],0);self.assertEqual(self.request('GET','/api/geo/audit-export?id='+j['id'])[0],200)
  def test_confirm_idempotence_revision_and_manual_evidence_separation(self):
   _,j=self.start();preview=self.done(j['id']);self.confirm(preview);first=self.done(j['id'],False);calls=len(self.synthetic.calls);self.assertEqual(self.confirm(preview)[0],200);self.assertEqual(self.confirm(preview,brand='User Changed')[0],202);second=self.done(j['id'],False);self.assertEqual(second['revision'],first['revision']+1);self.assertEqual(len(self.synthetic.calls),calls);self.assertEqual(second['confirmed']['brand']['basis'],'user_modified');self.assertEqual(second['confirmed']['brand']['evidence_ids'],[]);self.assertEqual(second['candidates'],preview['candidates'])
  def test_real_http_manual_empty_aliases_are_normalized_without_evidence_theft(self):

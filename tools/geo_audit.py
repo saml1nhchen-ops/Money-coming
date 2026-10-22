@@ -113,9 +113,11 @@ def collect_report_resources(audit,budget):
   if budget.remaining()<=0 or budget.usage['resources_requested']>=6 or budget.usage['http_requests']>=10:return
   resources.append(budget.fetch(url,kind,base,permitted=permitted))
  auxiliary(base+'/llms.txt','llms')
- metadata=seed.get('parsed',{}).get('metadata',{}) if seed.get('parsed') else {}
- markdown=next((urllib.parse.urljoin(seed['url'],href) for href in metadata.get('markdown_alternates',[]) if _same_origin(urllib.parse.urljoin(seed['url'],href),base)),seed['url'])
- auxiliary(markdown,'markdown')
+ parsed_seed=seed.get('parsed') if not seed.get('error') else None;metadata={}
+ if parsed_seed:
+  metadata=parsed_seed.get('metadata',{})
+  markdown=next((urllib.parse.urljoin(seed['url'],href) for href in metadata.get('markdown_alternates',[]) if _same_origin(urllib.parse.urljoin(seed['url'],href),base)),seed['url'])
+  auxiliary(markdown,'markdown')
  if any('llms-full.txt' in r.get('text','') for r in resources if r.get('kind')=='llms'):auxiliary(base+'/llms-full.txt','llms-full')
  about=next((urllib.parse.urljoin(seed['url'],row['href']) for row in metadata.get('product_links',[]) if re.search(r'/(?:about|compare|comparison)(?:[/-]|$)',urllib.parse.urlsplit(row['href']).path,re.I) and _same_origin(urllib.parse.urljoin(seed['url'],row['href']),base)),None)
  if about:auxiliary(about,'about')
