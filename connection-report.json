@@ -1,0 +1,54 @@
+{
+  "claude_available": true,
+  "expected_revision": "b490ac06e741fb1385989e0fbd36b87dda0acf78",
+  "frontend": [
+    {
+      "matches": true,
+      "name": "team.html",
+      "sha256": "ef2f604ba71dbca8bb09b1430e488399cc3a4e1e8122f19156e6540ca947c465"
+    },
+    {
+      "matches": true,
+      "name": "site-readiness.js",
+      "sha256": "5df7c7e53c1646d75433b963ec4c74d2beb7b9d4e236171467baff925a5b5c5b"
+    },
+    {
+      "matches": true,
+      "name": "site-readiness.css",
+      "sha256": "45044edf72e527c370ca797e585ee67c884ea04e980fa120e8a2ba5b18f75695"
+    },
+    {
+      "matches": true,
+      "name": "remote-connection.js",
+      "sha256": "2885d71096dce7e7cbc9ebdb70c27d02484632b0dd6569a60ebfc3f418f12348"
+    }
+  ],
+  "health": {
+    "capabilities": {
+      "analysis_manufacturers": [
+        "Anthropic",
+        "Google",
+        "OpenAI"
+      ],
+      "claude_available": true,
+      "diagnostics_v1": true,
+      "remember_login": true,
+      "remember_login_max_age_seconds": 2592000
+    },
+    "ok": true,
+    "revision": "b490ac06e741fb1385989e0fbd36b87dda0acf78",
+    "version": "v0.5.1"
+  },
+  "kind": "diagnostic_production_verification",
+  "model_calls": 0,
+  "ok": true,
+  "read_only": true,
+  "releases": [
+    {
+      "conclusion": "success",
+      "id": 39822307291,
+      "status": "completed",
+      "url": "https://github.com/saml1nhchen-ops/Money-coming/actions/runs/39822307291"
+    }
+  ]
+}
