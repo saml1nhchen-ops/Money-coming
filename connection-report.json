@@ -1,0 +1,8 @@
+{
+  "chat_calls": 0,
+  "error": "'PinnedHTTPSHandler' object has no attribute '_check_hostname'",
+  "error_type": "AttributeError",
+  "kind": "public_website_candidates",
+  "status": "failed",
+  "url": "https://cremocompany.com/"
+}
