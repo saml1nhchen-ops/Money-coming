@@ -138,6 +138,23 @@ class PinnedWebsiteSecurityTests(unittest.TestCase):
    connect.assert_called_once_with(addresses,3);wrap.assert_called_once_with(sock,server_hostname='original.example');sock.close.assert_called_once()
   context=ssl._create_unverified_context()
   with self.assertRaisesRegex(ValueError,'verification'):pinned_http.PinnedHTTPSConnection('original.example',addresses=addresses,context=context)
+ def test_https_handler_constructs_pinned_connection_with_verified_default_context(self):
+  import socket,ssl,pinned_http
+  from types import SimpleNamespace
+  addresses=[(socket.AF_INET,socket.SOCK_STREAM,socket.IPPROTO_TCP,'',('93.184.216.34',443))]
+  handler=pinned_http.PinnedHTTPSHandler(addresses)
+  req=urllib.request.Request('https://original.example/path');req.timeout=socket._GLOBAL_DEFAULT_TIMEOUT
+  seen=[]
+  def request(connection,*args,**kwargs):
+   seen.append((connection.host,connection.addresses,connection._context))
+  with patch.object(pinned_http.PinnedHTTPSConnection,'request',autospec=True,side_effect=request),patch.object(pinned_http.PinnedHTTPSConnection,'getresponse',return_value=SimpleNamespace(reason='OK')):
+   response=handler.https_open(req)
+  self.assertEqual(response.url,'https://original.example/path')
+  self.assertEqual(len(seen),1)
+  host,pinned_addresses,context=seen[0]
+  self.assertEqual(host,'original.example');self.assertEqual(pinned_addresses,tuple(addresses))
+  self.assertIs(context,handler._context)
+  self.assertEqual(context.verify_mode,ssl.CERT_REQUIRED);self.assertTrue(context.check_hostname)
  def test_proxy_environment_fails_closed_without_dns_or_direct_connect(self):
   import socket,pinned_http
   for scheme in ('http','https','all'):

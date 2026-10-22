@@ -59,7 +59,7 @@ class PinnedHTTPHandler(urllib.request.HTTPHandler):
 
 
 class PinnedHTTPSHandler(urllib.request.HTTPSHandler):
- def __init__(self,addresses):self.addresses=tuple(addresses);super().__init__()
+ def __init__(self,addresses):self.addresses=tuple(addresses);super().__init__(context=ssl.create_default_context())
  def https_open(self,req):
   def connection(host,**kwargs):return PinnedHTTPSConnection(host,addresses=self.addresses,**kwargs)
-  return self.do_open(connection,req,context=self._context,check_hostname=self._check_hostname)
+  return self.do_open(connection,req,context=self._context)
