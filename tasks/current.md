@@ -1,6 +1,6 @@
 # 当前任务：移动端开始诊断与Claude接入
 
-状态：修复与独立验收通过，准备v0.5.1发布。复用已有前端/后端/验收角色，不新建智能体；当前聊天整合、回归和发布核验。
+状态：已发布v0.5.1并通过线上核验。复用已有前端/后端/验收角色，不新建智能体；当前聊天整合、回归和发布核验。
 
 ## 用户反馈
 
@@ -28,3 +28,9 @@ v0.5.0生产revision=3b398899f0a10a911ec7b0f2e8d60d8e8885ff4b，部署3981656904
 Claude此前硬编码缺失。现只从实际目录接受锚定固定Claude家族ID（Haiku优先），可选缺失不影响原GPT/Gemini，显式错误明确报告；连接第三项仍最多选两项/63次。健康状态仅反映实际配置，不声称已调用或免费。
 
 223项完整Python回归通过；新三profile手机触屏、旧unified、官网零模型模式、渲染和导出回归通过；独立验收通过。真实供应商调用未执行，生产Claude是否存在待上线只读核验。
+
+## 发布完成
+
+正式发布39822307291成功；实际生产version=v0.5.1，revision=b490ac06e741fb1385989e0fbd36b87dda0acf78。线上独立核验39822309810通过，四前端资产hash一致，claude_available=true、analysis_manufacturers=[Anthropic,Google,OpenAI]，30天设备登录能力保留。0次聊天调用：这验证真实目录与已配置profile，不等于真实模型采样验收。
+
+本地新Docker启动、持久诊断/分享/设备会话重启恢复通过。新入口：https://saml1nhchen-ops.github.io/Money-coming/dist/team.html?v=0.5.1#/w/demo/research
