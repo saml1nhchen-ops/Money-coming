@@ -1,7 +1,7 @@
 /* Offline rendering compatibility and escaping, independent of API fixtures. */
 const vm=require('node:vm'),fs=require('node:fs'),assert=require('node:assert/strict');
 const ctx={console,URL,URLSearchParams,structuredClone,Map,Set,crypto:require('node:crypto').webcrypto,window:{SIGNAL_GEO_MODE:'team',addEventListener(){}},document:{addEventListener(){}},page:'overview',names:{},geoPage(){},render(){},geoChange(){},diagnosticPage(){},geoState:{runner:{profiles:[]}},location:{hash:''},esc:s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))};
-vm.createContext(ctx);vm.runInContext(fs.readFileSync('dist/diagnostic.js','utf8'),ctx);vm.runInContext(fs.readFileSync('dist/site-readiness.js','utf8'),ctx);
+vm.createContext(ctx);vm.runInContext(fs.readFileSync('dist/diagnostic.js','utf8'),ctx);vm.runInContext(fs.readFileSync('dist/site-readiness.js','utf8').replace('const legacyPage =','window.testCanRetest = d=>canRetest(d); window.testRetestHTML=d=>retestHTML(d); const legacyPage ='),ctx);
 const d=JSON.parse(fs.readFileSync('tests/fixtures/diagnostic-full-contract.json','utf8'));
 assert.equal(vm.runInContext('typeof scoreRules',ctx),'function');ctx.payload=d;
 const frontendScore=vm.runInContext('scoreRules(payload.bundle.rules)',ctx);
@@ -32,3 +32,10 @@ const uncertain=structuredClone(incomplete);uncertain.progress={runner_status:'u
 const manyGaps=structuredClone(d);manyGaps.bundle.competitor_gaps=Array.from({length:5},(_,i)=>({question:'Gap '+i,competitors:['Rival']}));const compact=ctx.window.unifiedDiagnosticReport(manyGaps);assert(compact.includes('查看其余2道问题'));for(let i=0;i<5;i++)assert(compact.includes('Gap '+i));assert(!ctx.window.unifiedDiagnosticHTML(manyGaps).includes('查看其余2道问题'));
 
 assert(incompleteHTML.includes('<details><summary>完整保存快照与原始证据</summary>'));assert(!incompleteHTML.includes('details>*{display:block!important}'));
+
+assert.equal(ctx.window.testCanRetest(incomplete),false);
+assert(ctx.window.testRetestHTML(incomplete).includes('没有可复用的完整题集'));
+assert(!ctx.window.testRetestHTML(incomplete).includes('60 次'));
+const validRetest=structuredClone(incomplete);validRetest.frozen_prompts=Array.from({length:30},(_,i)=>'Question '+i);assert.equal(ctx.window.testCanRetest(validRetest),true);
+for(const bad of [[],['x'.repeat(4001),...validRetest.frozen_prompts.slice(1)],['Question+1',...validRetest.frozen_prompts.slice(1)],Array(30).fill('same'),Array.from({length:30},(_,i)=>i),[' ',...validRetest.frozen_prompts.slice(1)],['Ｑｕｅｓｔｉｏｎ 1！',...validRetest.frozen_prompts.slice(1)]]){const d=structuredClone(validRetest);d.frozen_prompts=bad;assert.equal(ctx.window.testCanRetest(d),false);}
+const websiteRetest=structuredClone(incomplete);websiteRetest.config={mode:'website'};websiteRetest.bundle.run_manifest.mode='page';assert.equal(ctx.window.testCanRetest(websiteRetest),true);

@@ -170,6 +170,12 @@ class HTTPDiagnostics(unittest.TestCase):
   finally:release.set();reader.join(2)
   recovered=result[0][1];self.assertEqual(recovered['status'],'partial');self.assertIsNone(recovered['error_code']);self.assertEqual(len(recovered['bundle']['answers']),30);count=len(reads)
   self.req('GET','/api/diagnostics/detail?id='+d['id']);self.assertEqual(len(reads),count);self.assertEqual(sum(p=='start' for _,p,_ in self.api.calls),1)
+ def test_full_retest_rejects_missing_or_invalid_frozen_bank_without_calls(self):
+  _,d=self.req('POST','/api/diagnostics',self.payload('full'));d=self.done(d['id']);bank=list(d['frozen_prompts']);reserved=self.w.budget.state()['reserved'];submits=sum(p in ('start','sample') for _,p,_ in self.api.calls)
+  for invalid in ([],bank[:-1],['']+bank[1:],[{}]+bank[1:],[bank[1].upper()+'!']+bank[1:],['x'*4001]+bank[1:]):
+   with self.subTest(bank_size=len(invalid)):
+    changed=copy.deepcopy(d);changed['frozen_prompts']=invalid;self.m.save(changed);code,result=self.req('POST','/api/diagnostics/retest',{'id':d['id'],'request_id':str(uuid.uuid4())});self.assertEqual((code,result['code']),(409,'question_set_unavailable'));self.assertEqual(self.w.budget.state()['reserved'],reserved);self.assertEqual(sum(p in ('start','sample') for _,p,_ in self.api.calls),submits)
+  self.m.save(d);code,r=self.req('POST','/api/diagnostics/retest',{'id':d['id'],'request_id':str(uuid.uuid4())});self.assertEqual(code,202);self.assertEqual(r['plan']['maximum_calls'],30);r=self.done(r['id']);self.assertEqual(r['frozen_prompts'],bank);self.assertEqual(sum(p=='start' for _,p,_ in self.api.calls),1);self.assertEqual(sum(p=='sample' for _,p,_ in self.api.calls),1)
  def test_old_incomplete_report_does_not_mislabel_finished_runner_as_failed(self):
   _,d=self.req('POST','/api/diagnostics',self.payload('full'));d=self.done(d['id']);d['error_code']='sampling_incomplete';d.pop('failure',None);d['bundle']['questions']=[];d['bundle']['answers']=[];self.m.save(d)
   bundle=copy.deepcopy(d['bundle']);summary=copy.deepcopy(d['summary']);submits=sum(p in ('start','sample') for _,p,_ in self.api.calls);reserved=self.w.budget.state()['reserved']

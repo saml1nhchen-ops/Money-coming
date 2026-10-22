@@ -3,6 +3,7 @@
 Runs on an ordinary trusted validation runner. Respect the same finite collector
 and robots policy as production; restrictions are evidence, not test bypasses.
 """
+import argparse
 import json
 import pathlib
 import secrets
@@ -36,6 +37,10 @@ def wait(read, ident, running):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--website', choices=('https://cremocompany.com/', 'https://www.nike.com/', 'https://www.lorealparisusa.com/'))
+    parser.add_argument('--market', choices=('US', 'CN'), default='US')
+    args = parser.parse_args()
     reports = []
     with tempfile.TemporaryDirectory(prefix='diagnostic-sources-') as directory:
         root = pathlib.Path(directory)
@@ -48,10 +53,10 @@ def main():
             client_id = next(c['id'] for c in clients if not c['internal'])
             projects = manager.entities('projects', {'client_id': client_id, 'name': 'Public-source validation'})['projects']
             project_id = next(p['id'] for p in projects if not p['internal'])
-            for website in ('https://cremocompany.com/', 'https://www.nike.com/', 'https://www.lorealparisusa.com/'):
+            for website in ([args.website] if args.website else ('https://cremocompany.com/', 'https://www.nike.com/', 'https://www.lorealparisusa.com/')):
                 aid = str(uuid.uuid4())
                 with workspace.lock:
-                    workspace.auditor.start(aid, website, 'US')
+                    workspace.auditor.start(aid, website, args.market)
                 preview = wait(workspace.auditor.get, aid, {'queued', 'running'})
                 candidates = preview['candidates']
                 brand = candidates.get('brand') or {}
@@ -69,7 +74,7 @@ def main():
                 assert sum(rule['weight'] for rule in bundle['rules']) == 100
                 assert all(rule['evidence_ids'] for rule in bundle['rules'] if rule['status'] in ('pass', 'partial', 'fail'))
                 assert final['summary']['total'] is None  # No invented factual/page-coverage judgments.
-                reports.append({'website': website, 'status': final['status'], 'brand': final['brand'], 'products': [p['name'] for p in confirmed['products']], 'pages': final.get('pages', []), 'summary': final['summary'], 'model_calls': 0, 'bundle': bundle})
+                reports.append({**{k: final[k] for k in ('id', 'stage', 'created_at', 'config', 'plan')}, 'website': website, 'status': final['status'], 'brand': final['brand'], 'products': [p['name'] for p in confirmed['products']], 'pages': final.get('pages', []), 'summary': final['summary'], 'model_calls': 0, 'bundle': bundle})
         finally:
             manager.pool.shutdown(wait=True)
             workspace.auditor.pool.shutdown(wait=True)

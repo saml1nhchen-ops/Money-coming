@@ -373,7 +373,10 @@ class DiagnosticManager:
   if set(data)!={'id','request_id'}:raise DiagnosticError(400,'invalid_request')
   original=self.raw(data['id'])
   if original.get('legacy') or original['status'] not in ('finished','partial') or not original.get('bundle') or original.get('progress',{}).get('runner_status')=='unknown':raise DiagnosticError(409,'diagnostic_not_retestable')
-  if original['config']['mode']=='full' and len(original.get('frozen_prompts',[]))!=30:raise DiagnosticError(409,'question_set_unavailable')
+  if original['config']['mode']=='full':
+   import geo_plan
+   prompts=original.get('frozen_prompts')
+   if not isinstance(prompts,list) or len(prompts)!=30 or any(not isinstance(q,str) or not q.strip() or len(q)>4000 or not geo_plan.question_key(q) for q in prompts) or len({geo_plan.question_key(q) for q in prompts})!=30:raise DiagnosticError(409,'question_set_unavailable')
   cfg=original['config'];return self.create({'audit_id':original['audit_id'],'confirmed':confirmation_input(cfg['confirmed']),'profile_ids':cfg['profile_ids'],'project_id':original['project_id'],'request_id':data['request_id'],'mode':cfg['mode']},original)
  def share(self,data):
   if set(data)!={'id'}:raise DiagnosticError(400,'invalid_request')

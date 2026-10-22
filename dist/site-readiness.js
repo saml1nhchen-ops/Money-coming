@@ -254,6 +254,14 @@
     if(r.rule_id==='R-access-search')try{const u=new URL(d.website || d.config?.website || array(b.evidence).find(e=>e.url)?.url);const keys=[...u.searchParams.keys()];const evidence=array(r.evidence_ids).map(id=>array(b.evidence).find(e=>e.evidence_id===id)?.excerpt || '').join('\n');if(keys.some(k=>/^(gclid|fbclid|utm_.+)$/i.test(k) && evidence.includes(k+'=') && /Disallow:/i.test(evidence))){title='本次带广告参数的网址受访问规则限制';action='使用不含广告跟踪参数的官网链接重新核对。';}}catch{}
     return {title,action};
   }
+  function canRetest(d) {
+    if(!finalReport(d))return false;
+    if(diagnosticMode(d)==='website')return true;
+    if(diagnosticMode(d)!=='full' || !Array.isArray(d.frozen_prompts) || d.frozen_prompts.length!==30)return false;
+    const keys=d.frozen_prompts.map(q=>typeof q==='string'&&q.length<=4000?q.normalize('NFKC').toLowerCase().replace(/ß/g,'ss').replace(/ς/g,'σ').replace(/[^\p{L}\p{N}_]+/gu,''):'');
+    return keys.every(Boolean) && new Set(keys).size===30;
+  }
+  const missingRetestQuestions='没有可复用的完整题集，请从官网新建诊断并重新确认调用范围';
   function reportHTML(d,full=false) {
     const b=d?.bundle;if(!finalReport(d,!d?.id && b?.run_manifest?.run_id==='shared-report'))return '<section class="sr-card"><h2>本次诊断尚未完成</h2><p>请读取最新进度；过程资料不作为完整报告。</p></section>';
     const score=scoreRules(array(b.rules)),m=b.run_manifest || {},fold=(label,html)=>`<details><summary>${text(label)}</summary>${html}</details>`;
@@ -292,7 +300,7 @@
     if(publicView && !ready)return '<section class="sr-card"><p>这份分享暂无完整报告，无法展示过程资料。</p></section>';
     const unknownRunner=d?.error_code==='runner_observation_lost';
     const heading=readError?'进度读取暂时中断':loading||!d?'正在读取最新进度':unknownRunner?'执行状态待确认':statusLabel(d.status);
-    return `${!publicView?`<section class="sr-card wf-diagnostic-status"><h2>${text(heading)}</h2>${readError?'<p>当前页面暂时无法确认最新进度，后台任务可能仍在继续。重新读取只会查询状态，不会再次开始诊断。</p>':loading?'<p>正在核对当前任务，请稍候。</p>':d&&!terminal(d.status)?diagnosticProgress(d):unknownRunner?'<p>暂时无法确认问答任务的最终结果，不能据此认定任务已停止。请重新读取进度核对。</p>':''}${d?.error_code&&!readError?`<p>${text(d.failure?.reason || diagnosticError(d.error_code))}</p>`:''}${readError?`<details><summary>连接情况</summary><p>${text(s.detailReadError)}</p>${d?`<p>上次保存状态：${text(statusLabel(d.status))}</p>`:''}</details>`:''}<div class="sr-actions"><button data-wf="detail-refresh" ${loading?'disabled':''}>${readError?'重新读取进度':'读取最新进度'}</button><button data-wf="history">历史诊断</button></div></section>`:`<p>只读报告 · 有效期至 ${text(s.shareExpires)}</p>`}${ready?reportHTML(d):d?.legacy&&!readError&&!loading?legacyHTML(d):!readError&&!loading?'<section class="sr-card"><p>报告仍在整理，完成前不显示结论或提供成品导出。</p></section>':''}${ready?trendHTML(d):''}${ready?`<div class="sr-actions"><button class="primary" data-wf="html">导出完整报告（HTML）</button><button data-wf="json">下载证据 JSON</button><button data-wf="print">打印为 PDF</button>${!publicView?'<button data-wf="retest-confirm">手动复测</button>':''}</div>`:''}${!publicView && ready?shareHTML(s,d):''}${ready&&s.retestConfirm?retestHTML(d):''}`;
+    return `${!publicView?`<section class="sr-card wf-diagnostic-status"><h2>${text(heading)}</h2>${readError?'<p>当前页面暂时无法确认最新进度，后台任务可能仍在继续。重新读取只会查询状态，不会再次开始诊断。</p>':loading?'<p>正在核对当前任务，请稍候。</p>':d&&!terminal(d.status)?diagnosticProgress(d):unknownRunner?'<p>暂时无法确认问答任务的最终结果，不能据此认定任务已停止。请重新读取进度核对。</p>':''}${d?.error_code&&!readError?`<p>${text(d.failure?.reason || diagnosticError(d.error_code))}</p>`:''}${readError?`<details><summary>连接情况</summary><p>${text(s.detailReadError)}</p>${d?`<p>上次保存状态：${text(statusLabel(d.status))}</p>`:''}</details>`:''}<div class="sr-actions"><button data-wf="detail-refresh" ${loading?'disabled':''}>${readError?'重新读取进度':'读取最新进度'}</button><button data-wf="history">历史诊断</button></div></section>`:`<p>只读报告 · 有效期至 ${text(s.shareExpires)}</p>`}${ready?reportHTML(d):d?.legacy&&!readError&&!loading?legacyHTML(d):!readError&&!loading?'<section class="sr-card"><p>报告仍在整理，完成前不显示结论或提供成品导出。</p></section>':''}${ready?trendHTML(d):''}${ready?`<div class="sr-actions"><button class="primary" data-wf="html">导出完整报告（HTML）</button><button data-wf="json">下载证据 JSON</button><button data-wf="print">打印为 PDF</button>${!publicView&&canRetest(d)?'<button data-wf="retest-confirm">手动复测</button>':''}</div>`:''}${!publicView&&ready&&!canRetest(d)?`<p>${text(missingRetestQuestions)}</p>`:''}${!publicView && ready?shareHTML(s,d):''}${ready&&canRetest(d)&&s.retestConfirm?retestHTML(d):''}`;
   }
   function legacyHTML(d) {
     const legacy=d.legacy || {}, payload=legacy.payload || legacy.audit || legacy.flow;
@@ -309,6 +317,7 @@
     return `<section class="sr-card"><h2>报告分享</h2><p>${internal?'内部项目不能创建对外分享。':'创建只读快照，有效期 30 天。持有链接的人可查看报告，不可启动任务或修改数据；可随时撤销。'}</p>${!internal?'<button data-wf="share">创建 30 天只读链接</button>':''}${s.shareURL?`<label class="sr-field"><span>请复制并妥善保存此链接</span><input id="workflow-share-url" readonly value="${text(s.shareURL)}"></label>`:''}${array(d.shares).map(v=>`<p>有效至 ${text(v.expires_at)} · ${v.revoked?'已撤销':`<button data-wf-revoke="${text(v.share_id)}">撤销此分享</button>`}</p>`).join('')}</section>`;
   }
   function retestHTML(d) {
+    if(!canRetest(d))return `<p>${text(missingRetestQuestions)}</p>`;
     const n=array(d.config?.profile_ids || d.config?.providers).length,calls=d.config?.mode==='website'?0:30*n;
     return `<section class="sr-card wf-call-confirm"><h2>确认手动复测</h2><p>${calls?'复用原品牌、市场、模型和冻结的 30 道问题；重新采集，保留基线用于可比性检查。':'复用原官网、品牌与市场，重新检查并保留基线用于比较。'}</p><p>预计收集回答 ${calls} 次，不重新生成题目。${calls?'将按实际用量计费，实际金额以服务商账单为准。':'本次仅检查官网。'}</p><div class="sr-actions"><button data-wf="retest-cancel">取消</button><button class="primary" data-wf="retest" ${session().pending?'disabled':''}>${calls?'确认费用并开始复测':'确认并重新检查'}</button></div></section>`;
   }
@@ -390,7 +399,7 @@
     catch(e){if(sameContext(key)){s.managementPending=false;s.message=e.message;repaint();}}
   }
   async function retest() {
-    const s=session();if(s.pending || !selectedDetail(s) || s.detailReadState!=='ready' || !finalReport(s.detail))return;
+    const s=session();if(s.pending)return;if(!selectedDetail(s) || s.detailReadState!=='ready' || !canRetest(s.detail)){s.retestConfirm=false;s.message=missingRetestQuestions;repaint();return;}
     const j=job();s.pending=true;s.retestRequestID ||= crypto.randomUUID();repaint();
     try{const d=await remoteWorkspace('retest',{id:s.detail.id,request_id:s.retestRequestID});if(!current(j))return;s.pending=false;s.retestConfirm=false;s.retestRequestID=null;s.workspaceLoaded=false;route('',d.id);}
     catch(e){failure(j,e);}
@@ -462,7 +471,7 @@
     if(['html','json','print'].includes(action)){void exportReport(action);return;}
     if(action==='share'){void share();return;}
     if(action==='retest'){void retest();return;}
-    if(action==='retest-confirm' || action==='retest-cancel'){s.retestConfirm=action==='retest-confirm';repaint();return;}
+    if(action==='retest-confirm' || action==='retest-cancel'){if(action==='retest-confirm' && (!selectedDetail(s) || s.detailReadState!=='ready' || !canRetest(s.detail))){s.retestConfirm=false;s.message=missingRetestQuestions;}else s.retestConfirm=action==='retest-confirm';repaint();return;}
     if(action==='detail-refresh'){stop();s.detailLoaded=false;s.detailLoading=false;void ensureDetail(s);return;}
     if(action==='history'){route('history');return;}
     if(action==='projects'){s.returnScreen=s.screen;s.screen='projects';repaint();return;}
