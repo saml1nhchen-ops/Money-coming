@@ -1,0 +1,35 @@
+{
+  "billing_account_used": false,
+  "calls_attempted": 1,
+  "content_type": "application/json; charset=utf-8",
+  "credentials_sent": false,
+  "endpoint": "https://text.pollinations.ai/openai",
+  "http_status": 200,
+  "kind": "free_competitor_api_validation",
+  "pricing_source": "https://github.com/pollinations/pollinations/blob/4d843bcc8ebf31e0fbda4f28ce46bb76ebdab299/APIDOCS.md",
+  "provider": "Pollinations Classic",
+  "response": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "message": {
+          "content": "{\"competitors\":[{\"name\":\"Gillette\",\"reason\":\"Well\u2011known shaving cream brand with strong US presence\"},{\"name\":\"Schick\",\"reason\":\"Popular shaving cream and razor brand in the US market\"},{\"name\":\"Harry's\",\"reason\":\"Direct\u2011to\u2011consumer shaving cream and razor brand targeting US consumers\"},{\"name\":\"Dollar Shave Club\",\"reason\":\"Subscription shaving cream service widely used in the US\"},{\"name\":\"Dove\",\"reason\":\"Established body wash brand with extensive US distribution\"}]}",
+          "reasoning": "We need to suggest at most 5 unverified competitors for the supplied brand and market. Provide JSON with \"competitors\" array of objects with \"name\" and \"reason\". No URLs, no tools, no citations. Just JSON. The brand is Cremo, market US, products: Shaving Cream, Body Wash. So competitors in US for shaving cream and body wash. Unverified competitors: maybe other brands like Gillette, Schick, Harry's, Dollar Shave Club, etc. For body wash: Dove, Nivea, Dr. Bronner's, etc. But we need to list up to 5 competitors. We can combine both product categories. Provide short explanation. Let's choose 5: Gillette, Schick, Harry's, Dollar Shave Club, Dove. Provide reasons. Ensure JSON format.",
+          "role": "assistant",
+          "tool_calls": []
+        }
+      }
+    ],
+    "created": 1792683641,
+    "id": "pllns_d0e13c15a49fea0b680d75380a726d6a",
+    "model": "gpt-oss-20b",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 277,
+      "prompt_tokens": 152,
+      "total_tokens": 429
+    },
+    "user_tier": "anonymous"
+  }
+}
