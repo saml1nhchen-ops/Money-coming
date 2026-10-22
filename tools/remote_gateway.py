@@ -1,5 +1,6 @@
 """Single team HTTPS edge (TLS terminates at the hosting platform)."""
 import base64, html, collections, datetime, hashlib, hmac, http.server, json, os, pathlib, re, secrets, socketserver, threading, time, urllib.error, urllib.parse, urllib.request
+from brand_enrichment import EnrichmentError
 from device_sessions import DeviceSessions,StoreUnavailable,SessionLimit,GenerationChanged,MAX_AGE
 ORIGIN='https://saml1nhchen-ops.github.io'
 UUID=re.compile(r'[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}\Z')
@@ -61,7 +62,7 @@ class Workspace:
   if len(password)<16:raise ValueError('Workspace password must contain at least 16 characters')
   parts=host.split(':')
   if len(parts)>2 or len(parts)==2 and (not parts[1].isdigit() or not 1<=int(parts[1])<=65535) or len(parts[0])>253 or any(not re.fullmatch(r'[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?',label) for label in parts[0].split('.')):raise ValueError('Invalid public host')
-  self.digest=hashlib.sha256(password.encode()).digest();self.host=host.lower();self.budget=budget;self.api=api or LocalAPI();self.lock=threading.RLock();self.sessions={};self.attempts=collections.defaultdict(collections.deque);self.global_attempts=collections.deque();self.ready=False;self.reason='missing_bai_key';self.profiles=[];self.closing=False;self.active=None;self.shutdown_requested=threading.Event();self.maintenance_requested=threading.Event();self.session_store=session_store
+  self.digest=hashlib.sha256(password.encode()).digest();self.host=host.lower();self.budget=budget;self.api=api or LocalAPI();self.lock=threading.RLock();self.sessions={};self.attempts=collections.defaultdict(collections.deque);self.global_attempts=collections.deque();self.ready=False;self.reason='missing_bai_key';self.profiles=[];self.closing=False;self.active=None;self.shutdown_requested=threading.Event();self.maintenance_requested=threading.Event();self.session_store=session_store;self.enrich_active=None;self.enricher=None
  def begin_shutdown(self):
   self.shutdown_requested.set()
   # Serialize shutdown with the complete reserve/submit/active publication.
@@ -158,6 +159,7 @@ class Workspace:
    # observable, no earlier admitted POST can still publish a queued task.
    with self.lock:
     s=self.api.call('geo','state')
+    if self.enrich_active:s['busy']=True
     if self.active and not s['busy']:
      previous=self.api.call('geo','run?id='+self.active)
      if previous.get('status') in ('queued','running'):s['busy']=True
@@ -165,6 +167,22 @@ class Workspace:
     maintenance=self.maintenance_requested.is_set()
     s['runner']['profiles']=self.profiles;s['runner']['configured']=self.ready;s['runner']['fetched_at']=getattr(self,'fetched_at',None)
     s['remote']={'mode':'shared_team','shared_reports':True,'ready':self.ready and not self.stopping() and not maintenance,'model_ready':self.ready,'maintenance':maintenance,'deployment_gate':'signals-v1','reason':'maintenance' if maintenance else self.reason,'limits':{'count':30,'max_models':2,'repeats':1},'budget':self.budget.state()};return s,200
+  if path.startswith('enrich'):
+   if self.enricher is None:raise Failure(503,'enrichment_store_unavailable')
+   try:
+    if d is None:return self.enricher.get(urllib.parse.parse_qs(path.split('?',1)[1])['id'][0]),200
+    if set(d)!={'website','market','request_id'} or d.get('market') not in ('CN','US') or not isinstance(d.get('request_id'),str) or not UUID.fullmatch(d['request_id']):raise Failure(400,'invalid_request')
+    import website_inspection
+    url=website_inspection.normalize_url(d['website'])
+    if self.redact_text(url)!=url:raise Failure(400,'invalid_request')
+    with self.lock:
+     cached=self.enricher.lookup(d['request_id'],url,d['market'])
+     if cached:return cached,200
+     if self.stopping() or self.maintenance_requested.is_set():raise Failure(503,'maintenance')
+     if self.enrich_active or self.api.call('geo','state')['busy']:raise Failure(409,'busy')
+     if self.active and self.api.call('geo','run?id='+self.active).get('status') in ('queued','running'):raise Failure(409,'busy')
+     return self.enricher.start(d['request_id'],url,d['market']),202
+   except EnrichmentError as error:raise Failure(error.status,error.code) from None
   if d is None:return self.api.call('geo',path),200
   name=path;self.validate(name,d)
   if name=='plan':
@@ -173,6 +191,7 @@ class Workspace:
   if name in ('start','sample'):
    with self.lock:
     self.require_admission()
+    if self.enrich_active:raise Failure(409,'busy')
     s=self.api.call('geo','state')
     if s['busy']:raise Failure(409,'busy')
     if self.active:
@@ -219,7 +238,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
    if len(origins)>1 or origins and origins[0]!=ORIGIN:raise Failure(403,'origin_forbidden')
    u=urllib.parse.urlsplit(self.path)
    if u.scheme or u.netloc or u.fragment:raise Failure(400,'invalid_request')
-   get={'/api/geo/state','/api/geo/run','/api/geo/export'};post={'/api/workspace/login','/api/workspace/logout',*[f'/api/geo/{p}' for p in ('inspect','plan','start','sample','analyze','stop')]}
+   get={'/api/geo/state','/api/geo/run','/api/geo/export','/api/geo/enrich'};post={'/api/workspace/login','/api/workspace/logout',*[f'/api/geo/{p}' for p in ('inspect','plan','start','sample','analyze','stop','enrich')]}
    if self.command=='OPTIONS':
     if u.path not in get|post or not origins or self.headers.get('Access-Control-Request-Method') not in ('GET','POST') or any(h.strip().lower() not in ('content-type','authorization') for h in self.headers.get('Access-Control-Request-Headers','').split(',') if h.strip()):raise Failure(403,'origin_forbidden')
     return self.reply({},204)
@@ -231,7 +250,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     if w.session_store is not None and w.session_store.usable():metadata['capabilities']={'remember_login':True,'remember_login_max_age_seconds':MAX_AGE}
     return self.reply({'ok':not w.stopping(),**metadata},200 if not w.stopping() else 503)
    if u.path not in (get if self.command=='GET' else post):raise Failure(404,'not_found')
-   if u.path in ('/api/geo/run','/api/geo/export'):
+   if u.path in ('/api/geo/run','/api/geo/export','/api/geo/enrich') and self.command=='GET':
     q=urllib.parse.parse_qs(u.query,keep_blank_values=True,strict_parsing=True)
     if set(q)!={'id'} or len(q['id'])!=1 or not UUID.fullmatch(q['id'][0]):raise Failure(400,'invalid_request')
    elif u.query:raise Failure(400,'invalid_request')

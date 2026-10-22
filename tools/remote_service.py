@@ -89,7 +89,12 @@ def main():
  prepare_dependencies();services=Services();services.start();w.api=services.api
  server=None
  try:
-  bootstrap(w);server=Server(('0.0.0.0',int(os.environ.get('PORT','8080'))),w)
+  bootstrap(w)
+  from brand_enrichment import EnrichmentManager,FreeGeminiAdapter
+  import geo_flow
+  try:w.enricher=EnrichmentManager(w,ROOT/'runtime/enrich/index.sqlite3',geo_flow.fetch_website,FreeGeminiAdapter(os.environ.get('SIGNAL_BAI_API_KEY','')))
+  except Exception:w.enricher=None
+  server=Server(('0.0.0.0',int(os.environ.get('PORT','8080'))),w)
   def drain():
    # This lock waits for any already admitted POST to publish its active job.
    # Only then can an idle observation mean there is no pending submission.
@@ -103,7 +108,7 @@ def main():
    deadline=time.monotonic()+10
    while time.monotonic()<deadline:
     try:
-     if not w.api.call('geo','state').get('busy'):break
+     if not w.dispatch('state')[0].get('busy'):break
     except Exception:break
     time.sleep(.2)
    server.shutdown()

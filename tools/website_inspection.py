@@ -20,7 +20,7 @@ def normalize_url(value):
   if ':' in host:host='['+host+']'
   path=urllib.parse.quote(u.path or '/',safe="/%:@!$&'()*+,;=-._~")
   query=urllib.parse.quote(u.query,safe="%:@!$&'()*+,;=/?-._~")
-  return urllib.parse.urlunsplit((u.scheme,host+(':'+str(port) if port else ''),path,query,''))
+  return urllib.parse.urlunsplit((u.scheme,host+(':'+str(port) if port and port!=({'https':443,'http':80}[u.scheme]) else ''),path,query,''))
  except (ValueError,UnicodeError):raise ValueError('请输入公开官网的 HTTP(S) 地址') from None
 
 
@@ -28,9 +28,10 @@ class WebsiteExtractor(HTMLParser):
  def __init__(self):
   super().__init__(convert_charrefs=True)
   self.skip=0;self.parts=[];self.body_parts=[];self.title_parts=[];self.h1_parts=[]
-  self.title_depth=0;self.h1_depth=0;self.head_depth=0;self.meta={};self.ld=[];self.script_type=None;self.script_parts=[]
+  self.links=[];self.link=None;self.title_depth=0;self.h1_depth=0;self.head_depth=0;self.meta={};self.ld=[];self.script_type=None;self.script_parts=[]
  def handle_starttag(self,t,attrs):
   a=dict(attrs)
+  if t=='a':self.link={'href':a.get('href',''),'parts':[]}
   if t=='head':self.head_depth+=1
   if t=='title':self.title_depth+=1
   if t=='h1':self.h1_depth+=1
@@ -41,6 +42,10 @@ class WebsiteExtractor(HTMLParser):
   if t=='script':self.script_type=(a.get('type') or '').lower();self.script_parts=[]
   if t in ('script','style','noscript','svg'):self.skip+=1
  def handle_endtag(self,t):
+  if t=='a' and self.link is not None:
+   text=' '.join(self.link['parts']).strip()
+   if text and len(self.links)<100:self.links.append({'href':self.link['href'],'text':text[:200]})
+   self.link=None
   if t=='script':
    if self.script_type=='application/ld+json':
     try:self.ld.append(json.loads(''.join(self.script_parts)))
@@ -55,6 +60,7 @@ class WebsiteExtractor(HTMLParser):
   if self.skip:return
   s=' '.join(s.split())
   if not s:return
+  if self.link is not None:self.link['parts'].append(s)
   self.parts.append(s)
   if self.title_depth:self.title_parts.append(s)
   if self.h1_depth:self.h1_parts.append(s)
@@ -62,7 +68,7 @@ class WebsiteExtractor(HTMLParser):
  def metadata(self):
   return {'title':' '.join(self.title_parts)[:500],'description':self.meta.get('description',''),
           'h1':' '.join(self.h1_parts)[:500],'site_name':self.meta.get('og:site_name',''),
-          'structured_names':structured_names(self.ld),'readable_characters':len('\n'.join(self.body_parts))}
+          'product_names':structured_products(self.ld),'product_links':self.links,'structured_names':structured_names(self.ld),'readable_characters':len('\n'.join(self.body_parts))}
 
 
 def structured_names(objects):
@@ -81,6 +87,26 @@ def structured_names(objects):
  for obj in objects:visit(obj)
  return result
 
+
+def structured_products(objects):
+ result=[]
+ def visit(obj,depth=0,path='JSON-LD'):
+  if depth>12 or len(result)>=12:return
+  if isinstance(obj,list):
+   for i,v in enumerate(obj):visit(v,depth+1,path+'['+str(i)+']')
+  elif isinstance(obj,dict):
+   types=obj.get('@type',[]);types=[types] if isinstance(types,str) else types
+   name=obj.get('name')
+   if isinstance(types,list) and 'Product' in types and isinstance(name,str) and name.strip():result.append({'name':' '.join(name.split())[:200],'source':path+'.Product.name'})
+   if isinstance(types,list) and 'ItemList' in types:
+    for i,item in enumerate(obj.get('itemListElement',[]) if isinstance(obj.get('itemListElement'),list) else []):
+     if isinstance(item,dict):
+      candidate=item.get('item',item)
+      if isinstance(candidate,dict) and isinstance(candidate.get('name'),str) and candidate['name'].strip():result.append({'name':' '.join(candidate['name'].split())[:200],'source':path+'.ItemList.itemListElement['+str(i)+'].name'})
+   for key,value in obj.items():
+    if isinstance(value,(dict,list)):visit(value,depth+1,path+'.'+str(key))
+ for obj in objects:visit(obj)
+ return result[:12]
 
 def inspect_snapshot(snapshot,market):
  if market not in ('CN','US'):raise ValueError('请选择中国或美国市场')

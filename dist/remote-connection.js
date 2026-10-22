@@ -61,7 +61,7 @@
   function capture() { if (page === 'research') researchSave(); }
   function paint() { if (page === 'research') render(); }
   function clear(message = '请重新登录。') {
-    epoch++; for (const controller of pending) controller.abort(); pending.clear();
+    epoch++; window.dispatchEvent(new Event('remote-enrichment-invalidated')); for (const controller of pending) controller.abort(); pending.clear();
     token = ''; geoToken = ''; connection.expiresAt = 0; connection.offline = false; connection.busy = false; connection.verified = false; connection.saved = false; connection.remembered = false;
     clearTimeout(expiryTimer); clearTimeout(geoTimer); submission = false;
     connection.message = message; connection.notice = '';
@@ -96,7 +96,7 @@
     current(generation);
     const controller = new AbortController(); pending.add(controller);
     let timedOut = false;
-    const paid = /\/api\/geo\/(start|sample)$/.test(path);
+    const paid = /\/api\/geo\/(start|sample|enrich)$/.test(path);
     const timer = setTimeout(() => { timedOut = true; controller.abort(); }, paid ? 135000 : 20000);
     try {
       let response;
@@ -105,7 +105,7 @@
           headers:{...(auth ? {Authorization:'Bearer '+auth} : {}),...(body === undefined ? {} : {'Content-Type':'application/json'})},...(body === undefined ? {} : {body:JSON.stringify(body)})});
       } catch {
         current(generation);
-        const message = paid ? '提交结果未确认，请先刷新团队任务列表核对，避免重复提交收费。' : '后台连接失败，已保存的登录不会被删除。请检查网络后手动刷新。';
+        const message = /\/api\/geo\/enrich$/.test(path) ? '官网识别提交结果未确认，不会自动重发；可手动填写或稍后查看缓存。' : paid ? '提交结果未确认，请先刷新团队任务列表核对，避免重复提交收费。' : '后台连接失败，已保存的登录不会被删除。请检查网络后手动刷新。';
         throw Object.assign(error((timedOut ? '后台请求超时。' : '')+message+' 实际请求后台：'+url,'network'),{connectionFailure:true});
       }
       if (generation !== epoch && path === '/api/workspace/login') {
@@ -171,10 +171,18 @@
   const common = ['website','market','brand_aliases','skus','competitors','focus','context','count','repeats','providers','generator'];
   function payload(name, body) {
     if (body === undefined) return undefined;
-    const fields = {inspect:['website','market'],plan:[...common,'generate_only','manual'],start:[...common,'generate_only'],sample:[...common,'prompts'],analyze:['id','brand_aliases','skus','competitors'],stop:['id']}[name];
+    const fields = {enrich:['website','market','request_id'],inspect:['website','market'],plan:[...common,'generate_only','manual'],start:[...common,'generate_only'],sample:[...common,'prompts'],analyze:['id','brand_aliases','skus','competitors'],stop:['id']}[name];
     if (!fields) throw error('该操作不属于团队接口。');
     return Object.fromEntries(fields.filter(key => Object.hasOwn(body,key)).map(key => [key,body[key]]));
   }
+  // Identity snapshots contain no bearer token; enrichment is independent of paid research readiness.
+  window.remoteEnrichmentContext = () => ({backend:connection.url,epoch,authenticated:Boolean(token && connection.verified && !connection.offline && Date.now() < connection.expiresAt)});
+  window.remoteEnrich = async function(bodyOrId) {
+    if (!remoteEnrichmentContext().authenticated) throw error('请先登录团队后台；也可以手动填写。','unauthorized');
+    const generation = epoch;
+    if (typeof bodyOrId === 'string' && !/^[0-9a-f-]{36}$/i.test(bodyOrId)) throw error('识别编号无效。','invalid_request');
+    return request('/api/geo/enrich'+(typeof bodyOrId === 'string' ? '?id='+encodeURIComponent(bodyOrId) : ''),typeof bodyOrId === 'string' ? undefined : payload('enrich',bodyOrId),{generation});
+  };
   window.remoteCanRun = canRun;
   window.remoteNormalizeSelection = normalize;
   window.remoteConnectionMarkup = function() {

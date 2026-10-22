@@ -1,0 +1,37 @@
+name: Check public website candidates
+on:
+  push:
+    branches: ['diagnose/brand-source-*']
+permissions:
+  contents: read
+jobs:
+  inspect:
+    if: github.event.deleted == false && github.event.forced == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - name: Read Cremo official page without a model call
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 - <<'PYCODE'
+          import sys
+          sys.path[:0]=['tools','deploy']
+          from geo_flow import fetch_website
+          from brand_enrichment import website_candidates
+          from connection_diagnostics import publish
+          report={'kind':'public_website_candidates','url':'https://cremocompany.com/','chat_calls':0}
+          try:
+              page=fetch_website(report['url'],allow_short=True)
+              brand,products=website_candidates(page,'US')
+              report.update(status='fetched',brand=brand,products=products,captured_at=page['captured_at'],content_sha256=page['content_sha256'])
+          except Exception:
+              report.update(status='failed',error='website_fetch_or_extraction_failed')
+          print('Saved public source evidence to '+publish(report))
+          if report['status']!='fetched':sys.exit(1)
+          PYCODE

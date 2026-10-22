@@ -59,6 +59,9 @@ class WebsiteInspectionTests(unittest.TestCase):
   self.assertEqual(title['brand']['name'],'Page Brand');self.assertTrue(title['brand']['needs_confirmation'])
  def test_normalization_and_disallowed_targets(self):
   self.assertEqual(inspection.normalize_url(' Example.COM/product?q=x#section '),'https://example.com/product?q=x')
+  self.assertEqual(inspection.normalize_url('https://EXAMPLE.com:443/'),'https://example.com/')
+  self.assertEqual(inspection.normalize_url('http://EXAMPLE.com:80/'),'http://example.com/')
+  self.assertEqual(inspection.normalize_url('http://example.com:443/'),'http://example.com:443/')
   self.assertEqual(inspection.normalize_url('https://example.com/产品?q=中文'),'https://example.com/%E4%BA%A7%E5%93%81?q=%E4%B8%AD%E6%96%87')
   for value in ('https://user:pass@example.com','file:///etc/passwd','https://example.com:9000','https://exam\nple.com','https://example.com\\@evil.com'):
    with self.assertRaises(ValueError):inspection.normalize_url(value)
