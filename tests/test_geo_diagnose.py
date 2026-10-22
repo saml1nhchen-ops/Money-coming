@@ -98,6 +98,19 @@ class HTTPDiagnostics(unittest.TestCase):
    if path in ('start','diagnostic-start'):self.api.calls.append((service,'start',copy.deepcopy(body)));raise Failure(502,'upstream_failed')
    return original(service,path,body)
   self.api.call=fail;_,d=self.req('POST','/api/diagnostics',self.payload('full'));d=self.done(d['id']);self.assertEqual(d['status'],'partial');self.assertEqual(d['error_code'],'upstream_failed');self.assertEqual(self.w.budget.state()['reserved'],33);self.assertEqual(sum(p=='start' for _,p,_ in self.api.calls),1)
+ def test_three_model_diagnostic_exports90_and_frozen_retest_budget_is90(self):
+  self.w.profiles.extend([{'id':p,'model':p+'-test','manufacturer':vendor,'protocol':'chat','markets':['US','CN'],'search':False} for p,vendor in [('gemini','Google'),('claude','Anthropic')]])
+  body=self.payload('full');body['profile_ids']=['gpt','gemini','claude']
+  for bad in ([],['gpt','gpt'],['unknown']):
+   self.assertEqual(self.req('POST','/api/diagnostics',{**body,'profile_ids':bad})[0],400)
+  code,d=self.req('POST','/api/diagnostics',body);self.assertEqual(code,202);self.assertEqual(d['plan']['maximum_calls'],93);d=self.done(d['id']);self.assertIsNone(d['error_code']);self.assertEqual(len(d['bundle']['answers']),90);self.assertEqual(d['bundle']['run_manifest']['planned'],90);self.assertEqual(self.w.budget.state()['reserved'],93)
+  self.assertEqual(self.req('POST','/api/diagnostics',body)[0],200);self.assertEqual(self.w.budget.state()['reserved'],93)
+  original_submits=sum(p in ('start','sample') for _,p,_ in self.api.calls)
+  self.assertEqual(self.req('POST','/api/diagnostics/retest',{'id':d['id'],'request_id':str(uuid.uuid4())})[0],429);self.assertEqual(self.req('POST','/api/diagnostics',{**body,'request_id':str(uuid.uuid4())})[0],429);self.assertEqual(sum(p in ('start','sample') for _,p,_ in self.api.calls),original_submits);self.assertEqual(self.w.budget.state()['reserved'],93)
+  exported=self.req('GET','/api/diagnostics/export?id='+d['id'])[1];self.assertEqual(len(exported['bundle']['answers']),90)
+  # Simulate a subsequent UTC day by clearing only the test ledger; production
+  # daily limit stays 126 and no budget reset endpoint exists.
+  self.w.budget.path.write_text('{}');code,r=self.req('POST','/api/diagnostics/retest',{'id':d['id'],'request_id':str(uuid.uuid4())});self.assertEqual(code,202);self.assertEqual(r['plan']['maximum_calls'],90);self.assertEqual(r['plan']['generation_calls'],0);r=self.done(r['id']);self.assertIsNone(r['error_code']);self.assertEqual(r['frozen_prompts'],d['frozen_prompts']);self.assertEqual(len(r['bundle']['answers']),90);self.assertEqual(self.w.budget.state()['reserved'],90);self.assertEqual(self.w.budget.limit,126)
  def test_restart_history_and_store_failure_no_replay(self):
   body=self.payload();_,d=self.req('POST','/api/diagnostics',body);d=self.done(d['id']);d.update(status='running',stage='model_submitting');self.m.save(d);calls=len(self.api.calls)
   second=DiagnosticManager(self.w,self.m.path,self.root);self.addCleanup(second.pool.shutdown,True);self.assertEqual(second.detail(d['id'])['status'],'interrupted');self.assertEqual(len(self.api.calls),calls);history=[x for x in second.listing()['diagnostics'] if x.get('legacy_type')];self.assertTrue(history);self.assertEqual(self.req('POST','/api/diagnostics/share',{'id':history[0]['id']})[0],403)

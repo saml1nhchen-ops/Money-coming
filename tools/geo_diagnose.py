@@ -143,7 +143,7 @@ class DiagnosticManager:
    audit=self.w.auditor.get_internal(aid)
    if audit['status'] in ('queued','running'):raise DiagnosticError(409,'busy')
    confirmed=validate_confirmation(data['confirmed'],audit);profiles=data['profile_ids']
-   if not isinstance(profiles,list) or len(profiles)>2 or any(not isinstance(p,str) for p in profiles) or len(set(profiles))!=len(profiles):raise DiagnosticError(400,'invalid_request')
+   if not isinstance(profiles,list) or len(profiles)>16 or any(not isinstance(p,str) for p in profiles) or len(set(profiles))!=len(profiles):raise DiagnosticError(400,'invalid_request')
    if mode=='full' and (not profiles or not confirmed['brand']['name']):raise DiagnosticError(400,'invalid_request')
    if mode=='website' and profiles:raise DiagnosticError(400,'invalid_request')
    selected={p['id']:p for p in self.w.profiles}

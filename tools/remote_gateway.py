@@ -5,6 +5,9 @@ from geo_audit import AuditError
 from geo_diagnose import DiagnosticError
 from device_sessions import DeviceSessions,StoreUnavailable,SessionLimit,GenerationChanged,MAX_AGE
 ORIGIN='https://saml1nhchen-ops.github.io'
+MAX_ANALYSIS_MODELS=16
+def analysis_max_models(profiles):
+ return min(MAX_ANALYSIS_MODELS,len({p['id'] for p in profiles}))
 UUID=re.compile(r'[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}\Z')
 class Failure(Exception):
  def __init__(self,status,code): self.status=status;self.code=code
@@ -147,7 +150,7 @@ class Workspace:
   if path=='inspect':return
   if type(d.get('count',30))!=int or d.get('count',30)!=30 or type(d.get('repeats',1))!=int or d.get('repeats',1)!=1:raise Failure(400,'invalid_request')
   ids=d.get('providers');allowed={p['id'] for p in self.profiles}
-  if not isinstance(ids,list) or not 1<=len(ids)<=2 or any(not isinstance(p,str) or p not in allowed for p in ids) or len(set(ids))!=len(ids) or d.get('generator') not in ids:raise Failure(400,'invalid_request')
+  if not isinstance(ids,list) or not 1<=len(ids)<=MAX_ANALYSIS_MODELS or any(not isinstance(p,str) or p not in allowed for p in ids) or len(set(ids))!=len(ids) or d.get('generator') not in ids:raise Failure(400,'invalid_request')
   for k in ('generate_only','manual'):
    if k in d and type(d[k])!=bool:raise Failure(400,'invalid_request')
   if path=='sample':
@@ -168,7 +171,7 @@ class Workspace:
      else:self.active=None
     maintenance=self.maintenance_requested.is_set()
     s['runner']['profiles']=self.profiles;s['runner']['configured']=self.ready;s['runner']['fetched_at']=getattr(self,'fetched_at',None)
-    s['remote']={'mode':'shared_team','shared_reports':True,'ready':self.ready and not self.stopping() and not maintenance,'model_ready':self.ready,'maintenance':maintenance,'deployment_gate':'signals-v1','reason':'maintenance' if maintenance else self.reason,'limits':{'count':30,'max_models':2,'repeats':1},'budget':self.budget.state()};return s,200
+    s['remote']={'mode':'shared_team','shared_reports':True,'ready':self.ready and not self.stopping() and not maintenance,'model_ready':self.ready,'maintenance':maintenance,'deployment_gate':'signals-v1','reason':'maintenance' if maintenance else self.reason,'limits':{'count':30,'max_models':analysis_max_models(self.profiles),'repeats':1},'budget':self.budget.state()};return s,200
   if d is not None and self.diagnostic_active and _diagnostic!=self.diagnostic_active and path in ('audit','audit-confirm','enrich','start','sample','analyze'):
    raise Failure(409,'busy')
   if path.startswith('audit'):
@@ -283,7 +286,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     if w.session_store is not None and w.session_store.usable():metadata['capabilities']={'remember_login':True,'remember_login_max_age_seconds':MAX_AGE}
     if w.diagnostics is not None:metadata.setdefault('capabilities',{})['diagnostics_v1']=True
     manufacturers=sorted({p.get('manufacturer') for p in w.profiles if p.get('manufacturer') in ('OpenAI','Google','Anthropic')})
-    metadata.setdefault('capabilities',{}).update(claude_available='Anthropic' in manufacturers,analysis_manufacturers=manufacturers)
+    metadata.setdefault('capabilities',{}).update(claude_available='Anthropic' in manufacturers,analysis_manufacturers=manufacturers,analysis_all_models=True,analysis_max_models=analysis_max_models(w.profiles))
     return self.reply({'ok':not w.stopping(),**metadata},200 if not w.stopping() else 503)
    if u.path not in (get if self.command=='GET' else post):raise Failure(404,'not_found')
    if u.path in ('/api/geo/run','/api/geo/export','/api/geo/enrich','/api/geo/audit','/api/geo/audit-export','/api/diagnostics/detail','/api/diagnostics/export') and self.command=='GET':

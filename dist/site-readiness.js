@@ -109,6 +109,7 @@
       const r=results[i];if(r.status==='fulfilled')s[['clients','projects','diagnostics'][i]]=array(r.value[['clients','projects','diagnostics'][i]]);
       else s.message=r.reason.message;
     }
+    if(s.refreshWorkspaceAfterLoad){s.refreshWorkspaceAfterLoad=false;s.workspaceLoaded=false;}
     if(!array(s.projects).some(p=>p.id===s.projectID && !p.internal))s.projectID=array(s.projects).find(p=>!p.internal)?.id || '';
     repaint();
   }
@@ -141,7 +142,7 @@
     return identity().authenticated && !workspaceReady()?'<p class="sr-warning" role="status">后台正在升级，完整诊断与历史功能尚未就绪。不会自动启动旧版分析。你仍可填写官网，稍后继续。</p>':'';
   }
   function profileOptions(s) {
-    const seen=new Set(),profiles=array(geoState.runner?.profiles).filter(p=>array(p.markets).includes(geoMarket) && !seen.has(p.manufacturer || p.model) && seen.add(p.manufacturer || p.model));
+    const seen=new Set(),profiles=array(geoState.runner?.profiles).filter(p=>array(p.markets).includes(geoMarket) && !seen.has(p.id) && seen.add(p.id));
     if(s.profileIDs===undefined)s.profileIDs=profiles.slice(0,2).map(p=>p.id);
     return profiles;
   }
@@ -165,7 +166,7 @@
   }
   function modelConfirm(s) {
     const profiles=profileOptions(s),mode=s.runMode || 'full',selected=selectedProfiles(s),count=planMaximum(s),generation=count-30*selected.length;
-    return `<section class="sr-card"><h2>确认本次诊断方案</h2><p>${text(s.draft.brand || s.url)} · ${geoMarket==='US'?'美国市场':'中国市场'}</p>${projectSelect(s)}<fieldset class="wf-choice"><legend>诊断范围</legend><label><input type="radio" name="workflow-mode" value="full" ${mode==='full'?'checked':''}> 官网与 30 道问题（默认）</label><label><input type="radio" name="workflow-mode" value="website" ${mode==='website'?'checked':''}> 仅检查官网</label></fieldset>${mode==='full'?`<div id="workflow-profile-group" tabindex="-1"><h3>选择要比较的 AI</h3><p>每家回答同一组 30 道问题，最多选择两家。</p><div class="wf-profiles">${profiles.map(p=>`<label><input type="checkbox" data-wf-profile="${text(p.id)}" ${selected.includes(p.id)?'checked':''}> ${text(p.name || p.model)}</label>`).join('') || '<p>尚无可用连接，请联系管理员配置；也可以选择仅检查官网。</p>'}</div>${s.profileError?`<p id="workflow-profile-error" class="sr-warning" role="alert">${text(s.profileError)}</p>`:''}</div>`:''}<div class="wf-call-confirm"><p>${mode==='full'?`预计最多 ${count} 次请求：${generation?'生成问题最多 3 次，':'复用项目已保存的 30 道问题，'}收集回答 ${30*selected.length} 次。`:'仅检查官网，不产生模型调用费用。'}</p>${mode==='full'?'<p>服务按实际用量计费，不自动充值；实际金额以服务商账单为准。开始后刷新、返回或离开页面不会撤销后台已提交的任务。</p><label><input id="workflow-cost-consent" type="checkbox" '+(s.costConsent?'checked':'')+'> 我已核对范围与预计请求，确认开始并承担实际费用</label>':''}</div><div id="workflow-start-feedback" aria-live="assertive" aria-atomic="true">${s.startError?`<p id="workflow-start-error" class="sr-warning" role="alert" tabindex="-1">${text(s.startError)}</p>`:s.startNotice?`<p id="workflow-start-notice" role="status" tabindex="-1">${text(s.startNotice)}</p>`:''}</div><div class="sr-actions"><button id="workflow-brand-back" data-wf="brand">← 返回修改信息</button><button class="primary" data-wf="start" ${s.pending || s.inlineProjectPending || !workspaceReady()?'disabled':''}>${s.pending?'正在提交…':'确认并开始诊断'}</button></div></section>`;
+    return `<section class="sr-card"><h2>确认本次诊断方案</h2><p>${text(s.draft.brand || s.url)} · ${geoMarket==='US'?'美国市场':'中国市场'}</p>${projectSelect(s)}<fieldset class="wf-choice"><legend>诊断范围</legend><label><input type="radio" name="workflow-mode" value="full" ${mode==='full'?'checked':''}> 官网与 30 道问题（默认）</label><label><input type="radio" name="workflow-mode" value="website" ${mode==='website'?'checked':''}> 仅检查官网</label></fieldset>${mode==='full'?`<div id="workflow-profile-group" tabindex="-1"><h3>选择要比较的 AI</h3><p>每家回答同一组 30 道问题，可选择全部已配置的 AI。</p><div class="sr-actions"><button type="button" data-wf="profiles-all">全选</button><button type="button" data-wf="profiles-none">清空</button></div><div class="wf-profiles">${profiles.map(p=>`<label><input type="checkbox" data-wf-profile="${text(p.id)}" ${selected.includes(p.id)?'checked':''}> ${text(p.name || p.model)}</label>`).join('') || '<p>尚无可用连接，请联系管理员配置；也可以选择仅检查官网。</p>'}</div>${s.profileError?`<p id="workflow-profile-error" class="sr-warning" role="alert">${text(s.profileError)}</p>`:''}</div>`:''}<div class="wf-call-confirm"><p>${mode==='full'?`预计最多 ${count} 次请求：${generation?'生成问题最多 3 次，':'复用项目已保存的 30 道问题，'}收集回答 ${30*selected.length} 次。`:'仅检查官网，不产生模型调用费用。'}</p>${mode==='full'?'<p>服务按实际用量计费，不自动充值；实际金额以服务商账单为准。开始后刷新、返回或离开页面不会撤销后台已提交的任务。</p><label><input id="workflow-cost-consent" type="checkbox" '+(s.costConsent?'checked':'')+'> 我已核对范围与预计请求，确认开始并承担实际费用</label>':''}</div><div id="workflow-start-feedback" aria-live="assertive" aria-atomic="true">${s.startError?`<p id="workflow-start-error" class="sr-warning" role="alert" tabindex="-1">${text(s.startError)}</p>`:s.startNotice?`<p id="workflow-start-notice" role="status" tabindex="-1">${text(s.startNotice)}</p>`:''}</div><div class="sr-actions"><button id="workflow-brand-back" data-wf="brand">← 返回修改信息</button><button class="primary" data-wf="start" ${s.pending || s.inlineProjectPending || !workspaceReady()?'disabled':''}>${s.pending?'正在提交…':'确认并开始诊断'}</button></div></section>`;
   }
   function focusWorkflow(id) {
     requestAnimationFrame(()=>{const target=document.getElementById(id);if(target){target.focus({preventScroll:true});target.scrollIntoView({block:'center',behavior:'smooth'});}});
@@ -324,7 +325,9 @@
     const mode=s.runMode || 'full',ids=selectedProfiles(s);
     if(!array(s.projects).some(p=>p.id===s.projectID&&!p.internal)){startError('请选择保存项目，或在本页创建团队项目后继续。','workflow-project');return;}
     if(mode==='full' && !s.draft.brand.trim()){startError('请返回上一步填写品牌名称。','workflow-brand-back');return;}
-    if(mode==='full' && (!ids.length || ids.length>2)){startError('请选择 1–2 家 AI，最多选择两家。','workflow-profile-group');return;}
+    if(mode==='full' && !ids.length){startError('请至少选择一家 AI。','workflow-profile-group');return;}
+    const backendLimit=geoState.remote?.limits?.max_models;
+    if(mode==='full' && Number.isFinite(backendLimit) && backendLimit>0 && ids.length>backendLimit){startError('后台正在更新，请稍后重新读取状态。已保留你的全部选择，不会减少后自动提交。','workflow-profile-group');return;}
     if(mode==='full' && !s.costConsent){startError('请勾选本次诊断的范围与费用确认。','workflow-cost-consent');return;}
     const j=job();s.pending=true;s.message='';s.startError='';s.startNotice='';s.startRequestID ||= crypto.randomUUID();repaint();
     const payload={audit_id:s.audit.id,confirmed:confirmed(s),profile_ids:mode==='full'?ids:[],project_id:s.projectID,request_id:s.startRequestID,mode};
@@ -332,7 +335,9 @@
     catch(e){if(current(j)){s.pending=false;startError(e.message+' 不会自动重新提交；结果未确认时请先核对历史诊断。');}}
   }
   function acceptDiagnostic(j,d) {
-    if(!current(j))return;const s=session();s.detail=d;s.detailID=d.id;s.pending=false;s.message='';s.detailLoading=false;s.detailLoaded=true;
+    if(!current(j))return;const s=session();
+    if(terminal(d.status) && s.lastTerminalRefresh!==d.id){s.lastTerminalRefresh=d.id;s.workspaceLoaded=false;if(s.workspaceLoading)s.refreshWorkspaceAfterLoad=true;}
+    s.detail=d;s.detailID=d.id;s.pending=false;s.message='';s.detailLoading=false;s.detailLoaded=true;
     if(!terminal(d.status))pollTimer=setTimeout(()=>pollDiagnostic(j,d.id),1500);repaint();
   }
   async function pollDiagnostic(j,id) {if(!current(j))return;try{acceptDiagnostic(j,await remoteWorkspace('detail',id));}catch(e){failure(j,e);}}
@@ -399,7 +404,7 @@
     if(id==='workflow-project'){const before=planMaximum(s);s.projectID=e.target.value;if(planMaximum(s)>before)s.costConsent=false;s.projectError='';s.startError='';s.invalidField='';repaint();}
     if(id==='workflow-cost-consent')s.costConsent=e.target.checked;
     if(e.target.name==='workflow-mode'){s.runMode=e.target.value;s.costConsent=false;repaint();}
-    if(e.target.hasAttribute('data-wf-profile')){const key=e.target.dataset.wfProfile;if(e.target.checked&&!array(s.profileIDs).includes(key)&&array(s.profileIDs).length>=2){e.target.checked=false;s.profileError='最多选择两家，请先取消一家再选择其他 AI。';repaint();return;}s.profileIDs=e.target.checked?[...new Set([...array(s.profileIDs),key])]:array(s.profileIDs).filter(v=>v!==key);s.profileError='';s.startError='';s.costConsent=false;repaint();}
+    if(e.target.hasAttribute('data-wf-profile')){const key=e.target.dataset.wfProfile;s.profileIDs=e.target.checked?[...new Set([...array(s.profileIDs),key])]:array(s.profileIDs).filter(v=>v!==key);s.profileError='';s.startError='';s.costConsent=false;repaint();}
     for(const [field,name] of [['workflow-filter-client','filterClient'],['workflow-filter-project','filterProject'],['workflow-filter-market','filterMarket']])if(id===field){s[name]=e.target.value;if(name==='filterClient')s.filterProject='';repaint();}
   },true);
   document.addEventListener('click',e=>{
@@ -407,6 +412,7 @@
     const rev=e.target.closest('[data-wf-revoke]');if(rev){void share(rev.dataset.wfRevoke);return;}
     const button=e.target.closest('[data-wf],[data-sr]');if(!button)return;
     const action=button.dataset.wf || button.dataset.sr,s=session();e.preventDefault();
+    if(action==='profiles-all' || action==='profiles-none'){s.profileIDs=action==='profiles-all'?profileOptions(s).map(p=>p.id):[];s.profileError='';s.startError='';s.startNotice='';s.costConsent=false;repaint();return;}
     if(action==='confirm'){s.screen='models';s.message='';s.costConsent=false;s.startError='';s.startNotice='';repaint();return;}
     if(action==='refresh'){void analyze(true);return;}
     if(action==='inline-project'){void createInlineProject();return;}

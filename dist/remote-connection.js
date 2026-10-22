@@ -160,13 +160,8 @@
   };
   window.remotePasswordLogin = function() { capture(); clear('请重新输入团队密码。'); paint(); };
   function normalize() {
-    const draft = geoDraft[geoMarket], profiles = geoState.runner.profiles || [], seen = new Set();
-    draft.providers = [...new Set(draft.providers || [])].filter(id => {
-      const p = profiles.find(p => p.id === id && p.markets?.includes(geoMarket));
-      const vendor = p?.manufacturer || p?.model;
-      if (!p || seen.has(vendor) || seen.size >= 2) return false;
-      seen.add(vendor); return true;
-    });
+    const draft = geoDraft[geoMarket], profiles = geoState.runner.profiles || [];
+    draft.providers = [...new Set(draft.providers || [])].filter(id => profiles.some(p=>p.id===id && p.markets?.includes(geoMarket)));
     if (!draft.providers.includes(draft.generator)) draft.generator = draft.providers[0] || '';
     draft.count = '30'; draft.repeats = '1';
   }
@@ -311,11 +306,15 @@
   geoLoad = async function() { paint(); };
   geoPayload = function() { const body = nativePayload(); normalize(); const d = geoDraft[geoMarket]; return {...body,market:geoMarket,count:30,repeats:1,providers:[...d.providers],generator:d.generator}; };
   geoOptions = function() { const d = geoDraft[geoMarket]; return geoState.runner.profiles.filter(p => d.providers?.includes(p.id) && p.markets?.includes(geoMarket)).map(p => `<option value="${esc(p.id)}" ${d.generator === p.id ? 'selected' : ''}>${esc(p.model)}</option>`).join('') || '<option value="">先选择回答模型</option>'; };
+  // Team selection is per actual profile, including multiple models from the same manufacturer.
+  researchChoices = function() {
+    const d=geoDraft[geoMarket],seen=new Set();
+    return geoState.runner.profiles.filter(p=>p.markets?.includes(geoMarket) && !seen.has(p.id) && seen.add(p.id)).map(p=>({vendor:p.id,ps:[p],p,selected:d.providers?.includes(p.id)===true,display:[p.name || p.model,(p.manufacturer || p.name || 'AI').slice(0,1),researchVendors[p.manufacturer]?.[2] || '#6554d9']}));
+  };
   researchToggle = function(vendor) {
     capture(); const d = geoDraft[geoMarket], group = researchChoices().find(g => g.vendor === vendor); if (!group) return;
     const ids = new Set(group.ps.map(p => p.id));
     if (group.selected) d.providers = d.providers.filter(id => !ids.has(id));
-    else if ((d.providers || []).length >= 2) { researchMessage = '最多选择两家厂商，每家一个固定模型。'; paint(); return; }
     else d.providers = [...(d.providers || []),group.p.id];
     researchMessage = ''; normalize(); paint();
   };
@@ -327,15 +326,17 @@
     let message = '';
     if (!token) message = '请先连接团队后台并登录。';
     else if (!ready()) message = '后台未就绪或连接已中断，请查看连接状态并刷新。';
-    else if (!providers.length || providers.length > 2) message = '请选择 1–2 个固定文本模型。';
+    else if (!providers.length) message = '请至少选择一个固定文本模型。';
+    else if (Number.isFinite(geoState.remote?.limits?.max_models) && geoState.remote.limits.max_models>0 && providers.length>geoState.remote.limits.max_models) message='后台正在更新，请稍后重新读取状态；已保留全部选择。';
     else if (manual && (prompts.length !== 30 || new Set(prompts).size !== 30 || prompts.some(p => p.length > 4000))) message = '手工采样需要恰好 30 道不同问题，每题不超过 4000 字符。';
     else if (!canRun(calls)) message = '后台已有任务或调用额度不足，请刷新状态并核对计划。';
     if (message) { researchMessage = message; paint(); return; }
     submission = true; const generation = epoch; paint();
     try { await nativeStart(manual,generateOnly); } finally { if (generation === epoch) { submission = false; paint(); } }
   };
-  researchSelect = function() { return nativeSelect().replace(/<a class="button primary" href="http:\/\/127\.0\.0\.1:8771[^>]*>[^<]*<\/a>/g,'<a class="button primary" href="#remote-connection">连接团队后台</a>'); };
-  researchAdvanced = function() { return nativeAdvanced().replace(/<p><a href="http:\/\/127\.0\.0\.1:8771[\s\S]*?<\/p>/g,'<p class="ru-help">供应商密钥仅在服务器配置；目录可见不等于实际调用已验证。每家使用一个固定模型，不自动切换或重试。</p>'); };
+  window.remoteSelectProfiles = function(all) { capture();const d=geoDraft[geoMarket];d.providers=all?researchChoices().map(g=>g.p.id):[];normalize();paint(); };
+  researchSelect = function() { return nativeSelect().replace('点选要测试的厂商。每家使用一个模型，回答同一组 30 道问题。','选择要测试的模型，每个所选模型回答同一组 30 道问题。').replace('每题问一次 · 每家一个模型','每题问一次 · 每个所选模型分别回答').replace('<div class="ru-model-grid">','<div class="actions"><button type="button" onclick="remoteSelectProfiles(true)">全选</button><button type="button" onclick="remoteSelectProfiles(false)">清空</button></div><div class="ru-model-grid">').replace(/<a class="button primary" href="http:\/\/127\.0\.0\.1:8771[^>]*>[^<]*<\/a>/g,'<a class="button primary" href="#remote-connection">连接团队后台</a>'); };
+  researchAdvanced = function() { return nativeAdvanced().replace(/<p><a href="http:\/\/127\.0\.0\.1:8771[\s\S]*?<\/p>/g,'<p class="ru-help">供应商密钥仅在服务器配置；目录可见不等于实际调用已验证。每个所选模型分别执行，不自动切换或重试。</p>'); };
   researchResults = function() { const html = nativeResults().replace(/<button onclick="geoResume\(\)">[^<]*<\/button>/g,''); return html + (geoActive && !geoActive.report && typeof questionCards === 'function' ? questionCards(geoActive) : ''); };
   geoPage = function() { return remoteConnectionMarkup() + nativePage(); };
   function consumeDraft() {

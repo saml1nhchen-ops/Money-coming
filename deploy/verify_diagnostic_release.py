@@ -40,14 +40,16 @@ def main():
             report['releases'] = [{'id': r['id'], 'status': r['status'], 'conclusion': r.get('conclusion'), 'url': r['html_url']} for r in releases]
             report['health'] = json.loads(get(BACKEND + '/healthz'))
             assets = []
-            for name in ('team.html', 'site-readiness.js', 'site-readiness.css', 'remote-connection.js'):
+            for name in ('team.html', 'site-readiness.js', 'site-readiness.css', 'remote-connection.js', 'research-ui.js'):
                 actual = hashlib.sha256(get(FRONT + name + '?v=' + revision)).hexdigest()
                 expected = hashlib.sha256((ROOT / 'dist' / name).read_bytes()).hexdigest()
                 assets.append({'name': name, 'matches': actual == expected, 'sha256': actual})
             report['frontend'] = assets
             deployed = bool(any(r.get('conclusion') == 'success' for r in releases) and report['health'].get('revision') == revision and report['health'].get('ok') is True and report['health'].get('capabilities', {}).get('diagnostics_v1') is True and all(a['matches'] for a in assets))
             report['claude_available'] = report['health'].get('capabilities', {}).get('claude_available') is True
-            report['ok'] = deployed and report['claude_available']
+            caps = report['health'].get('capabilities', {})
+            report['all_models_available'] = caps.get('analysis_all_models') is True and isinstance(caps.get('analysis_max_models'), int) and caps['analysis_max_models'] >= 3
+            report['ok'] = deployed and report['claude_available'] and report['all_models_available']
             report.pop('observation_error', None)
             if deployed:
                 break

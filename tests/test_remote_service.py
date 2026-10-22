@@ -35,7 +35,7 @@ class BootstrapTests(unittest.TestCase):
    with patch('remote_service.prepare_dependencies',return_value=True):bootstrap(w,{'SIGNAL_BAI_API_KEY':'synthetic-key'})
    self.assertTrue(w.ready);self.assertEqual([p['manufacturer'] for p in w.profiles],['OpenAI','Google','Anthropic']);self.assertEqual(len(api.calls),4);self.assertTrue(all(b['search'] is False and b['protocol']=='chat' for p,b in api.calls if p=='profile'));self.assertEqual(w.budget.state()['reserved'],0)
    cfg={'website':'https://example.com/','market':'US','providers':[p['id'] for p in w.profiles],'generator':w.profiles[0]['id']}
-   with self.assertRaises(Failure):w.validate('start',cfg)
+   w.validate('start',cfg);self.assertEqual(len(cfg['providers']),3)
    cfg['providers']=[w.profiles[0]['id'],w.profiles[2]['id']];w.validate('start',cfg);self.assertEqual(cfg['count'],30);self.assertEqual(cfg['repeats'],1)
  def test_explicit_missing_claude_reports_configuration_failure_without_profile_mutation(self):
   class API:

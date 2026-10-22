@@ -22,7 +22,7 @@ class DurableHTTPTests(unittest.TestCase):
   if password is not None:self.password=password
   self.store=DeviceSessions(self.path,self.password);self.w=self.workspace(self.store,self.password);self.server.workspace=self.w
  def test_capability_legacy_payload_and_same_volume_restart(self):
-  self.assertEqual(self.request('/healthz')[1]['capabilities'],{'remember_login':True,'remember_login_max_age_seconds':MAX_AGE,'claude_available':False,'analysis_manufacturers':[]})
+  self.assertEqual(self.request('/healthz')[1]['capabilities'],{'remember_login':True,'remember_login_max_age_seconds':MAX_AGE,'claude_available':False,'analysis_manufacturers':[],'analysis_all_models':True,'analysis_max_models':0})
   status,legacy=self.request('/api/workspace/login',{'password':self.password});self.assertEqual(status,200);self.assertFalse(legacy['remembered']);self.assertFalse(legacy['token'].startswith('td1_'))
   now=time.time();status,trusted=self.login();self.assertEqual(status,200);self.assertTrue(trusted['remembered']);self.assertTrue(trusted['token'].startswith('td1_'));self.assertEqual(self.request('/api/geo/state',token=trusted['token'])[0],200)
   from datetime import datetime

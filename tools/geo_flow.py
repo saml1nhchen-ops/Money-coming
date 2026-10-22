@@ -167,7 +167,7 @@ def validate(d,check_models=True):
   if type(v)!=int or not 1<=v<=limit:raise ValueError('题数 1–300；新任务每题只调用一次，默认每市场 30 道不同题目')
   d[f]=v
  ids=d.get('providers',[])
- if not isinstance(ids,list) or not 1<=len(ids)<=16 or len(set(ids))!=len(ids) or len(ids)*d['count']*d['repeats']>15000:raise ValueError('请选择 1–16 个厂商；单任务最多 15000 次回答')
+ if not isinstance(ids,list) or not 1<=len(ids)<=16 or len(set(ids))!=len(ids) or len(ids)*d['count']*d['repeats']>15000:raise ValueError('请选择 1–16 个实际模型；单任务最多 15000 次回答')
  for f in ('focus','context'):
   if not isinstance(d.get(f,''),str) or len(d.get(f,''))>18000:raise ValueError('业务背景过长')
  if not check_models:return d
@@ -175,9 +175,6 @@ def validate(d,check_models=True):
  if not state['configured']:raise ValueError('请先在 B.AI 页面连接密钥并配置模型')
  for pid in [*ids,d.get('generator')]:
   if pid not in profiles or d['market'] not in profiles[pid]['markets']:raise ValueError('生成模型和测试模型必须属于当前市场')
- manufacturers=[geo_plan.vendor(profiles[pid]) for pid in ids]
- if len(set(manufacturers))!=len(manufacturers):raise ValueError('每个厂商只保留一个固定模型；同一厂商的直连与聚合渠道也不能同时计入')
- if any(v.startswith('未识别:') for v in manufacturers):raise ValueError('无法识别所选模型的厂商，请先使用明确的厂商模型 ID')
  d['configuration']={pid:profiles[pid] for pid in set([*ids,d['generator']])}
  return d
 
