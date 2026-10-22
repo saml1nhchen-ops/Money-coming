@@ -9,6 +9,7 @@ import ai_api as shared
 import geo_analysis,geo_plan
 import website_inspection
 import pinned_http
+import website_check
 ROOT=pathlib.Path(__file__).resolve().parents[1];DATA=ROOT/'runtime/geo-flows';PORT=8772
 TOKEN=secrets.token_urlsafe(32);POOL=concurrent.futures.ThreadPoolExecutor(max_workers=1);GUARD=threading.Lock();BUSY=False;CANCEL=set()
 SITE='https://signal-geo-workbench-lh.saml1nhchen.chatgpt.site';SESSIONS={}
@@ -50,32 +51,64 @@ class Extractor(HTMLParser):
   if not self.skip and s.strip():self.parts.append(s.strip())
 
 def fetch_website(url,allow_short=False):
- url=website_inspection.normalize_url(url)
- pinned_http.require_direct_policy()
+ check=website_check.Check()
+ try:url=website_inspection.normalize_url(url)
+ except ValueError:check.fail('invalid_address','unsafe','address')
+ check.value['final_url']=url;check.check('address','passed','address_ok')
+ try:pinned_http.require_direct_policy()
+ except ValueError:check.fail('proxy_unsupported','unsafe','address')
  for _ in range(5):
   try:u=urllib.parse.urlsplit(url);port=u.port
-  except ValueError:raise ValueError('官网地址无效') from None
-  if u.scheme not in ('https','http') or not u.hostname or u.username or u.password or port not in (None,80,443):raise ValueError('请输入公开官网的 HTTP(S) 地址')
-  addresses=socket.getaddrinfo(u.hostname,port or (443 if u.scheme=='https' else 80),type=socket.SOCK_STREAM)
-  if not addresses or any(not ipaddress.ip_address(a[4][0]).is_global for a in addresses):raise ValueError('官网必须解析为公开网络地址')
+  except ValueError:check.fail('invalid_address','unsafe','address')
+  check.value.update(final_url=url,http_status=None,content_type=None,bytes=None,readable_characters=None)
+  for key in ('dns','http','content'):next(r for r in check.value['checks'] if r['id']==key).update(status='unknown',message='尚无足够证据判断。')
+  if u.scheme not in ('https','http') or not u.hostname or u.username or u.password or port not in (None,80,443):check.fail('invalid_address','unsafe','address')
+  if u.scheme=='http':check.check('tls','skipped','tls_skipped')
+  else:next(r for r in check.value['checks'] if r['id']=='tls').update(status='unknown',message='尚无足够证据判断。')
+  try:addresses=socket.getaddrinfo(u.hostname,port or (443 if u.scheme=='https' else 80),type=socket.SOCK_STREAM)
+  except OSError:check.fail('dns_failed','unreachable','dns')
+  if not addresses:check.fail('dns_failed','unreachable','dns')
+  check.check('dns','passed','dns_ok')
+  if any(not ipaddress.ip_address(a[4][0]).is_global for a in addresses):check.fail('unsafe_address','unsafe','address')
   req=urllib.request.Request(url,headers={'User-Agent':'SignalGEO/1.0 website-research','Accept':'text/html,text/plain','Accept-Encoding':'identity'})
   try:
    with urllib.request.build_opener(urllib.request.ProxyHandler({}),pinned_http.PinnedHTTPHandler(addresses),pinned_http.PinnedHTTPSHandler(addresses),shared.NoRedirect).open(req,timeout=30) as r:
-    content_type=r.headers.get('Content-Type','').lower()
-    if not any(t in content_type for t in ('text/html','text/plain','application/xhtml')):raise ValueError('官网返回的不是网页文本')
-    raw=r.read(2*1024*1024+1)
-    if len(raw)>2*1024*1024:raise ValueError('网页超过 2 MB，请使用具体产品页')
-    html=raw.decode(r.headers.get_content_charset() or 'utf-8',errors='replace')
-    is_html='text/plain' not in content_type
+    status=getattr(r,'status',200);status=status if type(status)==int else 200
+    check.value['http_status']=status;check.check('http','passed','http_ok')
+    if u.scheme=='https':check.check('tls','passed','tls_ok')
+    kind=website_check.content_type(r.headers.get('Content-Type',''));check.value['content_type']=kind
+    if kind not in ('text/html','text/plain','application/xhtml+xml'):check.fail('unsupported_content','unsupported','content')
+    raw=r.read(2*1024*1024+1);check.value['bytes']=len(raw)
+    if len(raw)>2*1024*1024:check.fail('content_too_large','unsupported','content')
+    try:html=raw.decode(r.headers.get_content_charset() or 'utf-8',errors='replace')
+    except LookupError:html=raw.decode('utf-8',errors='replace')
+    is_html=kind!='text/plain'
     if is_html:
-     p=website_inspection.WebsiteExtractor();p.feed(html);text='\n'.join(p.parts)[:18000];metadata=p.metadata()
+     parser=website_inspection.WebsiteExtractor();parser.feed(html);text='\n'.join(parser.parts)[:18000];metadata=parser.metadata()
     else:text=html[:18000];metadata={'readable_characters':len(html.strip())}
-    if len(text)<100 and not allow_short:raise ValueError('网页可读内容过少，请换用具体产品页或填写业务背景')
-    return {'url':url,'captured_at':shared.stamp(),'content_sha256':hashlib.sha256(raw).hexdigest(),'text':text,'bytes':len(raw),'metadata':metadata,'is_html':is_html}
-  except urllib.error.HTTPError as e:
-   if e.code in (301,302,303,307,308) and e.headers.get('Location'):url=website_inspection.normalize_url(urllib.parse.urljoin(url,e.headers['Location']));continue
-   raise ValueError('官网读取 HTTP '+str(e.code)+'；可填写业务背景继续生成，抓取失败会保留记录') from None
- raise ValueError('官网重定向次数过多')
+    check.value['readable_characters']=metadata.get('readable_characters',len(text))
+    if is_html and website_check.challenge(html,metadata):check.fail('website_challenge','challenge','content')
+    if check.value['readable_characters']<100:
+     if not allow_short:check.fail('content_too_short','unsupported','content')
+     check.check('content','failed','content_too_short');check.finding('content_too_short');outcome='unsupported'
+    else:check.check('content','passed','content_ok');outcome='readable'
+    return {'url':url,'captured_at':shared.stamp(),'content_sha256':hashlib.sha256(raw).hexdigest(),'text':text,'bytes':len(raw),'metadata':metadata,'is_html':is_html,'diagnostics':check.finish(outcome)}
+  except urllib.error.HTTPError as error:
+   try:
+    status=error.code;check.value['http_status']=status
+    if u.scheme=='https':check.check('tls','passed','tls_ok')
+    check.value['content_type']=website_check.content_type(error.headers.get('Content-Type')) if error.headers else None
+    if status in (301,302,303,307,308) and error.headers.get('Location'):
+     try:location=website_inspection.normalize_url(urllib.parse.urljoin(url,error.headers['Location']))
+     except ValueError:check.fail('invalid_address','unsafe','address')
+     check.value['redirects'].append({'url':url,'status':status,'location':location});check.check('http','passed','http_ok');url=location;continue
+    check.value['retry_after']=website_check.safe_retry_after(error.headers.get('Retry-After')) if error.headers else None
+    check.fail('http_limited' if status==429 else 'http_blocked' if status==403 else 'http_error','limited' if status==429 else 'blocked' if status==403 else 'unreachable','http')
+   finally:error.close()
+  except website_check.WebsiteCheckError:raise
+  except (urllib.error.URLError,OSError) as error:
+   code=website_check.classify(error);check.fail(code,'unreachable','tls' if code.startswith('tls_') else 'dns' if code=='dns_failed' else 'http')
+ check.fail('redirect_limit','unsupported','http')
 
 def inspect_website(d):
  if not isinstance(d,dict) or d.get('market') not in ('CN','US'):raise ValueError('请选择中国或美国市场')

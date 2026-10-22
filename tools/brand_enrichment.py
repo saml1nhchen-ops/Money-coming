@@ -6,6 +6,7 @@ policy is deny-all until an officially verified schema is reviewed into code.
 """
 import concurrent.futures,contextlib,copy,datetime,decimal,hashlib,json,os,pathlib,re,sqlite3,threading,time,uuid
 import website_inspection
+import website_check
 FREE_RULE='bai-explicit-chat-free-v1: free=true with free_protocols including chat; contradictory applicable prices rejected'
 PRICE_FIELDS={'prompt','completion','request','minimum','internal_reasoning','cache_read','cache_write'}
 def stamp():return datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -149,10 +150,22 @@ class EnrichmentManager:
   try:
    j['status']='running';self.save(j)
    try:snapshot=self.fetcher(j['website']['requested_url'],allow_short=True)
-   except Exception:
-    j['website']['error']='website_fetch_failed';j['status']='failed';j['model_suggestion']['status']='skipped';return
+   except Exception as error:
+    if isinstance(error,website_check.WebsiteCheckError):
+     j['website']['diagnostics']=error.diagnostics;j['website']['error']=error.code
+     j['website']['url']=error.diagnostics.get('final_url') or j['website']['requested_url']
+    else:
+     generic=website_check.Check();generic.finding('connection_failed');j['website']['diagnostics']=generic.finish('unreachable');j['website']['diagnostics']['final_url']=j['website']['requested_url'];j['website']['error']='website_fetch_failed'
+    j['status']='failed';j['model_suggestion']['status']='skipped';return
+   if snapshot.get('diagnostics',{}).get('outcome')=='challenge':
+    j['website'].update(status='failed',error='website_challenge',diagnostics=copy.deepcopy(snapshot['diagnostics']));j['status']='failed';j['model_suggestion']['status']='skipped';return
    j['website'].update(status='fetched',**{k:snapshot[k] for k in ('url','captured_at','content_sha256') if k in snapshot})
-   j['brand'],j['products']=website_candidates(snapshot,j['market']);j['stage']='suggestion';self.save(j)
+   if isinstance(snapshot.get('diagnostics'),dict):j['website']['diagnostics']=copy.deepcopy(snapshot['diagnostics'])
+   j['brand'],j['products']=website_candidates(snapshot,j['market'])
+   if j['website'].get('diagnostics') is not None:
+    j['website']['diagnostics']['brand_candidates']=1 if j['brand'] else 0;j['website']['diagnostics']['product_candidates']=len(j['products'])
+    if not j['products']:j['website']['diagnostics']['findings'].append({'code':'products_absent','message':website_check.MESSAGES['products_absent']})
+   j['stage']='suggestion';self.save(j)
    try:offers=self.adapter.catalog()
    except Exception:offers=[]
    if not offers:

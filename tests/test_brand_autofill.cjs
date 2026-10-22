@@ -96,6 +96,30 @@ const fs=require('node:fs');
  await page.locator('#brand-autofill-read').click();
  assert.equal(typeof await page.evaluate(()=>calls.at(-1)),'string','attempted website failure remains read-only GET');
  await page.evaluate(()=>waiting.shift().resolve(result()));await page.waitForTimeout(30);
+ // Website diagnostics reuse the exact enrichment response; no extra inspection requests.
+ for (const outcome of ['limited','challenge','readable','legacy']) {
+   await page.locator('#geo-website').fill(outcome+'.diagnostics.example.com');await page.locator('#ru-brand').focus();
+   const diagnosticsCalls=await page.evaluate(()=>calls.length);
+   const fieldsBefore=await page.evaluate(()=>[document.getElementById('ru-brand').value,document.getElementById('ru-products').value]);
+   await page.evaluate(outcome=>{
+     const r=result('Diagnostics Brand');
+     if(outcome!=='legacy')r.website.diagnostics={outcome,http_status:outcome==='limited'?429:200,readable_characters:outcome==='readable'?2345:0,bytes:3210,duration_ms:124,content_type:'text/html',final_url:'https://example.com/<img src=x onerror=alert(1)>',checked_at:'2026-10-22T12:00:00Z',redirects:[{url:'https://old.example/<img>',status:302,location:'https://new.example/<script>'}],checks:[{id:'dns',status:'passed',message:'域名解析完成 <img src=x onerror=alert(1)>'},{id:'tls',status:'unknown',message:'证据不足'}],findings:[{code:'fixture',message:'<script>alert(1)</script>'}],retry_after:outcome==='limited'?'120':null};
+     waiting.shift().resolve(r);
+   },outcome);await page.waitForTimeout(40);
+   const card=page.locator('.ru-website-check'),text=await card.textContent();
+   assert.match(text,/官网检测/);assert.match(text,/与你的浏览器能否打开不一定相同/);assert.equal(await card.locator('img,script,a').count(),0,'diagnostics only escaped text');
+   if(outcome==='limited'){assert.match(text,/疑似限流/);assert.match(text,/不能据此确定为反爬/);assert.match(text,/HTTP：429/);assert.match(text,/120/)}
+   if(outcome==='challenge'){
+     assert.match(text,/即使 HTTP 200 也不视为正常/);
+     assert.equal(await page.locator('[data-brand-candidate]').count(),0);
+     assert.deepEqual(await page.evaluate(()=>[document.getElementById('ru-brand').value,document.getElementById('ru-products').value]),fieldsBefore);
+     assert.doesNotMatch(await page.locator('#brand-autofill-content').textContent(),/候选已准备/);
+   }
+   if(outcome==='readable'){assert.match(text,/网页可读/);assert.match(text,/可读字数：2345/);assert.match(text,/跳转数：1/);assert.match(text,/HTTPS 证书：未知/);assert.match(text,/未提取到产品不代表没有产品/);await card.locator('summary').last().click();assert.match(await card.locator('details').last().textContent(),/old.example/)}
+   if(outcome==='legacy'){assert.match(text,/缓存暂无检测详情/);assert(await page.locator('[data-brand-candidate]').count()>0)}
+   assert.equal(await page.evaluate(()=>calls.length),diagnosticsCalls,'diagnostics do not add calls');
+ }
+ assert.equal(await page.locator('#brand-autofill-read').textContent(),'检测官网 / 查看结果');
  // Busy/failure never schedules automatic POST retry.
  await page.locator('#geo-website').fill('busy.example.com');await page.locator('#ru-brand').focus();
  await page.evaluate(()=>waiting.shift().reject(new Error('团队已有任务')));await page.waitForTimeout(1500);

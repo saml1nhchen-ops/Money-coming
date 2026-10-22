@@ -74,3 +74,8 @@
 .ru-remote h2{margin-top:0}.ru-remote form{display:grid;gap:12px;max-width:640px}
 .ru-remote .ru-field input{width:100%}.ru-remote code,.ru-remote .mono{overflow-wrap:anywhere}
 @media(max-width:600px){.ru-remote{padding:16px}.ru-remote .actions{flex-wrap:wrap}}
+
+/* The website check shares the existing enrichment request and updates locally. */
+.ru-website-check{margin:16px 0;padding:16px;border:1px solid var(--border,#dedee8);border-radius:12px;background:var(--surface,#fff);overflow-wrap:anywhere}
+.ru-website-check h3{margin:0 0 10px;font-size:16px;color:var(--text,#242235)}
+.ru-website-check ul{padding-left:20px}.ru-website-check details{margin-top:10px}.ru-website-check summary{cursor:pointer}

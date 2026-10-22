@@ -3,7 +3,7 @@ import copy,hashlib,http.client,json,pathlib,sqlite3,sys,tempfile,threading,time
 from unittest.mock import patch,Mock
 sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[1]/'tools'))
 import brand_enrichment as e
-import bai_service,website_inspection
+import bai_service,website_inspection,website_check
 from remote_gateway import Workspace,Budget,Server
 CREMO_HTML='<html><head><meta property="og:site_name" content="Cremo"><script type="application/ld+json">{"@type":"Product","name":"Cremo Original Shave Cream"}</script></head><body><a href="/products/shave-brush">Shave Brush</a><a href="/collections/shave">Shave Collection</a><a href="https://evil.example/products/ignored">Ignore External</a><a href="/products/all">Shop All</a></body></html>'
 OTHER_HTML='<html><head><script type="application/ld+json">{"@type":"Organization","name":"Acme Tea"}</script></head><body><script type="application/ld+json">{"@type":"ItemList","itemListElement":[{"@type":"ListItem","item":{"@type":"Product","name":"Green Tea"}}]}</script><a href="/categories/black-tea">Black Tea</a></body></html>'
@@ -73,6 +73,15 @@ class EnrichmentTests(unittest.TestCase):
   self.fetcher.side_effect=fetch;_,j=self.start();self.assertTrue(entered.wait(1));self.assertTrue(self.request('GET','/api/geo/state')[1]['busy']);self.assertEqual(self.start('https://other.example/')[0],409)
   self.w.ready=True;self.w.profiles=[{'id':'gpt'}];cfg={'website':'https://cremocompany.com/','market':'US','brand_aliases':['Cremo'],'providers':['gpt'],'generator':'gpt'}
   self.assertEqual(self.request('POST','/api/geo/start',cfg)[0],409);self.w.maintenance_requested.set();release.set();j=self.done(j['id']);self.assertEqual(self.chats(),[]);self.assertFalse(self.request('GET','/api/geo/state')[1]['busy']);self.assertEqual(self.start('https://new.example/')[0],503)
+ def test_safe_website_diagnostics_persist_without_candidates_on_challenge(self):
+  check=website_check.Check();check.value.update(final_url='https://cremocompany.com/',http_status=429);check.finding('http_limited');check.value['possible_access_restriction']=True
+  self.fetcher.side_effect=website_check.WebsiteCheckError('http_limited',check.finish('limited'))
+  _,job=self.start();job=self.done(job['id']);self.assertEqual(job['website']['diagnostics']['outcome'],'limited');self.assertEqual(job['website']['diagnostics']['http_status'],429);self.assertIsNone(job['brand']);self.assertEqual(job['products'],[]);self.assertEqual(self.remote_calls,[])
+  self.fetcher.side_effect=None;bad=snapshot();check.value['http_status']=200;check.finding('website_challenge');bad['diagnostics']=check.finish('challenge');self.fetcher.return_value=bad
+  _,job=self.start('https://other.example/');job=self.done(job['id']);self.assertEqual(job['website']['status'],'failed');self.assertEqual(job['website']['diagnostics']['outcome'],'challenge');self.assertIsNone(job['brand']);self.assertEqual(job['products'],[]);self.assertEqual(job['billing']['model_calls'],0);self.assertEqual(self.remote_calls,[])
+ def test_successful_diagnostics_include_extracted_counts_and_no_product_claims(self):
+  self.directory=None;good=snapshot();check=website_check.Check();check.value.update(final_url=good['url'],http_status=200,readable_characters=500);good['diagnostics']=check.finish('readable');self.fetcher.return_value=good
+  _,job=self.start();job=self.done(job['id']);d=job['website']['diagnostics'];self.assertEqual(d['brand_candidates'],1);self.assertGreater(d['product_candidates'],0);self.assertEqual(d['outcome'],'readable')
  def test_auth_schema_and_budget_are_strict(self):
   self.assertEqual(self.request('POST','/api/geo/enrich',{},token=False)[0],401);self.assertEqual(self.request('GET','/api/geo/enrich?id='+str(uuid.uuid4()),token=False)[0],401)
   body={'website':'https://cremocompany.com/','market':'US','request_id':str(uuid.uuid4()),'model':'paid'};self.assertEqual(self.request('POST','/api/geo/enrich',body)[0],400)

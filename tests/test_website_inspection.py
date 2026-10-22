@@ -108,7 +108,7 @@ class PinnedWebsiteSecurityTests(unittest.TestCase):
    raise OSError('Synthetic public network unavailable; no external connection attempted')
   try:
    with patch('pinned_http.urllib.request.getproxies',return_value={}),patch.object(socket,'getaddrinfo',side_effect=[public,rebound]) as dns,patch.object(socket.socket,'connect',guarded):
-    with self.assertRaises((urllib.error.URLError,OSError)):flow.fetch_website('http://rebind.example/',allow_short=True)
+    with self.assertRaises(ValueError):flow.fetch_website('http://rebind.example/',allow_short=True)
    self.assertEqual(dns.call_count,1);self.assertEqual(attempts,[('93.184.216.34',80)]);self.assertEqual(hits,[])
   finally:server.shutdown();server.server_close();thread.join()
  def test_pinned_http_preserves_host_and_does_not_resolve_again(self):
@@ -159,7 +159,7 @@ class PinnedWebsiteSecurityTests(unittest.TestCase):
   import socket,pinned_http
   for scheme in ('http','https','all'):
    with self.subTest(scheme=scheme),patch('pinned_http.urllib.request.getproxies',return_value={scheme:'http://proxy.example:8080'}),patch.object(socket,'getaddrinfo') as dns,patch.object(socket.socket,'connect') as connect:
-    with self.assertRaisesRegex(ValueError,'代理环境'):flow.fetch_website('https://brand.example/',allow_short=True)
+    with self.assertRaisesRegex(ValueError,'安全读取'):flow.fetch_website('https://brand.example/',allow_short=True)
     dns.assert_not_called();connect.assert_not_called()
 
 

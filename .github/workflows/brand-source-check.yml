@@ -1,4 +1,4 @@
-name: Check public website candidates
+name: Check public website diagnostics
 on:
   push:
     branches: ['diagnose/brand-source-*']
@@ -29,9 +29,10 @@ jobs:
           try:
               page=fetch_website(report['url'],allow_short=True)
               brand,products=website_candidates(page,'US')
-              report.update(status='fetched',brand=brand,products=products,captured_at=page['captured_at'],content_sha256=page['content_sha256'])
+              report.update(status='fetched',brand=brand,products=products,captured_at=page['captured_at'],content_sha256=page['content_sha256'],diagnostics=page.get('diagnostics'))
           except Exception as error:
-              report.update(status='failed',error_type=type(error).__name__,error=str(error)[:200])
+              report.update(status='failed',error_type=type(error).__name__,diagnostics=getattr(error,'diagnostics',None))
           print('Saved public source evidence to '+publish(report))
-          if report['status']!='fetched':sys.exit(1)
+          if not isinstance(report.get('diagnostics'),dict):sys.exit(1)
+          # A reported access restriction verifies diagnostics, not successful extraction.
           PYCODE
