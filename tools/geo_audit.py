@@ -211,7 +211,8 @@ def build_report(audit):
  return {'schema_version':VERSION,'rule_version':RULE,'generated_at':now(),'target':{'url':seed['url'],'market':audit['market'],'brand':audit['confirmed']['brand']['name']},'scope':{'kind':'finite_website_readiness','resources':[{'id':r['id'],'url':r['url'],'kind':r['kind'],'http_status':r.get('status'),'error_code':r.get('error')} for r in resources],'limitations':['最多6资源/10HTTP/4MiB/累计60秒；无JS、无模型调用。','仅官网线索，不认证事实、外部权威或模型实际推荐。','未知和未请求不计通过；robots parser未提供精确命中行。'],'model_calls':0},'summary':{'score':score,'partial_score':round(100*passed/known,1) if known>=60 else None,'coverage_percent':known,'known_weight':known,'total_weight':100,**{k:sum(c['status']==v for c in checks) for k,v in [('passed','pass'),('failed','fail'),('unknown','unknown'),('not_applicable','not_applicable')]},'conclusions':(['观察到含noindex的页面收录声明，请先核对适用范围；这不是训练策略。'] if noindex else [])+['规则技术检测，尚未测试模型实际推荐表现。','证据不足，暂无完整分数。' if score is None else '分数仅描述本次有限页面规则检查。']},'sections':sections,'robots':policy,'evidence':copy.deepcopy(audit['evidence']),'recommendations':recommendations,'model_analysis':{'status':'not_tested','binding':{'audit_id':audit['id'],'url':seed['url'],'market':audit['market'],'brand_aliases':audit['confirmed']['brand']['aliases']},'job_id':None,'report':None}}
 
 class AuditManager:
- def __init__(self,workspace,path,budget_factory=FetchBudget):
+ def __init__(self,workspace,path,budget_factory=FetchBudget,suggestion_adapter=None):
+  self.suggestion_adapter=suggestion_adapter
   if not tools_available():raise AuditError(503,'audit_unavailable')
   self.w=workspace;self.path=pathlib.Path(path);self.path.parent.mkdir(parents=True,exist_ok=True);self.budget_factory=budget_factory;self.pool=concurrent.futures.ThreadPoolExecutor(max_workers=1)
   try:
@@ -220,7 +221,7 @@ class AuditManager:
     for ident,text in c.execute('SELECT id,payload FROM audits').fetchall():
      a=json.loads(text)
      if a['status'] in ('queued','running'):
-      a['status']='awaiting_confirmation' if a['phase']=='preview' else 'failed';a['phase']='confirmation' if a['phase']=='preview' else 'done';a['stage']='interrupted';a['warnings'].append('服务曾重启；未自动继续抓取。');self.write(a,c)
+      a['status']='awaiting_confirmation' if a['phase']=='preview' else 'failed';a['phase']='confirmation' if a['phase']=='preview' else 'done';a['stage']='interrupted';a.get('competitor_suggestion',{}).update(status='interrupted') if a.get('competitor_suggestion',{}).get('status')=='attempting' else None;a['warnings'].append('服务曾重启；未自动继续抓取。');self.write(a,c)
   except (sqlite3.Error,ValueError,KeyError):raise AuditError(503,'audit_store_unavailable') from None
  @contextlib.contextmanager
  def db(self):
@@ -287,11 +288,32 @@ class AuditManager:
    if seed.get('error'):a['warnings'].append('官网证据不足，仍可手动确认生成包含未知项的完整报告。')
   except Exception:a['warnings'].append('读取未完成，已有证据保留；可手动确认。')
   finally:
-   a['usage']=budget.finish();a['_internal']['usage']=a['usage'];a.update(status='awaiting_confirmation',phase='confirmation',stage='confirm_information')
+   a['usage']=budget.finish();a['_internal']['usage']=a['usage']
+   try:self.suggest_competitors(a)
+   except Exception:a['competitor_suggestion']={'status':'unavailable','provider':'Pollinations Classic','model_calls':0,'message':'免费竞品建议未完成；未改用收费服务。'}
+   a.update(status='awaiting_confirmation',phase='confirmation',stage='confirm_information')
    try:self.write(a)
    finally:
     with self.w.lock:
      if self.w.audit_active==a['id']:self.w.audit_active=None
+ def suggest_competitors(self,a):
+  from free_competitors import DOCS,Unavailable
+  if self.suggestion_adapter is None:return
+  brand=a['candidates']['brand']
+  if not brand or self.w.stopping() or self.w.maintenance_requested.is_set():return
+  suggestion={'status':'attempting','provider':self.suggestion_adapter.provider,'pricing':'anonymous_free_classic','pricing_source':DOCS,'model_calls':1,'maximum_model_calls':1,'requested_at':now(),'verified':False}
+  a['competitor_suggestion']=suggestion;a['stage']='suggesting_competitors';self.write(a) # persist intent before the single request
+  if self.w.stopping() or self.w.maintenance_requested.is_set():suggestion.update(status='skipped',model_calls=0);return
+  try:
+   result=self.suggestion_adapter.suggest(brand['name'],a['market'],[p['name'] for p in a['candidates']['products']])
+   seen={brand['name'].casefold(),*(v['name'].casefold() for v in a['candidates']['competitors'])}
+   for row in result['competitors']:
+    if row['name'].casefold() in seen:continue
+    seen.add(row['name'].casefold());a['candidates']['competitors'].append({'id':'candidate-'+digest(['free_ai',row['name'],a['id']])[:20],'name':row['name'],'aliases':[row['name']],'kind':'competitor','basis':'model_inference','source_url':None,'source_field':None,'evidence_ids':[],'needs_confirmation':True,'reason':row.get('reason',''),'domains':[]})
+   a['candidates']['competitors']=a['candidates']['competitors'][:5]
+   suggestion.update(status='complete',model=result.get('model'),raw_response=result.get('raw_response'),completed_at=now())
+  except Unavailable as error:suggestion.update(status='unavailable',code=error.code,http_status=error.status,retry_after=error.retry_after,completed_at=now(),message='免费服务暂不可用；未重试、未支付、未切换收费模型。')
+  except Exception:suggestion.update(status='unavailable',code='free_service_unavailable',completed_at=now(),message='免费建议未完成；未重试或切换收费模型。')
  def confirm(self,ident,payload):
   a=self.get_internal(ident);confirmed=validate_confirmation(payload,a);identity={k:v for k,v in confirmed.items() if k!='confirmed_at'};key=digest(identity)
   if a.get('_confirmation_hash')==key and a['report'] is not None:return self.public(a,True),200

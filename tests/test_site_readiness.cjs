@@ -52,7 +52,7 @@ function reported(a,confirmed){
  await p.locator('#audit-url-form button').click();await p.locator('#audit-brand').waitFor();
  assert.match(await p.locator('.sr-steps [aria-current="step"]').textContent(),/2确认信息/);assert.equal(await p.locator('#audit-brand').inputValue(),'Brand');assert.equal(await p.locator('#audit-competitors').inputValue(),'');await p.screenshot({path:'/tmp/site-readiness-step2.png',fullPage:true});
  await p.getByText('查看自动识别来源与原文',{exact:true}).click();assert.match(await p.locator('#site-readiness').textContent(),/Brand source/);assert.equal(await p.locator('#site-readiness img,#site-readiness script').count(),0);
- await p.locator('#audit-brand').fill('User Brand');assert.match(await p.locator('label').filter({has:p.locator('#audit-brand')}).textContent(),/用户提供/);
+ await p.locator('#audit-brand').fill('User Brand');assert.equal(await p.locator('label').filter({has:p.locator('#audit-brand')}).locator('small').count(),0,'no provenance process badges in the form');
  await p.evaluate(()=>render());assert.equal(await p.locator('#audit-brand').inputValue(),'User Brand','render keeps editing');
  await p.locator('[data-sr="confirm"]').click();await p.locator('[data-sr="html"]').waitFor();
  await p.screenshot({path:'/tmp/site-readiness-step3.png',fullPage:true});
@@ -91,6 +91,8 @@ function reported(a,confirmed){
  const contractResult=await p.evaluate(a=>{const html=siteReadinessHTML(a),d=new DOMParser().parseFromString(html,'text/html');return {body:d.body.textContent,active:d.querySelectorAll('script,link,img').length}},actualContract);
  for(const section of actualContract.report.sections)for(const check of section.checks)assert(contractResult.body.includes(check.id)&&contractResult.body.includes(check.title));
  for(const e of actualContract.report.evidence)assert(contractResult.body.includes(e.id));assert.equal(contractResult.active,0);
+ const aiContract=structuredClone(actualContract);aiContract.competitor_suggestion={status:'complete',provider:'Pollinations Classic',model:'gpt-oss-20b',model_calls:1};aiContract.confirmed.competitors=[{name:'AI Rival <script>alert(1)</script>',basis:'model_inference',aliases:['AI Rival'],evidence_ids:[]}];
+ const aiExport=await p.evaluate(a=>{const d=new DOMParser().parseFromString(siteReadinessHTML(a),'text/html');return {text:d.body.textContent,scripts:d.querySelectorAll('script').length}},aiContract);assert.doesNotMatch(aiExport.text,/免费 AI 竞品建议|AI 建议，经用户确认（未核验）/);assert.match(aiExport.text,/model_inference/);assert.match(aiExport.text,/gpt-oss-20b/);assert.equal(aiExport.scripts,0);
  const challengeText=await p.evaluate(a=>{a.access={outcome:'challenge',http_status:200};a.report.robots.fetch_status='not_found';return new DOMParser().parseFromString(siteReadinessReport(a),'text/html').body.textContent},actualContract);assert.match(challengeText,/即使 HTTP 200，也未读取到可确认的正常页面内容/);assert.match(challengeText,/robots.txt 状态：未发现声明/);
  // A delayed preview from another market must not enter the new confirmation page.
  await p.locator('[data-sr="edit"]').click();await p.locator('[data-sr="url"]').click();delay=true;

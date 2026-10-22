@@ -95,7 +95,8 @@ def main():
   try:w.enricher=EnrichmentManager(w,ROOT/'runtime/enrich/index.sqlite3',geo_flow.fetch_website,FreeGeminiAdapter(os.environ.get('SIGNAL_BAI_API_KEY','')))
   except Exception:w.enricher=None
   from geo_audit import AuditManager
-  try:w.auditor=AuditManager(w,ROOT/'runtime/audits/index.sqlite3')
+  from free_competitors import ClassicCompetitors
+  try:w.auditor=AuditManager(w,ROOT/'runtime/audits/index.sqlite3',suggestion_adapter=ClassicCompetitors())
   except Exception:w.auditor=None
   server=Server(('0.0.0.0',int(os.environ.get('PORT','8080'))),w)
   def drain():
