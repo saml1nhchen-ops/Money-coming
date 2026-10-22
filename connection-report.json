@@ -1,0 +1,413 @@
+{
+  "kind": "geo_readiness_release_state",
+  "public_checks": [
+    {
+      "http_status": 200,
+      "kind": "backend",
+      "ok": true,
+      "revision": "20ddd4a7a791cd823e7d5df762f74bfe39e8f4d9",
+      "version": "v0.4.1"
+    },
+    {
+      "http_status": 200,
+      "kind": "frontend",
+      "website_readiness_entry": true
+    },
+    {
+      "full_export": true,
+      "http_status": 200,
+      "kind": "readiness_asset",
+      "minimal_form": true,
+      "url_first_flow": true
+    }
+  ],
+  "runs": [
+    {
+      "conclusion": "success",
+      "id": "39809568054",
+      "jobs": [
+        {
+          "completed_at": "2026-10-22T15:56:58Z",
+          "conclusion": "success",
+          "name": "request",
+          "started_at": "2026-10-22T15:56:49Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completed_at": "2026-10-22T15:56:50Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "started_at": "2026-10-22T15:56:49Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:56:52Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+              "started_at": "2026-10-22T15:56:50Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:56:55Z",
+              "conclusion": "success",
+              "name": "Validate trusted request commit and create or reuse the formal Release",
+              "started_at": "2026-10-22T15:56:52Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:56:56Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+              "started_at": "2026-10-22T15:56:55Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:56:56Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "started_at": "2026-10-22T15:56:56Z",
+              "status": "completed"
+            }
+          ]
+        },
+        {
+          "completed_at": "2026-10-22T15:57:04Z",
+          "conclusion": "success",
+          "name": "deploy / resolve",
+          "started_at": "2026-10-22T15:57:00Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completed_at": "2026-10-22T15:57:01Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "started_at": "2026-10-22T15:57:01Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:57:02Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+              "started_at": "2026-10-22T15:57:01Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:57:02Z",
+              "conclusion": "success",
+              "name": "Resolve published formal Release and independently dereference its tag",
+              "started_at": "2026-10-22T15:57:02Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:57:03Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+              "started_at": "2026-10-22T15:57:02Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:57:03Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "started_at": "2026-10-22T15:57:03Z",
+              "status": "completed"
+            }
+          ]
+        },
+        {
+          "completed_at": "2026-10-22T15:58:01Z",
+          "conclusion": "success",
+          "name": "deploy / build",
+          "started_at": "2026-10-22T15:57:07Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completed_at": "2026-10-22T15:57:09Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "started_at": "2026-10-22T15:57:08Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:57:11Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+              "started_at": "2026-10-22T15:57:09Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:57:12Z",
+              "conclusion": "success",
+              "name": "Recheck the exact formal identity before building",
+              "started_at": "2026-10-22T15:57:11Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:57:57Z",
+              "conclusion": "success",
+              "name": "Build the exact released commit and publish its image",
+              "started_at": "2026-10-22T15:57:12Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:57:59Z",
+              "conclusion": "success",
+              "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+              "started_at": "2026-10-22T15:57:57Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:57:59Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+              "started_at": "2026-10-22T15:57:59Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:57:59Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "started_at": "2026-10-22T15:57:59Z",
+              "status": "completed"
+            }
+          ]
+        },
+        {
+          "completed_at": "2026-10-22T15:58:34Z",
+          "conclusion": "success",
+          "name": "deploy / deploy",
+          "started_at": "2026-10-22T15:58:04Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completed_at": "2026-10-22T15:58:06Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "started_at": "2026-10-22T15:58:05Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:58:07Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+              "started_at": "2026-10-22T15:58:06Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:58:08Z",
+              "conclusion": "success",
+              "name": "Recheck the published formal identity immediately before deployment",
+              "started_at": "2026-10-22T15:58:07Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:58:31Z",
+              "conclusion": "success",
+              "name": "Deploy the digest through the verified SSH host",
+              "started_at": "2026-10-22T15:58:08Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:58:31Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+              "started_at": "2026-10-22T15:58:31Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:58:31Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "started_at": "2026-10-22T15:58:31Z",
+              "status": "completed"
+            }
+          ]
+        }
+      ],
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": "39809473419",
+      "jobs": [
+        {
+          "completed_at": "2026-10-22T15:56:45Z",
+          "conclusion": "success",
+          "name": "build",
+          "started_at": "2026-10-22T15:56:12Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completed_at": "2026-10-22T15:56:15Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "started_at": "2026-10-22T15:56:13Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:56:37Z",
+              "conclusion": "success",
+              "name": "Pull ghcr.io/actions/jekyll-build-pages:v1.0.13",
+              "started_at": "2026-10-22T15:56:15Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:56:38Z",
+              "conclusion": "success",
+              "name": "Checkout",
+              "started_at": "2026-10-22T15:56:37Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:56:41Z",
+              "conclusion": "success",
+              "name": "Build with Jekyll",
+              "started_at": "2026-10-22T15:56:38Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:56:43Z",
+              "conclusion": "success",
+              "name": "Upload artifact",
+              "started_at": "2026-10-22T15:56:41Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:56:43Z",
+              "conclusion": "success",
+              "name": "Post Checkout",
+              "started_at": "2026-10-22T15:56:43Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:56:43Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "started_at": "2026-10-22T15:56:43Z",
+              "status": "completed"
+            }
+          ]
+        },
+        {
+          "completed_at": "2026-10-22T15:56:58Z",
+          "conclusion": "success",
+          "name": "deploy",
+          "started_at": "2026-10-22T15:56:49Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completed_at": "2026-10-22T15:56:50Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "started_at": "2026-10-22T15:56:49Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:56:57Z",
+              "conclusion": "success",
+              "name": "Deploy to GitHub Pages",
+              "started_at": "2026-10-22T15:56:50Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:56:57Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "started_at": "2026-10-22T15:56:57Z",
+              "status": "completed"
+            }
+          ]
+        },
+        {
+          "completed_at": "2026-10-22T15:56:54Z",
+          "conclusion": "success",
+          "name": "report-build-status",
+          "started_at": "2026-10-22T15:56:48Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completed_at": "2026-10-22T15:56:49Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "started_at": "2026-10-22T15:56:49Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:56:52Z",
+              "conclusion": "success",
+              "name": "Report Build Status",
+              "started_at": "2026-10-22T15:56:50Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:56:52Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "started_at": "2026-10-22T15:56:52Z",
+              "status": "completed"
+            }
+          ]
+        }
+      ],
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": "39808638252",
+      "jobs": [
+        {
+          "completed_at": "2026-10-22T15:52:51Z",
+          "conclusion": "success",
+          "name": "validate",
+          "started_at": "2026-10-22T15:50:51Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completed_at": "2026-10-22T15:50:52Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "started_at": "2026-10-22T15:50:52Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:50:53Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+              "started_at": "2026-10-22T15:50:52Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:51:01Z",
+              "conclusion": "success",
+              "name": "Install hash-locked website parsers",
+              "started_at": "2026-10-22T15:50:53Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:52:49Z",
+              "conclusion": "success",
+              "name": "Run Cremo Nike and Loreal through the real workflow",
+              "started_at": "2026-10-22T15:51:01Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:52:49Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+              "started_at": "2026-10-22T15:52:49Z",
+              "status": "completed"
+            },
+            {
+              "completed_at": "2026-10-22T15:52:49Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "started_at": "2026-10-22T15:52:49Z",
+              "status": "completed"
+            }
+          ]
+        }
+      ],
+      "status": "completed"
+    }
+  ]
+}
