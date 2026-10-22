@@ -1,0 +1,1381 @@
+{
+  "client": "production SignalGEO pinned urllib + actual offline parsers",
+  "kind": "brand_fetch_root_cause",
+  "models_called": 0,
+  "sites": [
+    {
+      "access": {
+        "bytes": 1568,
+        "checked_at": "2026-10-22T15:25:56.521436+00:00",
+        "checks": [
+          {
+            "id": "address",
+            "message": "\u5b98\u7f51\u5730\u5740\u683c\u5f0f\u5df2\u6821\u9a8c\u3002",
+            "status": "passed"
+          },
+          {
+            "id": "dns",
+            "message": "\u57df\u540d\u5df2\u89e3\u6790\u5e76\u68c0\u67e5\u8fd4\u56de\u5730\u5740\u3002",
+            "status": "passed"
+          },
+          {
+            "id": "tls",
+            "message": "\u5df2\u6309\u5b98\u7f51\u57df\u540d\u5b8c\u6210\u8bc1\u4e66\u9a8c\u8bc1\u3002",
+            "status": "passed"
+          },
+          {
+            "id": "http",
+            "message": "\u5b98\u7f51\u8fd4\u56de HTTP 429\uff0c\u53ef\u80fd\u662f\u9650\u6d41\u6216\u81ea\u52a8\u8bbf\u95ee\u9650\u5236\uff0c\u4e0d\u80fd\u636e\u6b64\u786e\u5b9a\u53cd\u722c\uff1b\u8bf7\u7a0d\u540e\u624b\u52a8\u91cd\u8bd5\u6216\u6539\u7528\u4ea7\u54c1\u9875\u3002",
+            "status": "failed"
+          },
+          {
+            "id": "content",
+            "message": "\u5c1a\u65e0\u8db3\u591f\u8bc1\u636e\u5224\u65ad\u3002",
+            "status": "unknown"
+          }
+        ],
+        "content_type": "text/html",
+        "duration_ms": 362,
+        "final_url": "https://cremocompany.com/",
+        "findings": [
+          {
+            "code": "http_limited",
+            "message": "\u5b98\u7f51\u8fd4\u56de HTTP 429\uff0c\u53ef\u80fd\u662f\u9650\u6d41\u6216\u81ea\u52a8\u8bbf\u95ee\u9650\u5236\uff0c\u4e0d\u80fd\u636e\u6b64\u786e\u5b9a\u53cd\u722c\uff1b\u8bf7\u7a0d\u540e\u624b\u52a8\u91cd\u8bd5\u6216\u6539\u7528\u4ea7\u54c1\u9875\u3002"
+          }
+        ],
+        "http_status": 429,
+        "outcome": "limited",
+        "possible_access_restriction": true,
+        "readable_characters": null,
+        "redirects": [],
+        "retry_after": "60"
+      },
+      "candidates": {
+        "brand": null,
+        "competitors": [],
+        "products": []
+      },
+      "error": "http_limited",
+      "extracted_characters": 0,
+      "metadata": {},
+      "requests": [
+        {
+          "body_excerpt": "Too many requests You have sent too many requests. Try again soon.",
+          "body_sha256": "369bc7d99acef8016c9d6f1edf399db6183993237b38d55fe41ddb704d533bef",
+          "body_title": "Too many requests",
+          "captured_bytes": 1568,
+          "headers": {
+            "Content-Length": "1568",
+            "Content-Type": "text/html",
+            "Retry-After": "60",
+            "Server": "cloudflare",
+            "X-DC": "gcp-us-west1"
+          },
+          "markers": {
+            "access_denied": false,
+            "akamai": false,
+            "cloudflare": false,
+            "human_verification": false,
+            "rate_limit": true,
+            "shopify": false
+          },
+          "status": 429,
+          "url": "https://cremocompany.com/"
+        }
+      ],
+      "url": "https://cremocompany.com/",
+      "usage": {
+        "active_duration_ms": 363,
+        "bytes_budget_used": 1568,
+        "bytes_received": 1568,
+        "http_requests": 1,
+        "model_calls": 0,
+        "resources_requested": 1
+      },
+      "visible_text_excerpt": ""
+    },
+    {
+      "access": {
+        "bytes": 1008712,
+        "checked_at": "2026-10-22T15:25:56.884521+00:00",
+        "checks": [
+          {
+            "id": "address",
+            "message": "\u5b98\u7f51\u5730\u5740\u683c\u5f0f\u5df2\u6821\u9a8c\u3002",
+            "status": "passed"
+          },
+          {
+            "id": "dns",
+            "message": "\u57df\u540d\u5df2\u89e3\u6790\u5e76\u68c0\u67e5\u8fd4\u56de\u5730\u5740\u3002",
+            "status": "passed"
+          },
+          {
+            "id": "tls",
+            "message": "\u5df2\u6309\u5b98\u7f51\u57df\u540d\u5b8c\u6210\u8bc1\u4e66\u9a8c\u8bc1\u3002",
+            "status": "passed"
+          },
+          {
+            "id": "http",
+            "message": "\u5df2\u6536\u5230\u5b98\u7f51 HTTP \u54cd\u5e94\u3002",
+            "status": "passed"
+          },
+          {
+            "id": "content",
+            "message": "\u5df2\u8bfb\u53d6\u7f51\u9875\u6587\u672c\uff1b\u4ec5\u68c0\u67e5\u672c\u6b21\u8fd4\u56de\u5185\u5bb9\u3002",
+            "status": "passed"
+          }
+        ],
+        "content_type": "text/html",
+        "duration_ms": 1066,
+        "final_url": "https://www.nike.com/",
+        "findings": [],
+        "http_status": 200,
+        "outcome": "readable",
+        "possible_access_restriction": false,
+        "readable_characters": 8395,
+        "redirects": [],
+        "retry_after": null
+      },
+      "candidates": {
+        "brand": {
+          "aliases": [
+            "Nike.com"
+          ],
+          "basis": "website_metadata",
+          "evidence_ids": [
+            "e-fdea04a219e1458a0457"
+          ],
+          "id": "candidate-a3dc5393b120c2f500ce",
+          "kind": "brand",
+          "name": "Nike.com",
+          "needs_confirmation": true,
+          "source_field": "meta[property=\"og:site_name\"]",
+          "source_url": "https://www.nike.com/"
+        },
+        "competitors": [],
+        "products": []
+      },
+      "error": null,
+      "extracted_characters": 317,
+      "metadata": {
+        "author": "",
+        "date": "",
+        "description": "Inspiring the world's athletes, Nike delivers innovative products, experiences and services.",
+        "h1": "EARNED ON THE DIRT",
+        "markdown_alternates": [],
+        "product_links": [
+          {
+            "href": "#skip-to-content",
+            "text": "Skip to main content"
+          },
+          {
+            "href": "https://www.nike.com/accessibility#introduction",
+            "text": "Accessibility at Nike"
+          },
+          {
+            "href": "https://www.nike.com/retail",
+            "text": "Find a Store"
+          },
+          {
+            "href": "https://www.nike.com/help",
+            "text": "Help"
+          },
+          {
+            "href": "https://www.nike.com/help",
+            "text": "Help"
+          },
+          {
+            "href": "https://www.nike.com/orders/details/",
+            "text": "Order Status"
+          },
+          {
+            "href": "https://www.nike.com/help/a/shipping-delivery",
+            "text": "Shipping & Delivery"
+          },
+          {
+            "href": "https://www.nike.com/help/a/returns-policy",
+            "text": "Returns"
+          },
+          {
+            "href": "https://www.nike.com/help/a/change-cancel-order",
+            "text": "Order Cancellation"
+          },
+          {
+            "href": "https://www.nike.com/help/a/size-charts",
+            "text": "Size Charts"
+          },
+          {
+            "href": "https://www.nike.com/help/#contact",
+            "text": "Contact Us"
+          },
+          {
+            "href": "https://www.nike.com/membership",
+            "text": "Membership"
+          },
+          {
+            "href": "https://www.nike.com/promo-code",
+            "text": "Promotions & Discounts"
+          },
+          {
+            "href": "https://www.nike.com/product-advice",
+            "text": "Product Advice"
+          },
+          {
+            "href": "#site-feedback",
+            "text": "Send Us Feedback"
+          },
+          {
+            "href": "https://www.nike.com/membership",
+            "text": "Join Us"
+          },
+          {
+            "href": "https://www.nike.com/register",
+            "text": "Sign In"
+          },
+          {
+            "href": "https://www.nike.com/men",
+            "text": "Men"
+          },
+          {
+            "href": "https://www.nike.com/w/new-mens-3n82yznik1",
+            "text": "New & Featured"
+          },
+          {
+            "href": "https://www.nike.com/w/new-mens-3n82yznik1",
+            "text": "New Arrivals"
+          },
+          {
+            "href": "https://www.nike.com/w/mens-best-76m50znik1",
+            "text": "Best Sellers"
+          },
+          {
+            "href": "https://www.nike.com/w/new-upcoming-drops-k0gk",
+            "text": "Latest Drops"
+          },
+          {
+            "href": "https://www.nike.com/w/mens-lifestyle-13jrmznik1",
+            "text": "Nike Sportswear"
+          },
+          {
+            "href": "https://www.nike.com/launch?s=upcoming",
+            "text": "SNKRS Launch Calendar"
+          },
+          {
+            "href": "https://www.nike.com/w/mens-sale-3yaepznik1",
+            "text": "Shop All Sale"
+          },
+          {
+            "href": "https://www.nike.com/w/mens-shoes-nik1zy7ok",
+            "text": "Shoes"
+          },
+          {
+            "href": "https://www.nike.com/w/mens-shoes-nik1zy7ok",
+            "text": "All Shoes"
+          },
+          {
+            "href": "https://www.nike.com/w/mens-basketball-shoes-3glsmznik1zy7ok",
+            "text": "Basketball"
+          },
+          {
+            "href": "https://www.nike.com/w/mens-jordan-shoes-37eefznik1zy7ok",
+            "text": "Jordan"
+          },
+          {
+            "href": "https://www.nike.com/w/mens-running-shoes-37v7jznik1zy7ok",
+            "text": "Running"
+          },
+          {
+            "href": "https://www.nike.com/w/mens-lifestyle-shoes-13jrmznik1zy7ok",
+            "text": "Sportswear"
+          },
+          {
+            "href": "https://www.nike.com/w/mens-training-gym-shoes-58jtoznik1zy7ok",
+            "text": "Training & Gym"
+          },
+          {
+            "href": "https://www.nike.com/w/mens-nike-by-you-shoes-6ealhznik1zy7ok",
+            "text": "Custom Shoes"
+          },
+          {
+            "href": "https://www.nike.com/w/mens-clothing-6ymx6znik1",
+            "text": "Clothing"
+          },
+          {
+            "href": "https://www.nike.com/w/mens-clothing-6ymx6znik1",
+            "text": "All Clothing"
+          },
+          {
+            "href": "https://www.nike.com/w/mens-fleece-4xh6qznik1",
+            "text": "Fleece"
+          },
+          {
+            "href": "https://www.nike.com/w/mens-hoodies-and-pullovers-6riveznik1",
+            "text": "Hoodies & Sweatshirts"
+          },
+          {
+            "href": "https://www.nike.com/w/mens-jackets-vests-50r7yznik1",
+            "text": "Jackets & Vests"
+          },
+          {
+            "href": "https://www.nike.com/w/mens-pants-and-tights-2kq19znik1",
+            "text": "Pants"
+          },
+          {
+            "href": "https://www.nike.com/w/mens-shorts-38fphznik1",
+            "text": "Shorts"
+          },
+          {
+            "href": "https://www.nike.com/w/mens-tops-t-shirts-9om13znik1",
+            "text": "Tops & Graphic Tees"
+          },
+          {
+            "href": "https://www.nike.com/w/mens-accessories-equipment-awwpwznik1",
+            "text": "Accessories"
+          },
+          {
+            "href": "https://www.nike.com/w/mens-accessories-equipment-awwpwznik1",
+            "text": "All Accessories"
+          },
+          {
+            "href": "https://www.nike.com/w/mens-bags-and-backpacks-9xy71znik1",
+            "text": "Bags & Backpacks"
+          },
+          {
+            "href": "https://www.nike.com/w/mens-hats-visors-and-headbands-52r49znik1",
+            "text": "Hats & Headwear"
+          },
+          {
+            "href": "https://www.nike.com/w/mens-socks-7ny3qznik1",
+            "text": "Socks"
+          },
+          {
+            "href": "https://www.nike.com/w/sunglasses-arlyp",
+            "text": "Sunglasses"
+          },
+          {
+            "href": "https://www.nike.com/women",
+            "text": "Women"
+          },
+          {
+            "href": "https://www.nike.com/w/new-womens-3n82yz5e1x6",
+            "text": "New & Featured"
+          },
+          {
+            "href": "https://www.nike.com/w/new-womens-3n82yz5e1x6",
+            "text": "New Arrivals"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-best-5e1x6z76m50",
+            "text": "Best Sellers"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-lifestyle-13jrmz5e1x6",
+            "text": "Nike Sportswear"
+          },
+          {
+            "href": "https://www.nike.com/launch?s=upcoming",
+            "text": "SNKRS Launch Calendar"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-sale-3yaepz5e1x6",
+            "text": "Shop All Sale"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-shoes-5e1x6zy7ok",
+            "text": "Shoes"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-shoes-5e1x6zy7ok",
+            "text": "All Shoes"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-basketball-shoes-3glsmz5e1x6zy7ok",
+            "text": "Basketball"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-jordan-shoes-37eefz5e1x6zy7ok",
+            "text": "Jordan"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-running-shoes-37v7jz5e1x6zy7ok",
+            "text": "Running"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-lifestyle-shoes-13jrmz5e1x6zy7ok",
+            "text": "Sportswear"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-training-gym-shoes-58jtoz5e1x6zy7ok",
+            "text": "Training & Gym"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-nike-by-you-shoes-5e1x6z6ealhzy7ok",
+            "text": "Custom Shoes"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-clothing-5e1x6z6ymx6",
+            "text": "Clothing"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-clothing-5e1x6z6ymx6",
+            "text": "All Clothing"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-sports-bras-40qgmz5e1x6",
+            "text": "Bras"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-fleece-4xh6qz5e1x6",
+            "text": "Fleece"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-hoodies-and-pullovers-5e1x6z6rive",
+            "text": "Hoodies & Sweatshirts"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-jackets-vests-50r7yz5e1x6",
+            "text": "Jackets & Vests"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-tights-leggings-29sh2z5e1x6",
+            "text": "Leggings"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-matching-sets-clothing-2lukpz5e1x6z6ymx6",
+            "text": "Matching Sets"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-pants-and-tights-2kq19z5e1x6",
+            "text": "Pants"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-shorts-38fphz5e1x6",
+            "text": "Shorts"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-tops-t-shirts-5e1x6z9om13",
+            "text": "Tops & Graphics Tees"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-accessories-equipment-5e1x6zawwpw",
+            "text": "Accessories"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-accessories-equipment-5e1x6zawwpw",
+            "text": "All Accessories"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-bags-and-backpacks-5e1x6z9xy71",
+            "text": "Bags & Backpacks"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-hats-visors-and-headbands-52r49z5e1x6",
+            "text": "Hats & Headwear"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-socks-5e1x6z7ny3q",
+            "text": "Socks"
+          },
+          {
+            "href": "https://www.nike.com/w/sunglasses-arlyp",
+            "text": "Sunglasses"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-matching-sets-clothing-2lukpz5e1x6z6ymx6",
+            "text": "Shop by Color"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-color-shop-brown-4elb3z5e1x6",
+            "text": "Dark Neutrals"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-color-shop-purple-5e1x6z9g6re",
+            "text": "Purple Pulse"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-color-shop-green-5e1x6z9cm3q",
+            "text": "Spruce Greens"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-color-shop-navy-5e1x6z9cd0e",
+            "text": "Very Berry"
+          },
+          {
+            "href": "https://www.nike.com/w/womens-color-shop-new-neutrals-5e1x6z98ed2",
+            "text": "Warm Neutrals"
+          },
+          {
+            "href": "https://www.nike.com/kids",
+            "text": "Kids"
+          },
+          {
+            "href": "https://www.nike.com/w/new-kids-3n82yzv4dh",
+            "text": "New & Featured"
+          },
+          {
+            "href": "https://www.nike.com/w/new-kids-3n82yzv4dh",
+            "text": "New Arrivals"
+          },
+          {
+            "href": "https://www.nike.com/w/kids-best-76m50zv4dh",
+            "text": "Best Sellers"
+          },
+          {
+            "href": "https://www.nike.com/w/kids-lifestyle-13jrmzv4dh",
+            "text": "Nike Sportswear"
+          },
+          {
+            "href": "https://www.nike.com/w/nike-lego-collection-58jr",
+            "text": "Nike x LEGO\u00ae"
+          },
+          {
+            "href": "https://www.nike.com/teens",
+            "text": "Teens Collection"
+          },
+          {
+            "href": "https://www.nike.com/w/kids-sale-3yaepzv4dh",
+            "text": "Shop All Sale"
+          },
+          {
+            "href": "https://www.nike.com/w/kids-shoes-v4dhzy7ok",
+            "text": "Shoes"
+          },
+          {
+            "href": "https://www.nike.com/w/kids-shoes-v4dhzy7ok",
+            "text": "All Shoes"
+          },
+          {
+            "href": "https://www.nike.com/w/big-kids-shoes-agibjzv4dhzy7ok",
+            "text": "Big Kids (7-12 yrs)"
+          },
+          {
+            "href": "https://www.nike.com/w/little-kids-shoes-6dacezv4dhzy7ok",
+            "text": "Little Kids (3-7 yrs)"
+          },
+          {
+            "href": "https://www.nike.com/w/baby-toddler-kids-shoes-2j488zv4dhzy7ok",
+            "text": "Baby & Toddler (0-3 yrs)"
+          },
+          {
+            "href": "https://www.nike.com/w/kids-basketball-shoes-3glsmzv4dhzy7ok",
+            "text": "Basketball"
+          },
+          {
+            "href": "https://www.nike.com/w/kids-jordan-shoes-37eefzv4dhzy7ok",
+            "text": "Jordan"
+          }
+        ],
+        "product_names": [],
+        "readable_characters": 8395,
+        "robots_meta": {
+          "robots": "index, follow"
+        },
+        "semantic_types": [
+          "Organization",
+          "WebPage",
+          "WebSite"
+        ],
+        "site_name": "Nike.com",
+        "structured_names": [
+          {
+            "name": "Nike",
+            "source": "JSON-LD Organization.name"
+          },
+          {
+            "name": "Converse",
+            "source": "JSON-LD Organization.name"
+          },
+          {
+            "name": "Jordan Brand",
+            "source": "JSON-LD Organization.name"
+          },
+          {
+            "name": "Nike",
+            "source": "JSON-LD WebSite.name"
+          }
+        ],
+        "title": "Nike. Just Do It. Nike.com"
+      },
+      "requests": [
+        {
+          "body_excerpt": "",
+          "body_sha256": "4ff5b1462e480c6f9437ebfe40565fae64ab3fde481c6281e5eaf104230ceec3",
+          "body_title": "Nike. Just Do It. Nike.com",
+          "captured_bytes": 1008712,
+          "headers": {
+            "Content-Length": "1008712",
+            "Content-Type": "text/html; charset=UTF-8",
+            "Server": "unified-edge-router"
+          },
+          "markers": {
+            "access_denied": false,
+            "akamai": false,
+            "cloudflare": true,
+            "human_verification": false,
+            "rate_limit": false,
+            "shopify": false
+          },
+          "status": 200,
+          "url": "https://www.nike.com/"
+        }
+      ],
+      "url": "https://www.nike.com/",
+      "usage": {
+        "active_duration_ms": 1120,
+        "bytes_budget_used": 1008712,
+        "bytes_received": 1008712,
+        "http_requests": 1,
+        "model_calls": 0,
+        "resources_requested": 1
+      },
+      "visible_text_excerpt": "TRENDING\nClassic silhouettes and cutting-edge innovation to build your game from the ground up.\nInside Nike\nGet to know the people and ideas behind the brand.\nTRENDING\nClassic silhouettes and cutting-edge innovation to build your game from the ground up.\nInside Nike\nGet to know the people and ideas behind the brand."
+    },
+    {
+      "access": {
+        "bytes": 545538,
+        "checked_at": "2026-10-22T15:25:58.005316+00:00",
+        "checks": [
+          {
+            "id": "address",
+            "message": "\u5b98\u7f51\u5730\u5740\u683c\u5f0f\u5df2\u6821\u9a8c\u3002",
+            "status": "passed"
+          },
+          {
+            "id": "dns",
+            "message": "\u57df\u540d\u5df2\u89e3\u6790\u5e76\u68c0\u67e5\u8fd4\u56de\u5730\u5740\u3002",
+            "status": "passed"
+          },
+          {
+            "id": "tls",
+            "message": "\u5df2\u6309\u5b98\u7f51\u57df\u540d\u5b8c\u6210\u8bc1\u4e66\u9a8c\u8bc1\u3002",
+            "status": "passed"
+          },
+          {
+            "id": "http",
+            "message": "\u5df2\u6536\u5230\u5b98\u7f51 HTTP \u54cd\u5e94\u3002",
+            "status": "passed"
+          },
+          {
+            "id": "content",
+            "message": "\u5df2\u8bfb\u53d6\u7f51\u9875\u6587\u672c\uff1b\u4ec5\u68c0\u67e5\u672c\u6b21\u8fd4\u56de\u5185\u5bb9\u3002",
+            "status": "passed"
+          }
+        ],
+        "content_type": "text/html",
+        "duration_ms": 786,
+        "final_url": "https://www.lorealparisusa.com/",
+        "findings": [],
+        "http_status": 200,
+        "outcome": "readable",
+        "possible_access_restriction": false,
+        "readable_characters": 9097,
+        "redirects": [],
+        "retry_after": null
+      },
+      "candidates": {
+        "brand": {
+          "aliases": [
+            "L'Oreal Paris"
+          ],
+          "basis": "website_metadata",
+          "evidence_ids": [
+            "e-3884e80eb8f927b27401"
+          ],
+          "id": "candidate-c813aa5d14bc4577af6a",
+          "kind": "brand",
+          "name": "L'Oreal Paris",
+          "needs_confirmation": true,
+          "source_field": "meta[property=\"og:site_name\"]",
+          "source_url": "https://www.lorealparisusa.com/"
+        },
+        "competitors": [],
+        "products": []
+      },
+      "error": null,
+      "extracted_characters": 904,
+      "metadata": {
+        "author": "",
+        "date": "",
+        "description": "Discover all Makeup, Skin care, Men & Hair Products on the L'Or\u00e9al Paris homepage and browse our exclusive content within the Beauty Magazine.",
+        "h1": "",
+        "markdown_alternates": [],
+        "product_links": [
+          {
+            "href": "/new-beauty-products",
+            "text": "SHOP NOW"
+          },
+          {
+            "href": "#main",
+            "text": "Go to content"
+          },
+          {
+            "href": "https://www.lorealparisusa.com/find-my-foundation-shade-match",
+            "text": "EN"
+          },
+          {
+            "href": "https://es.lorealparisusa.com/find-my-foundation-shade-match",
+            "text": "ES"
+          },
+          {
+            "href": "/new-beauty-products",
+            "text": "New"
+          },
+          {
+            "href": "/makeup",
+            "text": "Makeup"
+          },
+          {
+            "href": "/makeup/eye",
+            "text": "EYE MAKEUP"
+          },
+          {
+            "href": "/makeup/eye",
+            "text": "All Eye Products"
+          },
+          {
+            "href": "/makeup/eye/mascara",
+            "text": "Mascara"
+          },
+          {
+            "href": "/makeup/eye/eyeliner",
+            "text": "Eyeliner"
+          },
+          {
+            "href": "/makeup/eye/eyebrow",
+            "text": "Eyebrow"
+          },
+          {
+            "href": "/makeup/eye/eye-shadow",
+            "text": "Eye Shadow"
+          },
+          {
+            "href": "/makeup/lip-color",
+            "text": "LIP COLOR"
+          },
+          {
+            "href": "/makeup/lip-color",
+            "text": "All Lip Products"
+          },
+          {
+            "href": "/makeup/lip-color/lipstick",
+            "text": "Lipstick"
+          },
+          {
+            "href": "/makeup/lip-color/lip-gloss",
+            "text": "Lip Gloss"
+          },
+          {
+            "href": "/makeup/lip-color/lip-liner",
+            "text": "Lip Liner"
+          },
+          {
+            "href": "/makeup/face",
+            "text": "FACE MAKEUP"
+          },
+          {
+            "href": "/makeup/face",
+            "text": "All Face Products"
+          },
+          {
+            "href": "/makeup/face/foundation-makeup",
+            "text": "Foundation"
+          },
+          {
+            "href": "/makeup/face/face-powder",
+            "text": "Powder"
+          },
+          {
+            "href": "/makeup/face/concealer",
+            "text": "Concealer"
+          },
+          {
+            "href": "/makeup/face/blush",
+            "text": "Blush"
+          },
+          {
+            "href": "/makeup/face/bronzer",
+            "text": "Bronzer"
+          },
+          {
+            "href": "/makeup/face/highlighters",
+            "text": "Highlighter"
+          },
+          {
+            "href": "/makeup/face/bb-cream",
+            "text": "BB Cream"
+          },
+          {
+            "href": "/makeup/face/makeup-primer",
+            "text": "Primer & Setting Spray"
+          },
+          {
+            "href": "/virtual-try-on-makeup",
+            "text": "Makeup Try-On | Try any makeup, before buying"
+          },
+          {
+            "href": "/virtual-try-on-makeup",
+            "text": "Makeup Virtual Try On"
+          },
+          {
+            "href": "/undertones-quiz",
+            "text": "Find Your Skin Undertone"
+          },
+          {
+            "href": "/mascara-finder-quiz",
+            "text": "Mascara Finder"
+          },
+          {
+            "href": "/lip-finder-quiz",
+            "text": "Lip Finder Quiz"
+          },
+          {
+            "href": "/foundation-shade-finder-quiz",
+            "text": "Find Your Foundation Shade Quiz"
+          },
+          {
+            "href": "/zodiac-makeup-look-quiz",
+            "text": "Zodiac Makeup Look Quiz"
+          },
+          {
+            "href": "/brands/age-perfect-makeup",
+            "text": "Age Perfect"
+          },
+          {
+            "href": "/brands/colour-riche",
+            "text": "Colour Riche"
+          },
+          {
+            "href": "/brands/infallible",
+            "text": "Infallible"
+          },
+          {
+            "href": "/brands/telescopic",
+            "text": "Telescopic"
+          },
+          {
+            "href": "/brands/true-match",
+            "text": "True Match"
+          },
+          {
+            "href": "/brands/true-match-lumi",
+            "text": "Lumi"
+          },
+          {
+            "href": "/brands/unbelieva-brow",
+            "text": "Unbelieva-Brow"
+          },
+          {
+            "href": "/brands/visible-lift",
+            "text": "Visible Lift"
+          },
+          {
+            "href": "/brands/voluminous",
+            "text": "Voluminous"
+          },
+          {
+            "href": "/makeup",
+            "text": "VIEW ALL MAKEUP PRODUCTS"
+          },
+          {
+            "href": "/skin-care",
+            "text": "Skin Care"
+          },
+          {
+            "href": "/skin-care",
+            "text": "SKIN CARE PRODUCTS"
+          },
+          {
+            "href": "/skin-care",
+            "text": "All Skin Products"
+          },
+          {
+            "href": "/skin-care/eye-care",
+            "text": "Eye Care"
+          },
+          {
+            "href": "/skin-care/exfoliant",
+            "text": "Exfoliant"
+          },
+          {
+            "href": "/skin-care/face-serums",
+            "text": "Face Serum"
+          },
+          {
+            "href": "/skin-care/facial-cleansers",
+            "text": "Facial Cleanser"
+          },
+          {
+            "href": "/skin-care/facial-moisturizers",
+            "text": "Face Moisturizer"
+          },
+          {
+            "href": "/skin-care/night-cream",
+            "text": "Night Cream"
+          },
+          {
+            "href": "/skin-care/self-tanning",
+            "text": "Self-Tanner"
+          },
+          {
+            "href": "/skin-care/sunscreen-for-face",
+            "text": "Sunscreen for Face"
+          },
+          {
+            "href": "/brands/men-expert",
+            "text": "Men\u2019s Skin Care"
+          },
+          {
+            "href": "/skin-care/anti-aging",
+            "text": "Anti-Aging"
+          },
+          {
+            "href": "/skin-care/dark-circles-under-eyes",
+            "text": "Dark Circles"
+          },
+          {
+            "href": "/skin-care/dark-spots",
+            "text": "Dark Spots"
+          },
+          {
+            "href": "/skin-care/dry-skin",
+            "text": "Dry Skin"
+          },
+          {
+            "href": "/skin-care/fine-lines-wrinkles",
+            "text": "Fine Lines & Wrinkles"
+          },
+          {
+            "href": "/skin-care/fragrance-free",
+            "text": "Fragrance Free"
+          },
+          {
+            "href": "/skin-care/oily-skin",
+            "text": "Oily Skin"
+          },
+          {
+            "href": "/skin-care/sagging-skin",
+            "text": "Sagging Skin"
+          },
+          {
+            "href": "/ingredient-library/niacinamide",
+            "text": "Niacinamide"
+          },
+          {
+            "href": "/ingredient-library/glycolic-acid",
+            "text": "Glycolic Acid"
+          },
+          {
+            "href": "/ingredient-library/hyaluronic-acid",
+            "text": "Hyaluronic Acid"
+          },
+          {
+            "href": "/ingredient-library/pure-retinol",
+            "text": "Pure Retinol"
+          },
+          {
+            "href": "/ingredient-library/vitamin-c",
+            "text": "Vitamin C"
+          },
+          {
+            "href": "/ingredient-library",
+            "text": "ALL INGREDIENTS"
+          },
+          {
+            "href": "/skin-genius-landing-page",
+            "text": "Skin Genius | Analyze your skin like an expert"
+          },
+          {
+            "href": "/skin-genius-landing-page",
+            "text": "Skin Analysis Tool"
+          },
+          {
+            "href": "/skincare-serum-quiz",
+            "text": "Skin Serum Finder"
+          },
+          {
+            "href": "/ingredient-library",
+            "text": "Ingredient Library"
+          },
+          {
+            "href": "/skin-care-hub",
+            "text": "Skin Care Hub"
+          },
+          {
+            "href": "/brands/collagen-filler",
+            "text": "Collagen Filler"
+          },
+          {
+            "href": "/brands/age-perfect-skin-care",
+            "text": "Age Perfect Skin Care"
+          },
+          {
+            "href": "/bright-reveal-skin-care",
+            "text": "Bright Reveal"
+          },
+          {
+            "href": "/brands/men-expert",
+            "text": "Men Expert"
+          },
+          {
+            "href": "/brands/revitalift",
+            "text": "Revitalift"
+          },
+          {
+            "href": "/brands/sublime-bronze",
+            "text": "Sublime Bronze"
+          },
+          {
+            "href": "/brands/wrinkle-expert",
+            "text": "Wrinkle Expert"
+          },
+          {
+            "href": "/skin-care",
+            "text": "VIEW ALL SKINCARE PRODUCTS"
+          },
+          {
+            "href": "/hair-color",
+            "text": "Hair Color"
+          },
+          {
+            "href": "/hair-color",
+            "text": "HAIR COLOR PRODUCTS"
+          },
+          {
+            "href": "/hair-color",
+            "text": "All Hair Color Products"
+          },
+          {
+            "href": "/hair-color/permanent",
+            "text": "Permanent Hair Color"
+          },
+          {
+            "href": "/hair-color/semi-permanent",
+            "text": "Semi-Permanent"
+          },
+          {
+            "href": "/hair-color/root-touch-up",
+            "text": "Root Touch Up"
+          },
+          {
+            "href": "/hair-color/hair-color-bleaches",
+            "text": "Hair Color Bleaches"
+          },
+          {
+            "href": "",
+            "text": "Hair Color Removers/Faders"
+          },
+          {
+            "href": "",
+            "text": "Hair Highlights"
+          },
+          {
+            "href": "",
+            "text": "Temporary Hair Color"
+          },
+          {
+            "href": "/hair-color/toner",
+            "text": "Toner"
+          },
+          {
+            "href": "/hair-care-hair-style/color-care",
+            "text": "Color Care"
+          },
+          {
+            "href": "/hair-color/brown-brunette",
+            "text": "Brown/Brunette"
+          },
+          {
+            "href": "/hair-color/blonde",
+            "text": "Blonde"
+          },
+          {
+            "href": "/hair-color/red",
+            "text": "Red"
+          },
+          {
+            "href": "/hair-color/black",
+            "text": "Black"
+          },
+          {
+            "href": "/hair-color/bold-color",
+            "text": "Bold"
+          }
+        ],
+        "product_names": [],
+        "readable_characters": 9097,
+        "robots_meta": {
+          "robots": "index, follow"
+        },
+        "semantic_types": [
+          "Organization"
+        ],
+        "site_name": "L'Oreal Paris",
+        "structured_names": [
+          {
+            "name": "L'Or\u00e9al Group",
+            "source": "JSON-LD Organization.name"
+          },
+          {
+            "name": "L'Or\u00e9al Group",
+            "source": "JSON-LD Organization.name"
+          }
+        ],
+        "title": "Makeup, Skin Care, Men & Hair products - L'Or\u00e9al Paris"
+      },
+      "requests": [
+        {
+          "body_excerpt": "",
+          "body_sha256": "6053ef1a38bda556ba318f1cbfd27f102cc49b6d96f56fa8bc847af48d47fac2",
+          "body_title": "Makeup, Skin Care, Men & Hair products - L'Or\u00e9al Paris",
+          "captured_bytes": 545538,
+          "headers": {
+            "Content-Type": "text/html; charset=utf-8",
+            "Server": "cloudflare"
+          },
+          "markers": {
+            "access_denied": false,
+            "akamai": false,
+            "cloudflare": true,
+            "human_verification": false,
+            "rate_limit": false,
+            "shopify": false
+          },
+          "status": 200,
+          "url": "https://www.lorealparisusa.com/"
+        }
+      ],
+      "url": "https://www.lorealparisusa.com/",
+      "usage": {
+        "active_duration_ms": 849,
+        "bytes_budget_used": 545538,
+        "bytes_received": 545538,
+        "http_requests": 1,
+        "model_calls": 0,
+        "resources_requested": 1
+      },
+      "visible_text_excerpt": "New Arrivals\nIN THE SPOTLIGHT\nBeauty Just Got Smarter\nVIRTUAL BEAUTY TOOLS\n- hair care - thin hair How To Get Voluminous Hair: Our Best Tips and Products for Big Hair BY FERNANDA FARJEAT JUNE 22, 2026\nPROTECT & CORRECT WITH TRIPLE POWER\nTurn back the clock with our Triple Power Moisturizer with SPF 30. This daily moisturizer combines three powerhouse ingredients \u2013 Pro-Retinol, Hyaluronic Acid, and Vitamin C \u2013 to visibly reduce wrinkles and neck crepiness, firm your face and jawline, and brighten your skin. Plus, it includes SPF 30 to protect against 80% of skin aging caused by the sun.\nWOMEN OF WORTH\nSince 2005, L\u2019Or\u00e9al Paris has honored 210 Women of Worth uplifting their communities and transforming the world as we know it.\nJoin us in honoring the 2026 L\u2019Or\u00e9al Paris Women of Worth honoree class and help us continue to spotlight inspiring stories by nominating the next class of changemakers."
+    },
+    {
+      "access": {
+        "bytes": 6813,
+        "checked_at": "2026-10-22T15:25:58.854774+00:00",
+        "checks": [
+          {
+            "id": "address",
+            "message": "\u5b98\u7f51\u5730\u5740\u683c\u5f0f\u5df2\u6821\u9a8c\u3002",
+            "status": "passed"
+          },
+          {
+            "id": "dns",
+            "message": "\u57df\u540d\u5df2\u89e3\u6790\u5e76\u68c0\u67e5\u8fd4\u56de\u5730\u5740\u3002",
+            "status": "passed"
+          },
+          {
+            "id": "tls",
+            "message": "\u5df2\u6309\u5b98\u7f51\u57df\u540d\u5b8c\u6210\u8bc1\u4e66\u9a8c\u8bc1\u3002",
+            "status": "passed"
+          },
+          {
+            "id": "http",
+            "message": "\u5df2\u6536\u5230\u5b98\u7f51 HTTP \u54cd\u5e94\u3002",
+            "status": "passed"
+          },
+          {
+            "id": "content",
+            "message": "\u5df2\u8bfb\u53d6\u7f51\u9875\u6587\u672c\uff1b\u4ec5\u68c0\u67e5\u672c\u6b21\u8fd4\u56de\u5185\u5bb9\u3002",
+            "status": "passed"
+          }
+        ],
+        "content_type": "text/html",
+        "duration_ms": 1396,
+        "final_url": "https://www.lorealparis.com.cn/",
+        "findings": [],
+        "http_status": 200,
+        "outcome": "readable",
+        "possible_access_restriction": false,
+        "readable_characters": 0,
+        "redirects": [],
+        "retry_after": null
+      },
+      "candidates": {
+        "brand": {
+          "aliases": [
+            "\u5df4\u9ece\u6b27\u83b1\u96c5"
+          ],
+          "basis": "website_metadata",
+          "evidence_ids": [
+            "e-ee1a4f1ed43c2d013b33"
+          ],
+          "id": "candidate-66b35b78cbfc2060a82e",
+          "kind": "brand",
+          "name": "\u5df4\u9ece\u6b27\u83b1\u96c5",
+          "needs_confirmation": true,
+          "source_field": "title",
+          "source_url": "https://www.lorealparis.com.cn/"
+        },
+        "competitors": [],
+        "products": []
+      },
+      "error": null,
+      "extracted_characters": 0,
+      "metadata": {
+        "author": "",
+        "date": "",
+        "description": "\u5df4\u9ece\u6b27\u83b1\u96c5",
+        "h1": "",
+        "markdown_alternates": [],
+        "product_links": [],
+        "product_names": [],
+        "readable_characters": 0,
+        "robots_meta": {},
+        "semantic_types": [],
+        "site_name": "",
+        "structured_names": [],
+        "title": "\u5df4\u9ece\u6b27\u83b1\u96c5"
+      },
+      "requests": [
+        {
+          "body_excerpt": "",
+          "body_sha256": "5f9a4145d369ce7d73e259d7951ee99c005f4454b0d8b78f499ae9bb5bb2183a",
+          "body_title": "\u5df4\u9ece\u6b27\u83b1\u96c5",
+          "captured_bytes": 6813,
+          "headers": {
+            "Content-Length": "6813",
+            "Content-Type": "text/html; charset=utf-8"
+          },
+          "markers": {
+            "access_denied": false,
+            "akamai": false,
+            "cloudflare": false,
+            "human_verification": false,
+            "rate_limit": false,
+            "shopify": false
+          },
+          "status": 200,
+          "url": "https://www.lorealparis.com.cn/"
+        }
+      ],
+      "url": "https://www.lorealparis.com.cn/",
+      "usage": {
+        "active_duration_ms": 1396,
+        "bytes_budget_used": 6813,
+        "bytes_received": 6813,
+        "http_requests": 1,
+        "model_calls": 0,
+        "resources_requested": 1
+      },
+      "visible_text_excerpt": ""
+    },
+    {
+      "access": {
+        "bytes": 577,
+        "checked_at": "2026-10-22T15:26:00.251538+00:00",
+        "checks": [
+          {
+            "id": "address",
+            "message": "\u5b98\u7f51\u5730\u5740\u683c\u5f0f\u5df2\u6821\u9a8c\u3002",
+            "status": "passed"
+          },
+          {
+            "id": "dns",
+            "message": "\u57df\u540d\u5df2\u89e3\u6790\u5e76\u68c0\u67e5\u8fd4\u56de\u5730\u5740\u3002",
+            "status": "passed"
+          },
+          {
+            "id": "tls",
+            "message": "\u5df2\u6309\u5b98\u7f51\u57df\u540d\u5b8c\u6210\u8bc1\u4e66\u9a8c\u8bc1\u3002",
+            "status": "passed"
+          },
+          {
+            "id": "http",
+            "message": "\u5df2\u6536\u5230\u5b98\u7f51 HTTP \u54cd\u5e94\u3002",
+            "status": "passed"
+          },
+          {
+            "id": "content",
+            "message": "\u5df2\u8bfb\u53d6\u7f51\u9875\u6587\u672c\uff1b\u4ec5\u68c0\u67e5\u672c\u6b21\u8fd4\u56de\u5185\u5bb9\u3002",
+            "status": "passed"
+          }
+        ],
+        "content_type": "text/html",
+        "duration_ms": 428,
+        "final_url": "https://example.com/",
+        "findings": [],
+        "http_status": 200,
+        "outcome": "readable",
+        "possible_access_restriction": false,
+        "readable_characters": 156,
+        "redirects": [],
+        "retry_after": null
+      },
+      "candidates": {
+        "brand": {
+          "aliases": [
+            "Example Domain"
+          ],
+          "basis": "website_metadata",
+          "evidence_ids": [
+            "e-35689f94fabe009c353a"
+          ],
+          "id": "candidate-8ea9d5e1556e9f1ffad6",
+          "kind": "brand",
+          "name": "Example Domain",
+          "needs_confirmation": true,
+          "source_field": "title",
+          "source_url": "https://example.com/"
+        },
+        "competitors": [],
+        "products": []
+      },
+      "error": null,
+      "extracted_characters": 156,
+      "metadata": {
+        "author": "",
+        "date": "",
+        "description": "",
+        "h1": "",
+        "markdown_alternates": [],
+        "product_links": [],
+        "product_names": [],
+        "readable_characters": 156,
+        "robots_meta": {},
+        "semantic_types": [],
+        "site_name": "",
+        "structured_names": [],
+        "title": "Example Domain"
+      },
+      "requests": [
+        {
+          "body_excerpt": "This domain is for use in documentation examples without needing permission. This is not a service; avoid relying on it for testing and monitoring purposes.",
+          "body_sha256": "25ddf2c883e0d1958ea971d279a7e4f0fd446724ee3db7db19dadabd4a62e484",
+          "body_title": "Example Domain",
+          "captured_bytes": 577,
+          "headers": {
+            "Content-Type": "text/html; charset=utf-8",
+            "Server": "cloudflare"
+          },
+          "markers": {
+            "access_denied": false,
+            "akamai": false,
+            "cloudflare": false,
+            "human_verification": false,
+            "rate_limit": false,
+            "shopify": false
+          },
+          "status": 200,
+          "url": "https://example.com/"
+        }
+      ],
+      "url": "https://example.com/",
+      "usage": {
+        "active_duration_ms": 429,
+        "bytes_budget_used": 577,
+        "bytes_received": 577,
+        "http_requests": 1,
+        "model_calls": 0,
+        "resources_requested": 1
+      },
+      "visible_text_excerpt": "This domain is for use in documentation examples without needing permission. This is not a service; avoid relying on it for testing and monitoring purposes."
+    }
+  ]
+}
