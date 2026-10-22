@@ -155,7 +155,7 @@ class Workspace:
    ps=d.get('prompts')
    if not isinstance(ps,list) or len(ps)!=30 or any(not isinstance(p,str) or not p.strip() or len(p)>4000 for p in ps) or len({geo_plan.question_key(p) for p in ps})!=30:raise Failure(400,'invalid_request')
   d['count']=30;d['repeats']=1
- def dispatch(self,path,d=None,_diagnostic=None):
+ def dispatch(self,path,d=None,_diagnostic=None,_source_snapshot=None):
   if path=='state':
    # Same lock as reservation/submission/publication. Once maintenance+idle is
    # observable, no earlier admitted POST can still publish a queued task.
@@ -214,6 +214,10 @@ class Workspace:
    except EnrichmentError as error:raise Failure(error.status,error.code) from None
   if d is None:return self.api.call('geo',path),200
   name=path;self.validate(name,d)
+  if _source_snapshot is not None:
+   if name!='start' or not _diagnostic or self.diagnostic_active!=_diagnostic:raise Failure(400,'invalid_request')
+   from geo_flow import validate_source_snapshot
+   _source_snapshot=validate_source_snapshot(_source_snapshot,d['website'])
   if name=='plan':
    with self.lock:
     self.require_admission();result=self.api.call('geo',name,d);self.require_admission();return result,200
@@ -233,7 +237,7 @@ class Workspace:
     self.require_admission()
     self.budget.reserve(expected)
     self.require_admission()
-    result=self.api.call('geo',name,d);self.active=result['id'];return result,202
+    result=self.api.call('geo','diagnostic-start',{'config':d,'source_snapshot':_source_snapshot}) if _source_snapshot is not None else self.api.call('geo',name,d);self.active=result['id'];return result,202
   return self.api.call('geo',name,d),201 if name=='analyze' else 200
 class Server(http.server.ThreadingHTTPServer):
  daemon_threads=True;allow_reuse_address=True

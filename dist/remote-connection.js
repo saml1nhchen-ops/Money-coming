@@ -5,7 +5,7 @@
   const nativePage = geoPage, nativeRender = render, nativeStart = geoStart;
   const nativeSave = researchSave, nativePayload = geoPayload, nativeChange = geoChange;
   const nativeResults = researchResults, nativeSelect = researchSelect, nativeAdvanced = researchAdvanced;
-  const connection = {url:'',expiresAt:0,busy:false,offline:false,verified:false,message:'',notice:'',rememberChoice:true,remembered:false,saved:false};
+  const connection = {url:'',expiresAt:0,busy:false,offline:false,verified:false,message:'',notice:'',rememberChoice:true,remembered:false,saved:false,capabilities:{}};
   let token = '', epoch = 0, expiryTimer = null, submission = false;
   const pending = new Set(), AUTH_PREFIX = 'signal-team-auth:v1:', MAX_TIMER = 2147483646;
   const error = (message, code = 'request_failed') => Object.assign(new Error(message), {code});
@@ -62,7 +62,7 @@
   function paint() { if (page === 'research') render(); }
   function clear(message = '请重新登录。') {
     epoch++; window.dispatchEvent(new Event('remote-enrichment-invalidated')); for (const controller of pending) controller.abort(); pending.clear();
-    token = ''; geoToken = ''; connection.expiresAt = 0; connection.offline = false; connection.busy = false; connection.verified = false; connection.saved = false; connection.remembered = false;
+    token = ''; geoToken = ''; connection.expiresAt = 0; connection.offline = false; connection.busy = false; connection.verified = false; connection.saved = false; connection.remembered = false; connection.capabilities = {};
     clearTimeout(expiryTimer); clearTimeout(geoTimer); submission = false;
     connection.message = message; connection.notice = '';
     geoState = {runner:{configured:false,profiles:[]},runs:[]}; geoActive = null; geoPlanView = null;
@@ -96,7 +96,7 @@
     current(generation);
     const controller = new AbortController(); pending.add(controller);
     let timedOut = false;
-    const paid = /\/api\/geo\/(start|sample|enrich)$/.test(path);
+    const paid = /\/api\/geo\/(start|sample|enrich)$/.test(path) || /\/api\/diagnostics(?:\/retest)?$/.test(path) && body !== undefined;
     const timer = setTimeout(() => { timedOut = true; controller.abort(); }, paid ? 135000 : 20000);
     try {
       let response;
@@ -122,6 +122,7 @@
       current(generation);
       if (!response.ok) throw Object.assign(error(messages[data?.code] || '后台请求失败，请刷新状态或联系管理员。',data?.code || 'request_failed'),{connectionFailure:response.status >= 500});
       if (!data || typeof data !== 'object' || Array.isArray(data)) throw Object.assign(error('后台响应格式错误。','invalid_response'),{connectionFailure:true});
+      if (path === '/healthz' && url === connection.url) connection.capabilities = data.capabilities || {};
       return data;
     } finally { clearTimeout(timer); pending.delete(controller); }
   }
@@ -130,6 +131,7 @@
     clear('正在验证此设备保存的登录…');
     token = record.token; geoToken = 'team-session'; connection.expiresAt = Date.parse(record.expires_at); connection.saved = true; connection.remembered = record.remembered; connection.busy = true;
     const generation = epoch; scheduleExpiry(); paint();
+    try { await request('/healthz',undefined,{generation,token:'',expectedStatus:200}); } catch {}
     await geoRefresh(false);
     if (generation === epoch) { connection.busy = false; paint(); }
   }
@@ -205,6 +207,36 @@
       body = {id:input.id,confirmed:{brand:select(c.brand,['name','aliases']),products:(c.products || []).map(v=>select(v,['name','aliases','source_candidate_id'])),competitors:(c.competitors || []).map(v=>select(v,['name','aliases','domains','source_candidate_id'])),...(typeof c.context === 'string'?{context:c.context}:{})}};
     }
     return request('/api/geo/'+names[action],body,{generation});
+  };
+  window.remoteDiagnosticsContext = () => ({...remoteEnrichmentContext(),supported:connection.capabilities?.diagnostics_v1 === true});
+  window.remoteWorkspace = async function(action, input) {
+    if (!remoteEnrichmentContext().authenticated) throw error('请先登录团队后台。','unauthorized');
+    if (!remoteDiagnosticsContext().supported) throw error('后台正在升级，新的诊断功能尚未就绪。不会自动启动旧分析。','diagnostics_unavailable');
+    const generation = epoch, validID = v => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+    const get = {clients:'/api/clients',projects:'/api/projects',list:'/api/diagnostics',detail:'/api/diagnostics/detail',export:'/api/diagnostics/export'};
+    if (Object.hasOwn(get,action)) {
+      if (['detail','export'].includes(action) && !validID(input)) throw error('诊断编号无效。','invalid_request');
+      return request(get[action]+(['detail','export'].includes(action)?'?id='+encodeURIComponent(input):''),undefined,{generation});
+    }
+    const pick = (value,keys) => Object.fromEntries(keys.filter(k=>Object.hasOwn(value || {},k)).map(k=>[k,value[k]]));
+    let path, body;
+    if (action === 'client') {path='/api/clients';body=pick(input,['name']);}
+    else if (action === 'project') {path='/api/projects';body=pick(input,['client_id','name']);}
+    else if (action === 'start') {
+      path='/api/diagnostics'; body=pick(input,['audit_id','profile_ids','project_id','request_id','mode']);
+      const c=input?.confirmed || {};
+      body.confirmed={brand:pick(c.brand,['name','aliases']),products:(c.products || []).map(v=>pick(v,['name','aliases','source_candidate_id'])),competitors:(c.competitors || []).map(v=>pick(v,['name','aliases','domains','source_candidate_id'])),context:typeof c.context==='string'?c.context:''};
+    } else if (action === 'retest') {path='/api/diagnostics/retest';body=pick(input,['id','request_id']);}
+    else if (action === 'share') {path='/api/diagnostics/share';body=pick(input,['id']);}
+    else if (action === 'revoke') {path='/api/diagnostics/revoke';body=pick(input,['share_id']);}
+    else throw error('不支持的诊断操作。','invalid_request');
+    return request(path,body,{generation});
+  };
+  window.remoteSharedReport = async function(shareToken) {
+    if (typeof shareToken !== 'string' || !/^[A-Za-z0-9_-]{20,256}$/.test(shareToken)) throw error('分享链接无效或已失效。','invalid_request');
+    const url=configuredOrigin();
+    if (!url) throw error('尚未配置报告后台。','backend_unavailable');
+    return request('/api/shared-report?token='+encodeURIComponent(shareToken),undefined,{generation:epoch,token:'',url});
   };
   window.remoteCanRun = canRun;
   window.remoteNormalizeSelection = normalize;

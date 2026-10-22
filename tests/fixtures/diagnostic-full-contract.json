@@ -1,0 +1,3679 @@
+{
+  "id": "3354541a-f048-4630-b492-4b892815c88b",
+  "project_id": "cca95eb8-9e4b-4b6f-9ce3-58c1002bca54",
+  "client_id": "06403f4a-e3e3-4f5d-a77b-781adb65b415",
+  "status": "partial",
+  "stage": "done",
+  "created_at": "2026-10-22T16:27:22.741562+00:00",
+  "brand": "Acme Tea",
+  "website": "https://acme.example/",
+  "market": "US",
+  "config": {
+    "audit_id": "82f0ed31-05a8-45ea-8b10-669a3a96e7cf",
+    "website": "https://acme.example/",
+    "market": "US",
+    "confirmed": {
+      "brand": {
+        "name": "Acme Tea",
+        "aliases": [
+          "Acme Tea"
+        ],
+        "basis": "website_metadata",
+        "evidence_ids": [
+          "e-30ff06b3d2d080ddf8a1"
+        ]
+      },
+      "products": [],
+      "competitors": [
+        {
+          "name": "Rival Tea",
+          "aliases": [
+            "Rival Tea"
+          ],
+          "basis": "user_provided",
+          "evidence_ids": [],
+          "domains": [
+            "other.example"
+          ]
+        }
+      ],
+      "context": "",
+      "confirmed_at": "2026-10-22T16:27:22.741504+00:00"
+    },
+    "profile_ids": [
+      "gpt"
+    ],
+    "mode": "full"
+  },
+  "comparison_config": {
+    "website": "https://acme.example/",
+    "market": "US",
+    "confirmed": {
+      "brand": {
+        "name": "Acme Tea",
+        "aliases": [
+          "Acme Tea"
+        ]
+      },
+      "products": [],
+      "competitors": [
+        {
+          "name": "Rival Tea",
+          "aliases": [
+            "Rival Tea"
+          ],
+          "domains": [
+            "other.example"
+          ]
+        }
+      ],
+      "context": ""
+    },
+    "profiles": [
+      {
+        "id": "gpt",
+        "model": "gpt-test",
+        "manufacturer": "OpenAI",
+        "protocol": "chat",
+        "markets": [
+          "CN",
+          "US"
+        ],
+        "search": false
+      }
+    ],
+    "rule_version": "signal-diagnostic-rules-v0.1.1",
+    "parser_version": "protego-0.7.0+trafilatura-2.3.1"
+  },
+  "plan": {
+    "generation_calls": 3,
+    "answer_calls": 30,
+    "count": 30,
+    "repeats": 1,
+    "maximum_calls": 33
+  },
+  "audit_id": "82f0ed31-05a8-45ea-8b10-669a3a96e7cf",
+  "job_id": "8e1a55aa-ae0b-4cfa-99b9-84a27705bfcd",
+  "bundle": {
+    "schema_version": "v0.1",
+    "demo": false,
+    "run_manifest": {
+      "run_id": "3354541a-f048-4630-b492-4b892815c88b",
+      "brand": "Acme Tea",
+      "domains": [
+        "acme.example"
+      ],
+      "market": "US",
+      "language": "en",
+      "mode": "full",
+      "rule_version": "signal-diagnostic-rules-v0.1.1",
+      "parser_version": "protego-0.7.0+trafilatura-2.3.1",
+      "judge_version": "deterministic-observations-v1",
+      "question_set_version": "54c7804df38f976d0df2f47e5f1d6119d40c34ae18a14a0ee7e571b6d8dab6b0",
+      "page_set_version": "c65c6dbb498d845d42348faef30dfa536dac03ee46579a60ed4fb25f72144031",
+      "configuration": "caf292b3aab46c3803d7cc0a9e93a2bb94c715711aceebb47d9d8f93120f8ae4",
+      "sampled_at": "2026-10-22T16:27:22.741562+00:00",
+      "planned": 30,
+      "attempted": 30,
+      "page_weighting": "有限代表页；规则按维度权重，不将页面数量当质量。"
+    },
+    "rules": [
+      {
+        "rule_id": "R-access-response",
+        "dimension": "access",
+        "weight": 5,
+        "status": "pass",
+        "partial_credit": 0.5,
+        "reason": "已获得可解析HTML页面。",
+        "evidence_ids": [
+          "WEB-e-0e50a5772a1c341eb766"
+        ],
+        "target_page": "https://acme.example/",
+        "rubric": "pass=1; partial=0.5; fail=0; unknown retains score interval. 已获得正常可解析HTML响应，不代表正文完整可读。",
+        "verification": "核对对应抓取快照与规则适用条件；已获得正常可解析HTML响应，不代表正文完整可读。",
+        "action": "检查响应类型与状态；避免挑战页代替正文。",
+        "version": "signal-diagnostic-rules-v0.1.1",
+        "na_reason": ""
+      },
+      {
+        "rule_id": "R-access-extraction",
+        "dimension": "access",
+        "weight": 10,
+        "status": "pass",
+        "partial_credit": 0.5,
+        "reason": "离线Trafilatura提取正文 5121 字符。",
+        "evidence_ids": [
+          "WEB-e-0e50a5772a1c341eb766"
+        ],
+        "target_page": "https://acme.example/",
+        "rubric": "pass=1; partial=0.5; fail=0; unknown retains score interval. 离线正文提取至少500字符才通过；未知不计通过。",
+        "verification": "核对对应抓取快照与规则适用条件；离线正文提取至少500字符才通过；未知不计通过。",
+        "action": "提供服务端可读取的主体内容并核对提取正文。",
+        "version": "signal-diagnostic-rules-v0.1.1",
+        "na_reason": ""
+      },
+      {
+        "rule_id": "R-access-tls",
+        "dimension": "access",
+        "weight": 5,
+        "status": "pass",
+        "partial_credit": 0.5,
+        "reason": "本次最终页面TLS检查：passed",
+        "evidence_ids": [
+          "WEB-e-0e50a5772a1c341eb766"
+        ],
+        "target_page": "https://acme.example/",
+        "rubric": "pass=1; partial=0.5; fail=0; unknown retains score interval. 仅本次最终页面TLS验证通过；不认证网站业务事实。",
+        "verification": "核对对应抓取快照与规则适用条件；仅本次最终页面TLS验证通过；不认证网站业务事实。",
+        "action": "使用有效HTTPS证书，避免降级跳转。",
+        "version": "signal-diagnostic-rules-v0.1.1",
+        "na_reason": ""
+      },
+      {
+        "rule_id": "R-access-search",
+        "dimension": "access",
+        "weight": 5,
+        "status": "pass",
+        "partial_credit": 0.5,
+        "reason": "针对本页路径的Protego结论：allowed",
+        "evidence_ids": [
+          "WEB-e-80fd79c6f367350a8aaf"
+        ],
+        "target_page": "https://acme.example/",
+        "rubric": "pass=1; partial=0.5; fail=0; unknown retains score interval. 只判断本页路径的搜索UA声明，训练策略分开。",
+        "verification": "核对对应抓取快照与规则适用条件；只判断本页路径的搜索UA声明，训练策略分开。",
+        "action": "核对robots路径策略及收录声明；不保证实际收录。",
+        "version": "signal-diagnostic-rules-v0.1.1",
+        "na_reason": ""
+      },
+      {
+        "rule_id": "R-entity-identity",
+        "dimension": "entity",
+        "weight": 10,
+        "status": "pass",
+        "partial_credit": 0.5,
+        "reason": "仅观察官网线索，未核验事实真实性或链接目标。",
+        "evidence_ids": [
+          "WEB-e-7c7540892c08c662765c"
+        ],
+        "target_page": "https://acme.example/",
+        "rubric": "pass=1; partial=0.5; fail=0; unknown retains score interval. 仅判断官网存在组织/品牌身份线索。",
+        "verification": "核对对应抓取快照与规则适用条件；仅判断官网存在组织/品牌身份线索。",
+        "action": "提供一致组织或品牌名称与机器可读身份信息。",
+        "version": "signal-diagnostic-rules-v0.1.1",
+        "na_reason": ""
+      },
+      {
+        "rule_id": "R-entity-products",
+        "dimension": "entity",
+        "weight": 10,
+        "status": "unknown",
+        "partial_credit": 0.5,
+        "reason": "产品名称线索不认证产品事实完整性；未进行逐项事实核验。",
+        "evidence_ids": [],
+        "target_page": "https://acme.example/",
+        "rubric": "pass=1; partial=0.5; fail=0; unknown retains score interval. 没有逐项核验所需事实时保持unknown；不得从提及或200推断。",
+        "verification": "核对对应抓取快照与规则适用条件；没有逐项核验所需事实时保持unknown；不得从提及或200推断。",
+        "action": "逐项核对原文、批准事实与适用范围后补充证据。",
+        "version": "signal-diagnostic-rules-v0.1.1",
+        "na_reason": ""
+      },
+      {
+        "rule_id": "R-questions-coverage",
+        "dimension": "questions",
+        "weight": 20,
+        "status": "unknown",
+        "partial_credit": 0.5,
+        "reason": "尚未对冻结问题所需事实与网页逐条配对核验；模型提及不等于官网覆盖。",
+        "evidence_ids": [],
+        "target_page": "https://acme.example/",
+        "rubric": "pass=1; partial=0.5; fail=0; unknown retains score interval. 没有逐项核验所需事实时保持unknown；不得从提及或200推断。",
+        "verification": "核对对应抓取快照与规则适用条件；没有逐项核验所需事实时保持unknown；不得从提及或200推断。",
+        "action": "逐项核对原文、批准事实与适用范围后补充证据。",
+        "version": "signal-diagnostic-rules-v0.1.1",
+        "na_reason": ""
+      },
+      {
+        "rule_id": "R-trust-contact",
+        "dimension": "trust",
+        "weight": 5,
+        "status": "pass",
+        "partial_credit": 0.5,
+        "reason": "仅观察官网线索，未核验事实真实性或链接目标。",
+        "evidence_ids": [
+          "WEB-e-45d57f8f2b2ef3b848fc"
+        ],
+        "target_page": "https://acme.example/",
+        "rubric": "pass=1; partial=0.5; fail=0; unknown retains score interval. 只观察联系线索，不核验真实可联系。",
+        "verification": "核对对应抓取快照与规则适用条件；只观察联系线索，不核验真实可联系。",
+        "action": "补充公开联系方式并核对准确性。",
+        "version": "signal-diagnostic-rules-v0.1.1",
+        "na_reason": ""
+      },
+      {
+        "rule_id": "R-trust-policy",
+        "dimension": "trust",
+        "weight": 5,
+        "status": "pass",
+        "partial_credit": 0.5,
+        "reason": "仅观察官网线索，未核验事实真实性或链接目标。",
+        "evidence_ids": [
+          "WEB-e-c4a24d5f9f78c1e1d3f9"
+        ],
+        "target_page": "https://acme.example/",
+        "rubric": "pass=1; partial=0.5; fail=0; unknown retains score interval. 只观察政策链接，不认证政策内容。",
+        "verification": "核对对应抓取快照与规则适用条件；只观察政策链接，不认证政策内容。",
+        "action": "提供清楚的隐私或使用条款链接。",
+        "version": "signal-diagnostic-rules-v0.1.1",
+        "na_reason": ""
+      },
+      {
+        "rule_id": "R-trust-facts",
+        "dimension": "trust",
+        "weight": 5,
+        "status": "unknown",
+        "partial_credit": 0.5,
+        "reason": "官网身份和联系线索不是独立事实认证。",
+        "evidence_ids": [],
+        "target_page": "https://acme.example/",
+        "rubric": "pass=1; partial=0.5; fail=0; unknown retains score interval. 没有逐项核验所需事实时保持unknown；不得从提及或200推断。",
+        "verification": "核对对应抓取快照与规则适用条件；没有逐项核验所需事实时保持unknown；不得从提及或200推断。",
+        "action": "逐项核对原文、批准事实与适用范围后补充证据。",
+        "version": "signal-diagnostic-rules-v0.1.1",
+        "na_reason": ""
+      },
+      {
+        "rule_id": "R-structure-headings",
+        "dimension": "structure",
+        "weight": 5,
+        "status": "pass",
+        "partial_credit": 0.5,
+        "reason": "title及H1均可观察。",
+        "evidence_ids": [
+          "WEB-e-0e50a5772a1c341eb766"
+        ],
+        "target_page": "https://acme.example/",
+        "rubric": "pass=1; partial=0.5; fail=0; unknown retains score interval. title与H1均可观察才通过。",
+        "verification": "核对对应抓取快照与规则适用条件；title与H1均可观察才通过。",
+        "action": "提供准确页面标题与明确H1。",
+        "version": "signal-diagnostic-rules-v0.1.1",
+        "na_reason": ""
+      },
+      {
+        "rule_id": "R-structure-data",
+        "dimension": "structure",
+        "weight": 5,
+        "status": "pass",
+        "partial_credit": 0.5,
+        "reason": "观察到可解析语义类型：Organization, Product",
+        "evidence_ids": [
+          "WEB-e-0e50a5772a1c341eb766"
+        ],
+        "target_page": "https://acme.example/",
+        "rubric": "pass=1; partial=0.5; fail=0; unknown retains score interval. 观察已解析的语义类型，不认证结构化事实真实性。",
+        "verification": "核对对应抓取快照与规则适用条件；观察已解析的语义类型，不认证结构化事实真实性。",
+        "action": "提供符合页面实际内容的结构化数据并人工验证。",
+        "version": "signal-diagnostic-rules-v0.1.1",
+        "na_reason": ""
+      },
+      {
+        "rule_id": "R-maintenance-consistency",
+        "dimension": "maintenance",
+        "weight": 10,
+        "status": "unknown",
+        "partial_credit": 0.5,
+        "reason": "已保留有限页面证据；尚未进行跨页事实一致性人工核验。",
+        "evidence_ids": [],
+        "target_page": "https://acme.example/",
+        "rubric": "pass=1; partial=0.5; fail=0; unknown retains score interval. 没有逐项核验所需事实时保持unknown；不得从提及或200推断。",
+        "verification": "核对对应抓取快照与规则适用条件；没有逐项核验所需事实时保持unknown；不得从提及或200推断。",
+        "action": "逐项核对原文、批准事实与适用范围后补充证据。",
+        "version": "signal-diagnostic-rules-v0.1.1",
+        "na_reason": ""
+      }
+    ],
+    "questions": [
+      {
+        "question_id": "Q-1",
+        "question": "Which tea choices meet need 0?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-2",
+        "question": "Which tea choices meet need 1?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-3",
+        "question": "Which tea choices meet need 2?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-4",
+        "question": "Which tea choices meet need 3?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-5",
+        "question": "Which tea choices meet need 4?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-6",
+        "question": "Which tea choices meet need 5?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-7",
+        "question": "Which tea choices meet need 6?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-8",
+        "question": "Which tea choices meet need 7?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-9",
+        "question": "Which tea choices meet need 8?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-10",
+        "question": "Which tea choices meet need 9?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-11",
+        "question": "Which tea choices meet need 10?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-12",
+        "question": "Which tea choices meet need 11?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-13",
+        "question": "Which tea choices meet need 12?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-14",
+        "question": "Which tea choices meet need 13?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-15",
+        "question": "Which tea choices meet need 14?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-16",
+        "question": "Which tea choices meet need 15?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-17",
+        "question": "Which tea choices meet need 16?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-18",
+        "question": "Which tea choices meet need 17?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-19",
+        "question": "Which tea choices meet need 18?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-20",
+        "question": "Which tea choices meet need 19?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-21",
+        "question": "Which tea choices meet need 20?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-22",
+        "question": "Which tea choices meet need 21?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-23",
+        "question": "Which tea choices meet need 22?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-24",
+        "question": "Which tea choices meet need 23?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-25",
+        "question": "Which tea choices meet need 24?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-26",
+        "question": "Which tea choices meet need 25?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-27",
+        "question": "Which tea choices meet need 26?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-28",
+        "question": "Which tea choices meet need 27?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-29",
+        "question": "Which tea choices meet need 28?",
+        "question_version": 1,
+        "question_type": "discovery"
+      },
+      {
+        "question_id": "Q-30",
+        "question": "Which tea choices meet need 29?",
+        "question_version": 1,
+        "question_type": "discovery"
+      }
+    ],
+    "answers": [
+      {
+        "evidence_id": "ANSWER-1",
+        "question_id": "Q-1",
+        "question": "Which tea choices meet need 0?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "1. Acme Tea\n2. Rival Tea",
+        "mention": true,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": "Acme Tea",
+            "prompted": false,
+            "rank": {
+              "position": 1,
+              "evidence": "1. Acme Tea",
+              "basis": "explicit_numbered_item"
+            }
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": "Rival Tea",
+            "prompted": false,
+            "rank": {
+              "position": 2,
+              "evidence": "2. Rival Tea",
+              "basis": "explicit_numbered_item"
+            }
+          }
+        ],
+        "raw_sha256": "583c24a84eeace1051df2e2840c02bd68607039560d5da58146050c5d2e2c496"
+      },
+      {
+        "evidence_id": "ANSWER-2",
+        "question_id": "Q-2",
+        "question": "Which tea choices meet need 1?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "Other tea choices",
+        "mention": false,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          }
+        ],
+        "raw_sha256": "b110230a170e5682f1c46f8c9b67ca2e562ddbe009450a65a61f2504e7224f14"
+      },
+      {
+        "evidence_id": "ANSWER-3",
+        "question_id": "Q-3",
+        "question": "Which tea choices meet need 2?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "1. Acme Tea\n2. Rival Tea",
+        "mention": true,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": "Acme Tea",
+            "prompted": false,
+            "rank": {
+              "position": 1,
+              "evidence": "1. Acme Tea",
+              "basis": "explicit_numbered_item"
+            }
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": "Rival Tea",
+            "prompted": false,
+            "rank": {
+              "position": 2,
+              "evidence": "2. Rival Tea",
+              "basis": "explicit_numbered_item"
+            }
+          }
+        ],
+        "raw_sha256": "5ecb55cfddcd907897ad566c509a93485fbfb2169cbd2afabc9a1c5fb2f12de9"
+      },
+      {
+        "evidence_id": "ANSWER-4",
+        "question_id": "Q-4",
+        "question": "Which tea choices meet need 3?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "Other tea choices",
+        "mention": false,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          }
+        ],
+        "raw_sha256": "97384ccbae43361a1b025d40dfc1c7d582add335e38ce19cd37dc334197ed0b7"
+      },
+      {
+        "evidence_id": "ANSWER-5",
+        "question_id": "Q-5",
+        "question": "Which tea choices meet need 4?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "1. Acme Tea\n2. Rival Tea",
+        "mention": true,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": "Acme Tea",
+            "prompted": false,
+            "rank": {
+              "position": 1,
+              "evidence": "1. Acme Tea",
+              "basis": "explicit_numbered_item"
+            }
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": "Rival Tea",
+            "prompted": false,
+            "rank": {
+              "position": 2,
+              "evidence": "2. Rival Tea",
+              "basis": "explicit_numbered_item"
+            }
+          }
+        ],
+        "raw_sha256": "30aaac34e3dfce752b0d359bb4be7a9c421bc57ade5b2d4ce1bed3b3e9373cf9"
+      },
+      {
+        "evidence_id": "ANSWER-6",
+        "question_id": "Q-6",
+        "question": "Which tea choices meet need 5?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "Other tea choices",
+        "mention": false,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          }
+        ],
+        "raw_sha256": "31718fb5b1c74e63240aedf2e7f97f8cbe7a9e6e1836418628d6207d2a1a6156"
+      },
+      {
+        "evidence_id": "ANSWER-7",
+        "question_id": "Q-7",
+        "question": "Which tea choices meet need 6?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "1. Acme Tea\n2. Rival Tea",
+        "mention": true,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": "Acme Tea",
+            "prompted": false,
+            "rank": {
+              "position": 1,
+              "evidence": "1. Acme Tea",
+              "basis": "explicit_numbered_item"
+            }
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": "Rival Tea",
+            "prompted": false,
+            "rank": {
+              "position": 2,
+              "evidence": "2. Rival Tea",
+              "basis": "explicit_numbered_item"
+            }
+          }
+        ],
+        "raw_sha256": "1d3c462e0f6b790a82b95d9f221759c996c59614fa9363c2d7c4b458b0a9a226"
+      },
+      {
+        "evidence_id": "ANSWER-8",
+        "question_id": "Q-8",
+        "question": "Which tea choices meet need 7?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "Other tea choices",
+        "mention": false,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          }
+        ],
+        "raw_sha256": "0e314be1245d329c14251bacdd42a75ff6aad5dcfc4dc21daf526878deb3c33b"
+      },
+      {
+        "evidence_id": "ANSWER-9",
+        "question_id": "Q-9",
+        "question": "Which tea choices meet need 8?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "1. Acme Tea\n2. Rival Tea",
+        "mention": true,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": "Acme Tea",
+            "prompted": false,
+            "rank": {
+              "position": 1,
+              "evidence": "1. Acme Tea",
+              "basis": "explicit_numbered_item"
+            }
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": "Rival Tea",
+            "prompted": false,
+            "rank": {
+              "position": 2,
+              "evidence": "2. Rival Tea",
+              "basis": "explicit_numbered_item"
+            }
+          }
+        ],
+        "raw_sha256": "6310463456da801dda5b874f616e7e27b45e00ca75e16e61124f74cb75d9eddb"
+      },
+      {
+        "evidence_id": "ANSWER-10",
+        "question_id": "Q-10",
+        "question": "Which tea choices meet need 9?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "Other tea choices",
+        "mention": false,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          }
+        ],
+        "raw_sha256": "1c3d2220a20ea96380f8e70c9e60afe05a9399c02190d09113a1ebe79cac0ed0"
+      },
+      {
+        "evidence_id": "ANSWER-11",
+        "question_id": "Q-11",
+        "question": "Which tea choices meet need 10?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "1. Acme Tea\n2. Rival Tea",
+        "mention": true,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": "Acme Tea",
+            "prompted": false,
+            "rank": {
+              "position": 1,
+              "evidence": "1. Acme Tea",
+              "basis": "explicit_numbered_item"
+            }
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": "Rival Tea",
+            "prompted": false,
+            "rank": {
+              "position": 2,
+              "evidence": "2. Rival Tea",
+              "basis": "explicit_numbered_item"
+            }
+          }
+        ],
+        "raw_sha256": "10b7e8c9839e9dd3eb6afc34399d5f3c26d59d235bc76a19e9bcd786d8a5c805"
+      },
+      {
+        "evidence_id": "ANSWER-12",
+        "question_id": "Q-12",
+        "question": "Which tea choices meet need 11?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "Other tea choices",
+        "mention": false,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          }
+        ],
+        "raw_sha256": "51256cac0fbd52112e40d67d3b9e14f048e3299c665622f49763bbc339ae2e58"
+      },
+      {
+        "evidence_id": "ANSWER-13",
+        "question_id": "Q-13",
+        "question": "Which tea choices meet need 12?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "1. Acme Tea\n2. Rival Tea",
+        "mention": true,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": "Acme Tea",
+            "prompted": false,
+            "rank": {
+              "position": 1,
+              "evidence": "1. Acme Tea",
+              "basis": "explicit_numbered_item"
+            }
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": "Rival Tea",
+            "prompted": false,
+            "rank": {
+              "position": 2,
+              "evidence": "2. Rival Tea",
+              "basis": "explicit_numbered_item"
+            }
+          }
+        ],
+        "raw_sha256": "544985b64e2309a83afa1824a48fd27edd50920c25481eb6b7fc8455ea39d554"
+      },
+      {
+        "evidence_id": "ANSWER-14",
+        "question_id": "Q-14",
+        "question": "Which tea choices meet need 13?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "Other tea choices",
+        "mention": false,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          }
+        ],
+        "raw_sha256": "f5c199f1a8404596bc0102342db2f1e12241905aecaa569ce4d168bfe0a4d751"
+      },
+      {
+        "evidence_id": "ANSWER-15",
+        "question_id": "Q-15",
+        "question": "Which tea choices meet need 14?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "1. Acme Tea\n2. Rival Tea",
+        "mention": true,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": "Acme Tea",
+            "prompted": false,
+            "rank": {
+              "position": 1,
+              "evidence": "1. Acme Tea",
+              "basis": "explicit_numbered_item"
+            }
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": "Rival Tea",
+            "prompted": false,
+            "rank": {
+              "position": 2,
+              "evidence": "2. Rival Tea",
+              "basis": "explicit_numbered_item"
+            }
+          }
+        ],
+        "raw_sha256": "8c27ae14f58dde5383f6dcbf8df64c775f1b1442add6c1abf40aef6b0c0260dd"
+      },
+      {
+        "evidence_id": "ANSWER-16",
+        "question_id": "Q-16",
+        "question": "Which tea choices meet need 15?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "Other tea choices",
+        "mention": false,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          }
+        ],
+        "raw_sha256": "1283292915d5606e932ac909247f68b7663e722d3c40b40e273c2b9bc7089015"
+      },
+      {
+        "evidence_id": "ANSWER-17",
+        "question_id": "Q-17",
+        "question": "Which tea choices meet need 16?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "1. Acme Tea\n2. Rival Tea",
+        "mention": true,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": "Acme Tea",
+            "prompted": false,
+            "rank": {
+              "position": 1,
+              "evidence": "1. Acme Tea",
+              "basis": "explicit_numbered_item"
+            }
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": "Rival Tea",
+            "prompted": false,
+            "rank": {
+              "position": 2,
+              "evidence": "2. Rival Tea",
+              "basis": "explicit_numbered_item"
+            }
+          }
+        ],
+        "raw_sha256": "2a318e77274a3745c1ff35d59479ae9dad42d539397ae4a9abd8f54af74ffbb7"
+      },
+      {
+        "evidence_id": "ANSWER-18",
+        "question_id": "Q-18",
+        "question": "Which tea choices meet need 17?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "Other tea choices",
+        "mention": false,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          }
+        ],
+        "raw_sha256": "e5651a6baa7d7d3e866cc4ae4bb1e1d93bcede771dc86f20a5adc218adc24257"
+      },
+      {
+        "evidence_id": "ANSWER-19",
+        "question_id": "Q-19",
+        "question": "Which tea choices meet need 18?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "1. Acme Tea\n2. Rival Tea",
+        "mention": true,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": "Acme Tea",
+            "prompted": false,
+            "rank": {
+              "position": 1,
+              "evidence": "1. Acme Tea",
+              "basis": "explicit_numbered_item"
+            }
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": "Rival Tea",
+            "prompted": false,
+            "rank": {
+              "position": 2,
+              "evidence": "2. Rival Tea",
+              "basis": "explicit_numbered_item"
+            }
+          }
+        ],
+        "raw_sha256": "5e89b7ffd4ba048799bd516c40b56680040b8fd259ea12a4b01b33803d8fae2d"
+      },
+      {
+        "evidence_id": "ANSWER-20",
+        "question_id": "Q-20",
+        "question": "Which tea choices meet need 19?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "Other tea choices",
+        "mention": false,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          }
+        ],
+        "raw_sha256": "a3c0eaa5d4866c65861e92e582fa138bb1a0dab43ae6a54d568ba10e4243ad2d"
+      },
+      {
+        "evidence_id": "ANSWER-21",
+        "question_id": "Q-21",
+        "question": "Which tea choices meet need 20?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "1. Acme Tea\n2. Rival Tea",
+        "mention": true,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": "Acme Tea",
+            "prompted": false,
+            "rank": {
+              "position": 1,
+              "evidence": "1. Acme Tea",
+              "basis": "explicit_numbered_item"
+            }
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": "Rival Tea",
+            "prompted": false,
+            "rank": {
+              "position": 2,
+              "evidence": "2. Rival Tea",
+              "basis": "explicit_numbered_item"
+            }
+          }
+        ],
+        "raw_sha256": "7d0b9dd8ad347eb6faaac9f0947b72099180cd3ad20a3cdedcc458d88d46b46f"
+      },
+      {
+        "evidence_id": "ANSWER-22",
+        "question_id": "Q-22",
+        "question": "Which tea choices meet need 21?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "Other tea choices",
+        "mention": false,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          }
+        ],
+        "raw_sha256": "20608b43c8572a787ff8af860063b3ec0c498401074e37b3bfab252fc663e0af"
+      },
+      {
+        "evidence_id": "ANSWER-23",
+        "question_id": "Q-23",
+        "question": "Which tea choices meet need 22?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "1. Acme Tea\n2. Rival Tea",
+        "mention": true,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": "Acme Tea",
+            "prompted": false,
+            "rank": {
+              "position": 1,
+              "evidence": "1. Acme Tea",
+              "basis": "explicit_numbered_item"
+            }
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": "Rival Tea",
+            "prompted": false,
+            "rank": {
+              "position": 2,
+              "evidence": "2. Rival Tea",
+              "basis": "explicit_numbered_item"
+            }
+          }
+        ],
+        "raw_sha256": "7c1494c68c98d83958f5da98b648551b0295551913d7dfcc85431b9d4ee9169a"
+      },
+      {
+        "evidence_id": "ANSWER-24",
+        "question_id": "Q-24",
+        "question": "Which tea choices meet need 23?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "Other tea choices",
+        "mention": false,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          }
+        ],
+        "raw_sha256": "fdd378fccf4e604228333d91208b32084f10afa624454b724afa1191732a465a"
+      },
+      {
+        "evidence_id": "ANSWER-25",
+        "question_id": "Q-25",
+        "question": "Which tea choices meet need 24?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "1. Acme Tea\n2. Rival Tea",
+        "mention": true,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": "Acme Tea",
+            "prompted": false,
+            "rank": {
+              "position": 1,
+              "evidence": "1. Acme Tea",
+              "basis": "explicit_numbered_item"
+            }
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": "Rival Tea",
+            "prompted": false,
+            "rank": {
+              "position": 2,
+              "evidence": "2. Rival Tea",
+              "basis": "explicit_numbered_item"
+            }
+          }
+        ],
+        "raw_sha256": "c2bf323a36c29ff1313aae42895ab7dfea6e597942ef049b3eda49ceb402e64e"
+      },
+      {
+        "evidence_id": "ANSWER-26",
+        "question_id": "Q-26",
+        "question": "Which tea choices meet need 25?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "Other tea choices",
+        "mention": false,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          }
+        ],
+        "raw_sha256": "f8b0eb59193aef0c19cdc7c2c2190f3d51e0b8009211e3f732048b74d25154c5"
+      },
+      {
+        "evidence_id": "ANSWER-27",
+        "question_id": "Q-27",
+        "question": "Which tea choices meet need 26?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "1. Acme Tea\n2. Rival Tea",
+        "mention": true,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": "Acme Tea",
+            "prompted": false,
+            "rank": {
+              "position": 1,
+              "evidence": "1. Acme Tea",
+              "basis": "explicit_numbered_item"
+            }
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": "Rival Tea",
+            "prompted": false,
+            "rank": {
+              "position": 2,
+              "evidence": "2. Rival Tea",
+              "basis": "explicit_numbered_item"
+            }
+          }
+        ],
+        "raw_sha256": "f936efbc612c2a5ed5603288fcff00da2840c1cfbffce5fdf1eac1e7cda7dc0a"
+      },
+      {
+        "evidence_id": "ANSWER-28",
+        "question_id": "Q-28",
+        "question": "Which tea choices meet need 27?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "Other tea choices",
+        "mention": false,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          }
+        ],
+        "raw_sha256": "b07da6f4af3ed343fb4e4c90daef77f05c7a4de3bcd998319c630b4f96d266c8"
+      },
+      {
+        "evidence_id": "ANSWER-29",
+        "question_id": "Q-29",
+        "question": "Which tea choices meet need 28?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "1. Acme Tea\n2. Rival Tea",
+        "mention": true,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": "Acme Tea",
+            "prompted": false,
+            "rank": {
+              "position": 1,
+              "evidence": "1. Acme Tea",
+              "basis": "explicit_numbered_item"
+            }
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": "Rival Tea",
+            "prompted": false,
+            "rank": {
+              "position": 2,
+              "evidence": "2. Rival Tea",
+              "basis": "explicit_numbered_item"
+            }
+          }
+        ],
+        "raw_sha256": "c63e61ab26d3969ce6c91381a40b0b40f827e4dcd7f54c9ace8a35b95890e566"
+      },
+      {
+        "evidence_id": "ANSWER-30",
+        "question_id": "Q-30",
+        "question": "Which tea choices meet need 29?",
+        "question_version": 1,
+        "question_type": "discovery",
+        "platform": "test-model",
+        "entry": "model_api",
+        "market": "US",
+        "language": "en",
+        "status": "success",
+        "raw_answer": "Other tea choices",
+        "mention": false,
+        "recommendation": null,
+        "citation_supported": false,
+        "citation_complete": false,
+        "citation_type": "unsupported",
+        "citations": [],
+        "answer_links": [],
+        "truncated": false,
+        "cached": false,
+        "collected_at": "2026-10-22T12:00:00Z",
+        "ranking": [
+          {
+            "name": "Acme Tea",
+            "own": true,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          },
+          {
+            "name": "Rival Tea",
+            "own": false,
+            "alias": null,
+            "prompted": false,
+            "rank": null
+          }
+        ],
+        "raw_sha256": "f1f067db963a6babf3e4cfaaa62a5c208f1cbd0b670897d4ae81f17f483b835a"
+      }
+    ],
+    "findings": [
+      {
+        "finding_id": "F-R-entity-products",
+        "scope": "本次有限官网页面",
+        "status": "unknown",
+        "finding_type": "unknown",
+        "priority": "待验证",
+        "question_ids": [],
+        "evidence_ids": [],
+        "rule_ids": [
+          "R-entity-products"
+        ],
+        "target_pages": [
+          "https://acme.example/"
+        ],
+        "observed_gap": "产品名称线索不认证产品事实完整性；未进行逐项事实核验。",
+        "alternative_explanations": "抓取、地区、页面范围或缺少事实核验均可能影响观察；不能推断模型推荐因果。",
+        "recommended_action": "逐项核对原文、批准事实与适用范围后补充证据。",
+        "owner": "项目负责人",
+        "effort_band": "待评估",
+        "verification": "核对对应抓取快照与规则适用条件；没有逐项核验所需事实时保持unknown；不得从提及或200推断。",
+        "priority_reason": "基于本次限定范围的证据或证据缺口。",
+        "publication_status": "unpublished"
+      },
+      {
+        "finding_id": "F-R-questions-coverage",
+        "scope": "本次有限官网页面",
+        "status": "unknown",
+        "finding_type": "unknown",
+        "priority": "待验证",
+        "question_ids": [],
+        "evidence_ids": [],
+        "rule_ids": [
+          "R-questions-coverage"
+        ],
+        "target_pages": [
+          "https://acme.example/"
+        ],
+        "observed_gap": "尚未对冻结问题所需事实与网页逐条配对核验；模型提及不等于官网覆盖。",
+        "alternative_explanations": "抓取、地区、页面范围或缺少事实核验均可能影响观察；不能推断模型推荐因果。",
+        "recommended_action": "逐项核对原文、批准事实与适用范围后补充证据。",
+        "owner": "项目负责人",
+        "effort_band": "待评估",
+        "verification": "核对对应抓取快照与规则适用条件；没有逐项核验所需事实时保持unknown；不得从提及或200推断。",
+        "priority_reason": "基于本次限定范围的证据或证据缺口。",
+        "publication_status": "unpublished"
+      },
+      {
+        "finding_id": "F-R-trust-facts",
+        "scope": "本次有限官网页面",
+        "status": "unknown",
+        "finding_type": "unknown",
+        "priority": "待验证",
+        "question_ids": [],
+        "evidence_ids": [],
+        "rule_ids": [
+          "R-trust-facts"
+        ],
+        "target_pages": [
+          "https://acme.example/"
+        ],
+        "observed_gap": "官网身份和联系线索不是独立事实认证。",
+        "alternative_explanations": "抓取、地区、页面范围或缺少事实核验均可能影响观察；不能推断模型推荐因果。",
+        "recommended_action": "逐项核对原文、批准事实与适用范围后补充证据。",
+        "owner": "项目负责人",
+        "effort_band": "待评估",
+        "verification": "核对对应抓取快照与规则适用条件；没有逐项核验所需事实时保持unknown；不得从提及或200推断。",
+        "priority_reason": "基于本次限定范围的证据或证据缺口。",
+        "publication_status": "unpublished"
+      },
+      {
+        "finding_id": "F-R-maintenance-consistency",
+        "scope": "本次有限官网页面",
+        "status": "unknown",
+        "finding_type": "unknown",
+        "priority": "待验证",
+        "question_ids": [],
+        "evidence_ids": [],
+        "rule_ids": [
+          "R-maintenance-consistency"
+        ],
+        "target_pages": [
+          "https://acme.example/"
+        ],
+        "observed_gap": "已保留有限页面证据；尚未进行跨页事实一致性人工核验。",
+        "alternative_explanations": "抓取、地区、页面范围或缺少事实核验均可能影响观察；不能推断模型推荐因果。",
+        "recommended_action": "逐项核对原文、批准事实与适用范围后补充证据。",
+        "owner": "项目负责人",
+        "effort_band": "待评估",
+        "verification": "核对对应抓取快照与规则适用条件；没有逐项核验所需事实时保持unknown；不得从提及或200推断。",
+        "priority_reason": "基于本次限定范围的证据或证据缺口。",
+        "publication_status": "unpublished"
+      }
+    ],
+    "evidence": [
+      {
+        "evidence_id": "WEB-e-5d3c3282633d7b413ba5",
+        "source_type": "website_capture",
+        "provided_at": "2026-10-22T16:27:22.735244+00:00",
+        "url": "https://acme.example/",
+        "hash": "sha256:be211b391c64fc9dd133e33f0b0e0b0582aaeba75ab2303dafa2fea70f947e72",
+        "locator": "captured response",
+        "excerpt": "未取得内容；此次读取状态见附录。",
+        "integrity": "Captured excerpt and metadata; hash covers this evidence record, not the entire remote website.",
+        "entry": "Signal finite safe HTTP collector",
+        "capture": {
+          "id": "e-5d3c3282633d7b413ba5",
+          "resource_id": "resource-1",
+          "url": "https://acme.example/",
+          "captured_at": "2026-10-22T16:27:22.735244+00:00",
+          "http_status": 200,
+          "content_type": "text/html",
+          "redirects": [],
+          "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc"
+        }
+      },
+      {
+        "evidence_id": "WEB-e-30ff06b3d2d080ddf8a1",
+        "source_type": "website_capture",
+        "provided_at": "2026-10-22T16:27:22.735244+00:00",
+        "url": "https://acme.example/",
+        "hash": "sha256:94acefb21bbec2e3f5aa6bbe6d9e202ec81f85a9a0fe173f628322e723935824",
+        "locator": "meta[property=\"og:site_name\"]",
+        "excerpt": "Acme Tea",
+        "integrity": "Captured excerpt and metadata; hash covers this evidence record, not the entire remote website.",
+        "entry": "Signal finite safe HTTP collector",
+        "capture": {
+          "id": "e-30ff06b3d2d080ddf8a1",
+          "resource_id": "resource-1",
+          "url": "https://acme.example/",
+          "captured_at": "2026-10-22T16:27:22.735244+00:00",
+          "http_status": 200,
+          "content_type": "text/html",
+          "redirects": [],
+          "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+          "source_field": "meta[property=\"og:site_name\"]",
+          "excerpt": "Acme Tea"
+        }
+      },
+      {
+        "evidence_id": "WEB-e-13b06907ff4ba4872262",
+        "source_type": "website_capture",
+        "provided_at": "2026-10-22T16:27:22.735244+00:00",
+        "url": "https://acme.example/",
+        "hash": "sha256:c0dfb2c0ff5850dad8c9b4e1e298529c3cb8e77b89891efd2eb5999d594bf171",
+        "locator": "JSON-LD.Product.name",
+        "excerpt": "Green Tea",
+        "integrity": "Captured excerpt and metadata; hash covers this evidence record, not the entire remote website.",
+        "entry": "Signal finite safe HTTP collector",
+        "capture": {
+          "id": "e-13b06907ff4ba4872262",
+          "resource_id": "resource-1",
+          "url": "https://acme.example/",
+          "captured_at": "2026-10-22T16:27:22.735244+00:00",
+          "http_status": 200,
+          "content_type": "text/html",
+          "redirects": [],
+          "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+          "source_field": "JSON-LD.Product.name",
+          "excerpt": "Green Tea"
+        }
+      },
+      {
+        "evidence_id": "WEB-e-2d905c342a6f315ec5b5",
+        "source_type": "website_capture",
+        "provided_at": "2026-10-22T16:27:22.735244+00:00",
+        "url": "https://acme.example/",
+        "hash": "sha256:51447af6920c2a787b240a5b440a9406c5a539241a9faadd6b4f0778bb1e3db4",
+        "locator": "body.comparison",
+        "excerpt": "Rival Tea",
+        "integrity": "Captured excerpt and metadata; hash covers this evidence record, not the entire remote website.",
+        "entry": "Signal finite safe HTTP collector",
+        "capture": {
+          "id": "e-2d905c342a6f315ec5b5",
+          "resource_id": "resource-1",
+          "url": "https://acme.example/",
+          "captured_at": "2026-10-22T16:27:22.735244+00:00",
+          "http_status": 200,
+          "content_type": "text/html",
+          "redirects": [],
+          "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+          "source_field": "body.comparison",
+          "excerpt": "Rival Tea"
+        }
+      },
+      {
+        "evidence_id": "WEB-e-559275a5e508fc7cf4c2",
+        "source_type": "website_capture",
+        "provided_at": "2026-10-22T16:27:22.735244+00:00",
+        "url": "https://acme.example/",
+        "hash": "sha256:42a2115115a3061cb1fb1281937429baf8e29edf3117aab5872105314dee880a",
+        "locator": "body.comparison",
+        "excerpt": "rewing information for customers. Tea leaves and brewing information for customers.\nCompare our tea versus\nRival Tea\n.\nPartner Company\nContact us\nPrivacy policy\nAbout us\nsupport@acme.example",
+        "integrity": "Captured excerpt and metadata; hash covers this evidence record, not the entire remote website.",
+        "entry": "Signal finite safe HTTP collector",
+        "capture": {
+          "id": "e-559275a5e508fc7cf4c2",
+          "resource_id": "resource-1",
+          "url": "https://acme.example/",
+          "captured_at": "2026-10-22T16:27:22.735244+00:00",
+          "http_status": 200,
+          "content_type": "text/html",
+          "redirects": [],
+          "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+          "source_field": "body.comparison",
+          "excerpt": "rewing information for customers. Tea leaves and brewing information for customers.\nCompare our tea versus\nRival Tea\n.\nPartner Company\nContact us\nPrivacy policy\nAbout us\nsupport@acme.example"
+        }
+      },
+      {
+        "evidence_id": "WEB-e-0e50a5772a1c341eb766",
+        "source_type": "website_capture",
+        "provided_at": "2026-10-22T16:27:22.735244+00:00",
+        "url": "https://acme.example/",
+        "hash": "sha256:93fa7c98577e6f893a515f48b37ba7cd0e02baefc19749815c2e08927f9bf94d",
+        "locator": "response",
+        "excerpt": "未取得内容；此次读取状态见附录。",
+        "integrity": "Captured excerpt and metadata; hash covers this evidence record, not the entire remote website.",
+        "entry": "Signal finite safe HTTP collector",
+        "capture": {
+          "id": "e-0e50a5772a1c341eb766",
+          "resource_id": "resource-1",
+          "url": "https://acme.example/",
+          "captured_at": "2026-10-22T16:27:22.735244+00:00",
+          "http_status": 200,
+          "content_type": "text/html",
+          "redirects": [],
+          "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+          "source_field": "response"
+        }
+      },
+      {
+        "evidence_id": "WEB-e-80fd79c6f367350a8aaf",
+        "source_type": "website_capture",
+        "provided_at": "2026-10-22T16:27:22.745780+00:00",
+        "url": "https://acme.example/robots.txt",
+        "hash": "sha256:120ceb9ba82e0a7500d65ad663e7c412b6ae15f6b91caad8923e13b509111630",
+        "locator": "robots.txt",
+        "excerpt": "User-agent: GPTBot\nDisallow: /\n\nUser-agent: OAI-SearchBot\nDisallow: /private\nAllow: /private/open\n\nUser-agent: *\nAllow: /\n",
+        "integrity": "Captured excerpt and metadata; hash covers this evidence record, not the entire remote website.",
+        "entry": "Signal finite safe HTTP collector",
+        "capture": {
+          "id": "e-80fd79c6f367350a8aaf",
+          "resource_id": "resource-2",
+          "url": "https://acme.example/robots.txt",
+          "captured_at": "2026-10-22T16:27:22.745780+00:00",
+          "http_status": 200,
+          "content_type": "text/plain",
+          "redirects": [],
+          "sha256": "54f6fd1edcf3f22736cbfd2643c832438727dfe6a6a1cdb5e4846a3fd5a9b5ec",
+          "source_field": "robots.txt",
+          "excerpt": "User-agent: GPTBot\nDisallow: /\n\nUser-agent: OAI-SearchBot\nDisallow: /private\nAllow: /private/open\n\nUser-agent: *\nAllow: /\n"
+        }
+      },
+      {
+        "evidence_id": "WEB-e-94435df769ffc42c9517",
+        "source_type": "website_capture",
+        "provided_at": "2026-10-22T16:27:22.746414+00:00",
+        "url": "https://acme.example/llms.txt",
+        "hash": "sha256:b866ea00f8c31b5ad2c10555d18884ea4e184ef648286332167bf44fe3f2805c",
+        "locator": "response",
+        "excerpt": "未取得内容；此次读取状态见附录。",
+        "integrity": "Captured excerpt and metadata; hash covers this evidence record, not the entire remote website.",
+        "entry": "Signal finite safe HTTP collector",
+        "capture": {
+          "id": "e-94435df769ffc42c9517",
+          "resource_id": "resource-3",
+          "url": "https://acme.example/llms.txt",
+          "captured_at": "2026-10-22T16:27:22.746414+00:00",
+          "http_status": 200,
+          "content_type": "text/plain",
+          "redirects": [],
+          "sha256": "2446abb1cdeae199cc2aa7e4c1ff98fb7c8d5a7d00433d741595cfd0770087a3",
+          "source_field": "response"
+        }
+      },
+      {
+        "evidence_id": "WEB-e-14390962b2d2059c594b",
+        "source_type": "website_capture",
+        "provided_at": "2026-10-22T16:27:22.746732+00:00",
+        "url": "https://acme.example/index.md",
+        "hash": "sha256:197eccf52d75705e66ba884df7fd23c148830f8ea955abca8fa40a97a8a409a3",
+        "locator": "response",
+        "excerpt": "未取得内容；此次读取状态见附录。",
+        "integrity": "Captured excerpt and metadata; hash covers this evidence record, not the entire remote website.",
+        "entry": "Signal finite safe HTTP collector",
+        "capture": {
+          "id": "e-14390962b2d2059c594b",
+          "resource_id": "resource-4",
+          "url": "https://acme.example/index.md",
+          "captured_at": "2026-10-22T16:27:22.746732+00:00",
+          "http_status": 200,
+          "content_type": "text/plain",
+          "redirects": [],
+          "sha256": "cd373e7e91a36a2571016b8b40499e9cd1e1073c5d55090904a6293221744023",
+          "source_field": "response"
+        }
+      },
+      {
+        "evidence_id": "WEB-e-0ee4341cf4cdd39fa5e0",
+        "source_type": "website_capture",
+        "provided_at": "2026-10-22T16:27:22.747029+00:00",
+        "url": "https://acme.example/about",
+        "hash": "sha256:a6f7a08c78ff45b7cf14c86c90d64aea8c196291e89c4acd04b01aaed120da48",
+        "locator": "response",
+        "excerpt": "未取得内容；此次读取状态见附录。",
+        "integrity": "Captured excerpt and metadata; hash covers this evidence record, not the entire remote website.",
+        "entry": "Signal finite safe HTTP collector",
+        "capture": {
+          "id": "e-0ee4341cf4cdd39fa5e0",
+          "resource_id": "resource-5",
+          "url": "https://acme.example/about",
+          "captured_at": "2026-10-22T16:27:22.747029+00:00",
+          "http_status": 200,
+          "content_type": "text/plain",
+          "redirects": [],
+          "sha256": "ef91fa9e70b0dcd8604ba65b4945d5b9a5f8c05c4a2b9e6a2dd03f5c9de43a07",
+          "source_field": "response",
+          "error_code": "unsupported_content"
+        }
+      },
+      {
+        "evidence_id": "WEB-e-6322b20f9bfd36c7023e",
+        "source_type": "website_capture",
+        "provided_at": "2026-10-22T16:27:22.735244+00:00",
+        "url": "https://acme.example/",
+        "hash": "sha256:91510bfb77c12a192c27fff256126d8112c3d96c5a5adcb50311468d226e56b7",
+        "locator": "robots",
+        "excerpt": "noindex",
+        "integrity": "Captured excerpt and metadata; hash covers this evidence record, not the entire remote website.",
+        "entry": "Signal finite safe HTTP collector",
+        "capture": {
+          "id": "e-6322b20f9bfd36c7023e",
+          "resource_id": "resource-1",
+          "url": "https://acme.example/",
+          "captured_at": "2026-10-22T16:27:22.735244+00:00",
+          "http_status": 200,
+          "content_type": "text/html",
+          "redirects": [],
+          "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+          "source_field": "robots",
+          "excerpt": "noindex"
+        }
+      },
+      {
+        "evidence_id": "WEB-e-7550531051d272e11d1a",
+        "source_type": "website_capture",
+        "provided_at": "2026-10-22T16:27:22.735244+00:00",
+        "url": "https://acme.example/",
+        "hash": "sha256:972bd4c11b75ea19ef478fe4c713031de2e613316e531a2dfc91e64242a6ce4b",
+        "locator": "x-robots-tag",
+        "excerpt": "googlebot: noindex",
+        "integrity": "Captured excerpt and metadata; hash covers this evidence record, not the entire remote website.",
+        "entry": "Signal finite safe HTTP collector",
+        "capture": {
+          "id": "e-7550531051d272e11d1a",
+          "resource_id": "resource-1",
+          "url": "https://acme.example/",
+          "captured_at": "2026-10-22T16:27:22.735244+00:00",
+          "http_status": 200,
+          "content_type": "text/html",
+          "redirects": [],
+          "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+          "source_field": "x-robots-tag",
+          "excerpt": "googlebot: noindex"
+        }
+      },
+      {
+        "evidence_id": "WEB-e-7c7540892c08c662765c",
+        "source_type": "website_capture",
+        "provided_at": "2026-10-22T16:27:22.735244+00:00",
+        "url": "https://acme.example/",
+        "hash": "sha256:04c3d0d974f33c853a7337b558d68cc9e7317a344a91453d0a9d1cf4b988e415",
+        "locator": "identity.observable_clues",
+        "excerpt": "Acme Tea [{\"name\": \"Acme Tea\", \"source\": \"JSON-LD Organization.name\"}]",
+        "integrity": "Captured excerpt and metadata; hash covers this evidence record, not the entire remote website.",
+        "entry": "Signal finite safe HTTP collector",
+        "capture": {
+          "id": "e-7c7540892c08c662765c",
+          "resource_id": "resource-1",
+          "url": "https://acme.example/",
+          "captured_at": "2026-10-22T16:27:22.735244+00:00",
+          "http_status": 200,
+          "content_type": "text/html",
+          "redirects": [],
+          "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+          "source_field": "identity.observable_clues",
+          "excerpt": "Acme Tea [{\"name\": \"Acme Tea\", \"source\": \"JSON-LD Organization.name\"}]"
+        }
+      },
+      {
+        "evidence_id": "WEB-e-45d57f8f2b2ef3b848fc",
+        "source_type": "website_capture",
+        "provided_at": "2026-10-22T16:27:22.735244+00:00",
+        "url": "https://acme.example/",
+        "hash": "sha256:b7d8dbb076a0b42b7586e75ab79accbcadcabce3e160a5836bf58e8e854ebf8f",
+        "locator": "contact.observable_clues",
+        "excerpt": "Contact us /contact",
+        "integrity": "Captured excerpt and metadata; hash covers this evidence record, not the entire remote website.",
+        "entry": "Signal finite safe HTTP collector",
+        "capture": {
+          "id": "e-45d57f8f2b2ef3b848fc",
+          "resource_id": "resource-1",
+          "url": "https://acme.example/",
+          "captured_at": "2026-10-22T16:27:22.735244+00:00",
+          "http_status": 200,
+          "content_type": "text/html",
+          "redirects": [],
+          "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+          "source_field": "contact.observable_clues",
+          "excerpt": "Contact us /contact"
+        }
+      },
+      {
+        "evidence_id": "WEB-e-c4a24d5f9f78c1e1d3f9",
+        "source_type": "website_capture",
+        "provided_at": "2026-10-22T16:27:22.735244+00:00",
+        "url": "https://acme.example/",
+        "hash": "sha256:deec47952051042766673d45f144d25879a3528bdf1bcabc7e332ff402bb0234",
+        "locator": "policy.observable_clues",
+        "excerpt": "Privacy policy /privacy",
+        "integrity": "Captured excerpt and metadata; hash covers this evidence record, not the entire remote website.",
+        "entry": "Signal finite safe HTTP collector",
+        "capture": {
+          "id": "e-c4a24d5f9f78c1e1d3f9",
+          "resource_id": "resource-1",
+          "url": "https://acme.example/",
+          "captured_at": "2026-10-22T16:27:22.735244+00:00",
+          "http_status": 200,
+          "content_type": "text/html",
+          "redirects": [],
+          "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+          "source_field": "policy.observable_clues",
+          "excerpt": "Privacy policy /privacy"
+        }
+      },
+      {
+        "evidence_id": "PAGE-resource-6",
+        "source_type": "website_capture",
+        "provided_at": "2026-10-22T16:27:22.752537+00:00",
+        "url": "https://acme.example/contact",
+        "hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "locator": "bounded captured HTML",
+        "excerpt": "读取失败或未取得正文。",
+        "integrity": "Bounded response SHA256 where available; no browser or external validation.",
+        "entry": "Signal finite safe HTTP collector",
+        "http_status": 404,
+        "error_code": "http_error"
+      },
+      {
+        "evidence_id": "PAGE-resource-7",
+        "source_type": "website_capture",
+        "provided_at": "2026-10-22T16:27:22.752993+00:00",
+        "url": "https://acme.example/privacy",
+        "hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "locator": "bounded captured HTML",
+        "excerpt": "读取失败或未取得正文。",
+        "integrity": "Bounded response SHA256 where available; no browser or external validation.",
+        "entry": "Signal finite safe HTTP collector",
+        "http_status": 404,
+        "error_code": "http_error"
+      }
+    ],
+    "scores": {
+      "applicable_weight": 100,
+      "unknown_weight": 45,
+      "earned": 55,
+      "lower": 55.0,
+      "upper": 100.0,
+      "coverage": 0.55,
+      "total": null
+    },
+    "dimension_scores": [
+      {
+        "dimension": "access",
+        "applicable_weight": 25,
+        "unknown_weight": 0,
+        "earned": 25,
+        "lower": 100.0,
+        "upper": 100.0,
+        "coverage": 1.0,
+        "total": 100.0
+      },
+      {
+        "dimension": "entity",
+        "applicable_weight": 20,
+        "unknown_weight": 10,
+        "earned": 10,
+        "lower": 50.0,
+        "upper": 100.0,
+        "coverage": 0.5,
+        "total": null
+      },
+      {
+        "dimension": "questions",
+        "applicable_weight": 20,
+        "unknown_weight": 20,
+        "earned": 0,
+        "lower": 0.0,
+        "upper": 100.0,
+        "coverage": 0.0,
+        "total": null
+      },
+      {
+        "dimension": "trust",
+        "applicable_weight": 15,
+        "unknown_weight": 5,
+        "earned": 10,
+        "lower": 66.67,
+        "upper": 100.0,
+        "coverage": 0.6666666666666666,
+        "total": null
+      },
+      {
+        "dimension": "structure",
+        "applicable_weight": 10,
+        "unknown_weight": 0,
+        "earned": 10,
+        "lower": 100.0,
+        "upper": 100.0,
+        "coverage": 1.0,
+        "total": 100.0
+      },
+      {
+        "dimension": "maintenance",
+        "applicable_weight": 10,
+        "unknown_weight": 10,
+        "earned": 0,
+        "lower": 0.0,
+        "upper": 100.0,
+        "coverage": 0.0,
+        "total": null
+      }
+    ],
+    "performance": {
+      "models": [
+        {
+          "provider": "gpt",
+          "attempted": 30,
+          "complete": 30,
+          "eligible": 30,
+          "brands": [
+            {
+              "name": "Acme Tea",
+              "own": true,
+              "mentions": 15,
+              "denominator": 30,
+              "score": 50.0,
+              "average_rank": 1.0,
+              "ranked_samples": 15,
+              "top3": 15,
+              "citation_answers": 0
+            },
+            {
+              "name": "Rival Tea",
+              "own": false,
+              "mentions": 15,
+              "denominator": 30,
+              "score": 50.0,
+              "average_rank": 2.0,
+              "ranked_samples": 15,
+              "top3": 15,
+              "citation_answers": 0
+            }
+          ],
+          "skus": []
+        }
+      ],
+      "groups": {
+        "discovery": {
+          "question_count": 30,
+          "models": [
+            {
+              "provider": "gpt",
+              "attempted": 30,
+              "complete": 30,
+              "eligible": 30,
+              "brands": [
+                {
+                  "name": "Acme Tea",
+                  "own": true,
+                  "mentions": 15,
+                  "denominator": 30,
+                  "score": 50.0,
+                  "average_rank": 1.0,
+                  "ranked_samples": 15,
+                  "top3": 15,
+                  "citation_answers": 0
+                },
+                {
+                  "name": "Rival Tea",
+                  "own": false,
+                  "mentions": 15,
+                  "denominator": 30,
+                  "score": 50.0,
+                  "average_rank": 2.0,
+                  "ranked_samples": 15,
+                  "top3": 15,
+                  "citation_answers": 0
+                }
+              ],
+              "skus": []
+            }
+          ]
+        },
+        "brand": {
+          "question_count": 0,
+          "models": [
+            {
+              "provider": "gpt",
+              "attempted": 0,
+              "complete": 0,
+              "eligible": 0,
+              "brands": [
+                {
+                  "name": "Acme Tea",
+                  "own": true,
+                  "mentions": 0,
+                  "denominator": 0,
+                  "score": null,
+                  "average_rank": null,
+                  "ranked_samples": 0,
+                  "top3": 0,
+                  "citation_answers": 0
+                },
+                {
+                  "name": "Rival Tea",
+                  "own": false,
+                  "mentions": 0,
+                  "denominator": 0,
+                  "score": null,
+                  "average_rank": null,
+                  "ranked_samples": 0,
+                  "top3": 0,
+                  "citation_answers": 0
+                }
+              ],
+              "skus": []
+            }
+          ]
+        },
+        "comparison": {
+          "question_count": 0,
+          "models": [
+            {
+              "provider": "gpt",
+              "attempted": 0,
+              "complete": 0,
+              "eligible": 0,
+              "brands": [
+                {
+                  "name": "Acme Tea",
+                  "own": true,
+                  "mentions": 0,
+                  "denominator": 0,
+                  "score": null,
+                  "average_rank": null,
+                  "ranked_samples": 0,
+                  "top3": 0,
+                  "citation_answers": 0
+                },
+                {
+                  "name": "Rival Tea",
+                  "own": false,
+                  "mentions": 0,
+                  "denominator": 0,
+                  "score": null,
+                  "average_rank": null,
+                  "ranked_samples": 0,
+                  "top3": 0,
+                  "citation_answers": 0
+                }
+              ],
+              "skus": []
+            }
+          ]
+        }
+      },
+      "dimensions": [
+        {
+          "dimension": "manual",
+          "label": "manual",
+          "questions": 0
+        }
+      ],
+      "stability": [
+        {
+          "provider": "gpt",
+          "question_index": 0,
+          "question": "Which tea choices meet need 0?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 1,
+          "mention_rate": 100.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 1,
+          "question": "Which tea choices meet need 1?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 0,
+          "mention_rate": 0.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 2,
+          "question": "Which tea choices meet need 2?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 1,
+          "mention_rate": 100.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 3,
+          "question": "Which tea choices meet need 3?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 0,
+          "mention_rate": 0.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 4,
+          "question": "Which tea choices meet need 4?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 1,
+          "mention_rate": 100.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 5,
+          "question": "Which tea choices meet need 5?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 0,
+          "mention_rate": 0.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 6,
+          "question": "Which tea choices meet need 6?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 1,
+          "mention_rate": 100.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 7,
+          "question": "Which tea choices meet need 7?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 0,
+          "mention_rate": 0.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 8,
+          "question": "Which tea choices meet need 8?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 1,
+          "mention_rate": 100.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 9,
+          "question": "Which tea choices meet need 9?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 0,
+          "mention_rate": 0.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 10,
+          "question": "Which tea choices meet need 10?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 1,
+          "mention_rate": 100.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 11,
+          "question": "Which tea choices meet need 11?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 0,
+          "mention_rate": 0.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 12,
+          "question": "Which tea choices meet need 12?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 1,
+          "mention_rate": 100.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 13,
+          "question": "Which tea choices meet need 13?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 0,
+          "mention_rate": 0.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 14,
+          "question": "Which tea choices meet need 14?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 1,
+          "mention_rate": 100.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 15,
+          "question": "Which tea choices meet need 15?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 0,
+          "mention_rate": 0.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 16,
+          "question": "Which tea choices meet need 16?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 1,
+          "mention_rate": 100.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 17,
+          "question": "Which tea choices meet need 17?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 0,
+          "mention_rate": 0.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 18,
+          "question": "Which tea choices meet need 18?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 1,
+          "mention_rate": 100.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 19,
+          "question": "Which tea choices meet need 19?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 0,
+          "mention_rate": 0.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 20,
+          "question": "Which tea choices meet need 20?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 1,
+          "mention_rate": 100.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 21,
+          "question": "Which tea choices meet need 21?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 0,
+          "mention_rate": 0.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 22,
+          "question": "Which tea choices meet need 22?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 1,
+          "mention_rate": 100.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 23,
+          "question": "Which tea choices meet need 23?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 0,
+          "mention_rate": 0.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 24,
+          "question": "Which tea choices meet need 24?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 1,
+          "mention_rate": 100.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 25,
+          "question": "Which tea choices meet need 25?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 0,
+          "mention_rate": 0.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 26,
+          "question": "Which tea choices meet need 26?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 1,
+          "mention_rate": 100.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 27,
+          "question": "Which tea choices meet need 27?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 0,
+          "mention_rate": 0.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 28,
+          "question": "Which tea choices meet need 28?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 1,
+          "mention_rate": 100.0,
+          "varied": false
+        },
+        {
+          "provider": "gpt",
+          "question_index": 29,
+          "question": "Which tea choices meet need 29?",
+          "family": "discovery",
+          "valid_repeats": 1,
+          "planned_repeats": 1,
+          "mentions": 0,
+          "mention_rate": 0.0,
+          "varied": false
+        }
+      ],
+      "coverage": {
+        "planned_answers": 30,
+        "attempted": 30,
+        "complete": 30,
+        "questions": 30
+      },
+      "gaps": [],
+      "sources": [],
+      "methodology": {
+        "version": "geo-evidence-v2",
+        "score": "discovery: complete answers without any tracked name; brand/comparison metrics reported separately",
+        "rank": "explicit numbered item position, not inferred sentiment or market-wide rank",
+        "citations": "provider citations, retrieved sources, and answer links reported separately",
+        "demand": "model-generated candidate questions; no user frequency data",
+        "manufacturer": "One selected model per manufacturer; no claim to measure all models or consumer apps"
+      }
+    },
+    "competitor_gaps": [],
+    "source_snapshot": {
+      "schema_version": "geo-readiness-v1",
+      "rule_version": "geo-readiness-rules-v1.1",
+      "generated_at": "2026-10-22T16:27:22.747589+00:00",
+      "target": {
+        "url": "https://acme.example/",
+        "market": "US",
+        "brand": "Acme Tea"
+      },
+      "scope": {
+        "kind": "finite_website_readiness",
+        "resources": [
+          {
+            "id": "resource-1",
+            "url": "https://acme.example/",
+            "kind": "seed",
+            "http_status": 200,
+            "error_code": null
+          },
+          {
+            "id": "resource-2",
+            "url": "https://acme.example/robots.txt",
+            "kind": "robots",
+            "http_status": 200,
+            "error_code": null
+          },
+          {
+            "id": "resource-3",
+            "url": "https://acme.example/llms.txt",
+            "kind": "llms",
+            "http_status": 200,
+            "error_code": null
+          },
+          {
+            "id": "resource-4",
+            "url": "https://acme.example/index.md",
+            "kind": "markdown",
+            "http_status": 200,
+            "error_code": null
+          },
+          {
+            "id": "resource-5",
+            "url": "https://acme.example/about",
+            "kind": "about",
+            "http_status": 200,
+            "error_code": "unsupported_content"
+          }
+        ],
+        "limitations": [
+          "最多6资源/10HTTP/4MiB/累计60秒；无JS、无模型调用。",
+          "仅官网线索，不认证事实、外部权威或模型实际推荐。",
+          "未知和未请求不计通过；robots parser未提供精确命中行。"
+        ],
+        "model_calls": 0
+      },
+      "summary": {
+        "score": 100,
+        "partial_score": 100.0,
+        "coverage_percent": 100,
+        "known_weight": 100,
+        "total_weight": 100,
+        "passed": 13,
+        "failed": 1,
+        "unknown": 3,
+        "not_applicable": 0,
+        "conclusions": [
+          "观察到含noindex的页面收录声明，请先核对适用范围；这不是训练策略。",
+          "规则技术检测，尚未测试模型实际推荐表现。",
+          "分数仅描述本次有限页面规则检查。"
+        ]
+      },
+      "sections": [
+        {
+          "id": "access",
+          "title": "官网访问",
+          "checks": [
+            {
+              "id": "response",
+              "title": "正常页面响应",
+              "weight": 15,
+              "status": "pass",
+              "reason": "已获得可解析HTML页面。",
+              "evidence_ids": [
+                "e-0e50a5772a1c341eb766"
+              ],
+              "action": "补充页面证据后重新检测。",
+              "methodology": "geo-readiness-rules-v1.1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+            },
+            {
+              "id": "tls",
+              "title": "TLS证书与域名",
+              "weight": 5,
+              "status": "pass",
+              "reason": "本次最终页面TLS检查：passed",
+              "evidence_ids": [
+                "e-0e50a5772a1c341eb766"
+              ],
+              "action": "补充页面证据后重新检测。",
+              "methodology": "geo-readiness-rules-v1.1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+            }
+          ]
+        },
+        {
+          "id": "robots",
+          "title": "搜索与机器人策略",
+          "checks": [
+            {
+              "id": "search-OAI-SearchBot",
+              "title": "OAI-SearchBot搜索策略",
+              "weight": 5,
+              "status": "pass",
+              "reason": "针对本页路径的Protego结论：allowed",
+              "evidence_ids": [
+                "e-80fd79c6f367350a8aaf"
+              ],
+              "action": "核对搜索UA与目标路径策略；训练限制单独解释。",
+              "methodology": "geo-readiness-rules-v1.1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+            },
+            {
+              "id": "search-Claude-SearchBot",
+              "title": "Claude-SearchBot搜索策略",
+              "weight": 5,
+              "status": "pass",
+              "reason": "针对本页路径的Protego结论：allowed",
+              "evidence_ids": [
+                "e-80fd79c6f367350a8aaf"
+              ],
+              "action": "核对搜索UA与目标路径策略；训练限制单独解释。",
+              "methodology": "geo-readiness-rules-v1.1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+            },
+            {
+              "id": "search-PerplexityBot",
+              "title": "PerplexityBot搜索策略",
+              "weight": 5,
+              "status": "pass",
+              "reason": "针对本页路径的Protego结论：allowed",
+              "evidence_ids": [
+                "e-80fd79c6f367350a8aaf"
+              ],
+              "action": "核对搜索UA与目标路径策略；训练限制单独解释。",
+              "methodology": "geo-readiness-rules-v1.1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+            },
+            {
+              "id": "search-Googlebot",
+              "title": "Googlebot搜索策略",
+              "weight": 5,
+              "status": "pass",
+              "reason": "针对本页路径的Protego结论：allowed",
+              "evidence_ids": [
+                "e-80fd79c6f367350a8aaf"
+              ],
+              "action": "核对搜索UA与目标路径策略；训练限制单独解释。",
+              "methodology": "geo-readiness-rules-v1.1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+            }
+          ]
+        },
+        {
+          "id": "content",
+          "title": "可提取性与辅助文件",
+          "checks": [
+            {
+              "id": "extraction",
+              "title": "Trafilatura正文提取",
+              "weight": 20,
+              "status": "pass",
+              "reason": "离线Trafilatura提取正文 5121 字符。",
+              "evidence_ids": [
+                "e-0e50a5772a1c341eb766"
+              ],
+              "action": "补充页面证据后重新检测。",
+              "methodology": "geo-readiness-rules-v1.1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+            },
+            {
+              "id": "headings",
+              "title": "标题与H1",
+              "weight": 10,
+              "status": "pass",
+              "reason": "title及H1均可观察。",
+              "evidence_ids": [
+                "e-0e50a5772a1c341eb766"
+              ],
+              "action": "补充页面证据后重新检测。",
+              "methodology": "geo-readiness-rules-v1.1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+            },
+            {
+              "id": "structured-data",
+              "title": "语义结构化数据",
+              "weight": 10,
+              "status": "pass",
+              "reason": "观察到可解析语义类型：Organization, Product",
+              "evidence_ids": [
+                "e-0e50a5772a1c341eb766"
+              ],
+              "action": "补充页面证据后重新检测。",
+              "methodology": "geo-readiness-rules-v1.1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+            },
+            {
+              "id": "llms",
+              "title": "llms.txt",
+              "weight": 0,
+              "status": "pass",
+              "reason": "辅助信号，缺失不扣分，不保证模型推荐。 已取得符合类型的资源。",
+              "evidence_ids": [
+                "e-94435df769ffc42c9517"
+              ],
+              "action": "可选提供清晰的公开文本文件并复测；非强制要求。",
+              "methodology": "geo-readiness-rules-v1.1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+            },
+            {
+              "id": "markdown",
+              "title": "Markdown替代",
+              "weight": 0,
+              "status": "unknown",
+              "reason": "辅助信号，缺失不扣分，不保证模型推荐。 未请求或失败保持未知。",
+              "evidence_ids": [
+                "e-14390962b2d2059c594b"
+              ],
+              "action": "可选提供清晰的公开文本文件并复测；非强制要求。",
+              "methodology": "geo-readiness-rules-v1.1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+            },
+            {
+              "id": "llms-full",
+              "title": "llms-full.txt",
+              "weight": 0,
+              "status": "unknown",
+              "reason": "辅助信号，缺失不扣分，不保证模型推荐。 未请求或失败保持未知。",
+              "evidence_ids": [
+                "e-0e50a5772a1c341eb766"
+              ],
+              "action": "可选提供清晰的公开文本文件并复测；非强制要求。",
+              "methodology": "geo-readiness-rules-v1.1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+            },
+            {
+              "id": "indexing-declarations",
+              "title": "页面收录声明",
+              "weight": 0,
+              "status": "fail",
+              "reason": "观察到含noindex的页面收录声明；不是训练限制，也不保证AI行为。UA前缀不推断作用范围。",
+              "evidence_ids": [
+                "e-6322b20f9bfd36c7023e",
+                "e-7550531051d272e11d1a"
+              ],
+              "action": "核对meta robots/googlebot及X-Robots-Tag的预期收录声明，再重新检测。",
+              "methodology": "geo-readiness-rules-v1.1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+            }
+          ]
+        },
+        {
+          "id": "trust",
+          "title": "官网身份与联系线索",
+          "checks": [
+            {
+              "id": "identity",
+              "title": "组织或品牌身份线索",
+              "weight": 10,
+              "status": "pass",
+              "reason": "仅观察官网线索，未核验事实真实性或链接目标。",
+              "evidence_ids": [
+                "e-7c7540892c08c662765c"
+              ],
+              "action": "补充页面证据后重新检测。",
+              "methodology": "geo-readiness-rules-v1.1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+            },
+            {
+              "id": "contact",
+              "title": "联系线索",
+              "weight": 5,
+              "status": "pass",
+              "reason": "仅观察官网线索，未核验事实真实性或链接目标。",
+              "evidence_ids": [
+                "e-45d57f8f2b2ef3b848fc"
+              ],
+              "action": "补充页面证据后重新检测。",
+              "methodology": "geo-readiness-rules-v1.1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+            },
+            {
+              "id": "policy",
+              "title": "政策链接线索",
+              "weight": 5,
+              "status": "pass",
+              "reason": "仅观察官网线索，未核验事实真实性或链接目标。",
+              "evidence_ids": [
+                "e-c4a24d5f9f78c1e1d3f9"
+              ],
+              "action": "补充页面证据后重新检测。",
+              "methodology": "geo-readiness-rules-v1.1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+            },
+            {
+              "id": "author-date",
+              "title": "作者和日期观察",
+              "weight": 0,
+              "status": "unknown",
+              "reason": "作者/日期仅作观察，不认证来源权威。",
+              "evidence_ids": [
+                "e-0e50a5772a1c341eb766"
+              ],
+              "action": "补充页面证据后重新检测。",
+              "methodology": "geo-readiness-rules-v1.1；仅本次有限公开网页证据，不是推荐概率或真实性认证。"
+            }
+          ]
+        }
+      ],
+      "robots": {
+        "resource_id": "resource-2",
+        "fetch_status": "available",
+        "agents": [
+          {
+            "user_agent": "*",
+            "purpose": "usage_control",
+            "path": "/",
+            "decision": "allowed",
+            "parser": "protego",
+            "evidence_ids": [
+              "e-80fd79c6f367350a8aaf"
+            ],
+            "notes": [
+              "Protego解析结果；未提供精确命中行。",
+              "训练策略与搜索/用户触发分别展示，不代表推荐概率。"
+            ]
+          },
+          {
+            "user_agent": "SignalGEO/1.0",
+            "purpose": "usage_control",
+            "path": "/",
+            "decision": "allowed",
+            "parser": "protego",
+            "evidence_ids": [
+              "e-80fd79c6f367350a8aaf"
+            ],
+            "notes": [
+              "Protego解析结果；未提供精确命中行。",
+              "训练策略与搜索/用户触发分别展示，不代表推荐概率。"
+            ]
+          },
+          {
+            "user_agent": "OAI-SearchBot",
+            "purpose": "search",
+            "path": "/",
+            "decision": "allowed",
+            "parser": "protego",
+            "evidence_ids": [
+              "e-80fd79c6f367350a8aaf"
+            ],
+            "notes": [
+              "Protego解析结果；未提供精确命中行。",
+              "训练策略与搜索/用户触发分别展示，不代表推荐概率。"
+            ]
+          },
+          {
+            "user_agent": "Claude-SearchBot",
+            "purpose": "search",
+            "path": "/",
+            "decision": "allowed",
+            "parser": "protego",
+            "evidence_ids": [
+              "e-80fd79c6f367350a8aaf"
+            ],
+            "notes": [
+              "Protego解析结果；未提供精确命中行。",
+              "训练策略与搜索/用户触发分别展示，不代表推荐概率。"
+            ]
+          },
+          {
+            "user_agent": "PerplexityBot",
+            "purpose": "search",
+            "path": "/",
+            "decision": "allowed",
+            "parser": "protego",
+            "evidence_ids": [
+              "e-80fd79c6f367350a8aaf"
+            ],
+            "notes": [
+              "Protego解析结果；未提供精确命中行。",
+              "训练策略与搜索/用户触发分别展示，不代表推荐概率。"
+            ]
+          },
+          {
+            "user_agent": "Googlebot",
+            "purpose": "search",
+            "path": "/",
+            "decision": "allowed",
+            "parser": "protego",
+            "evidence_ids": [
+              "e-80fd79c6f367350a8aaf"
+            ],
+            "notes": [
+              "Protego解析结果；未提供精确命中行。",
+              "训练策略与搜索/用户触发分别展示，不代表推荐概率。",
+              "Googlebot仅说明搜索爬虫，不代表全部AI产品。"
+            ]
+          },
+          {
+            "user_agent": "GPTBot",
+            "purpose": "training",
+            "path": "/",
+            "decision": "disallowed",
+            "parser": "protego",
+            "evidence_ids": [
+              "e-80fd79c6f367350a8aaf"
+            ],
+            "notes": [
+              "Protego解析结果；未提供精确命中行。",
+              "训练策略与搜索/用户触发分别展示，不代表推荐概率。"
+            ]
+          },
+          {
+            "user_agent": "GPTBot/1.2",
+            "purpose": "training",
+            "path": "/",
+            "decision": "disallowed",
+            "parser": "protego",
+            "evidence_ids": [
+              "e-80fd79c6f367350a8aaf"
+            ],
+            "notes": [
+              "Protego解析结果；未提供精确命中行。",
+              "训练策略与搜索/用户触发分别展示，不代表推荐概率。"
+            ]
+          },
+          {
+            "user_agent": "ClaudeBot",
+            "purpose": "training",
+            "path": "/",
+            "decision": "allowed",
+            "parser": "protego",
+            "evidence_ids": [
+              "e-80fd79c6f367350a8aaf"
+            ],
+            "notes": [
+              "Protego解析结果；未提供精确命中行。",
+              "训练策略与搜索/用户触发分别展示，不代表推荐概率。"
+            ]
+          },
+          {
+            "user_agent": "ChatGPT-User",
+            "purpose": "user_triggered",
+            "path": "/",
+            "decision": "allowed",
+            "parser": "protego",
+            "evidence_ids": [
+              "e-80fd79c6f367350a8aaf"
+            ],
+            "notes": [
+              "Protego解析结果；未提供精确命中行。",
+              "训练策略与搜索/用户触发分别展示，不代表推荐概率。",
+              "用户触发UA的解析结果不保证客户端实际遵守。"
+            ]
+          },
+          {
+            "user_agent": "Claude-User",
+            "purpose": "user_triggered",
+            "path": "/",
+            "decision": "allowed",
+            "parser": "protego",
+            "evidence_ids": [
+              "e-80fd79c6f367350a8aaf"
+            ],
+            "notes": [
+              "Protego解析结果；未提供精确命中行。",
+              "训练策略与搜索/用户触发分别展示，不代表推荐概率。",
+              "用户触发UA的解析结果不保证客户端实际遵守。"
+            ]
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e-5d3c3282633d7b413ba5",
+          "resource_id": "resource-1",
+          "url": "https://acme.example/",
+          "captured_at": "2026-10-22T16:27:22.735244+00:00",
+          "http_status": 200,
+          "content_type": "text/html",
+          "redirects": [],
+          "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc"
+        },
+        {
+          "id": "e-30ff06b3d2d080ddf8a1",
+          "resource_id": "resource-1",
+          "url": "https://acme.example/",
+          "captured_at": "2026-10-22T16:27:22.735244+00:00",
+          "http_status": 200,
+          "content_type": "text/html",
+          "redirects": [],
+          "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+          "source_field": "meta[property=\"og:site_name\"]",
+          "excerpt": "Acme Tea"
+        },
+        {
+          "id": "e-13b06907ff4ba4872262",
+          "resource_id": "resource-1",
+          "url": "https://acme.example/",
+          "captured_at": "2026-10-22T16:27:22.735244+00:00",
+          "http_status": 200,
+          "content_type": "text/html",
+          "redirects": [],
+          "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+          "source_field": "JSON-LD.Product.name",
+          "excerpt": "Green Tea"
+        },
+        {
+          "id": "e-2d905c342a6f315ec5b5",
+          "resource_id": "resource-1",
+          "url": "https://acme.example/",
+          "captured_at": "2026-10-22T16:27:22.735244+00:00",
+          "http_status": 200,
+          "content_type": "text/html",
+          "redirects": [],
+          "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+          "source_field": "body.comparison",
+          "excerpt": "Rival Tea"
+        },
+        {
+          "id": "e-559275a5e508fc7cf4c2",
+          "resource_id": "resource-1",
+          "url": "https://acme.example/",
+          "captured_at": "2026-10-22T16:27:22.735244+00:00",
+          "http_status": 200,
+          "content_type": "text/html",
+          "redirects": [],
+          "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+          "source_field": "body.comparison",
+          "excerpt": "rewing information for customers. Tea leaves and brewing information for customers.\nCompare our tea versus\nRival Tea\n.\nPartner Company\nContact us\nPrivacy policy\nAbout us\nsupport@acme.example"
+        },
+        {
+          "id": "e-0e50a5772a1c341eb766",
+          "resource_id": "resource-1",
+          "url": "https://acme.example/",
+          "captured_at": "2026-10-22T16:27:22.735244+00:00",
+          "http_status": 200,
+          "content_type": "text/html",
+          "redirects": [],
+          "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+          "source_field": "response"
+        },
+        {
+          "id": "e-80fd79c6f367350a8aaf",
+          "resource_id": "resource-2",
+          "url": "https://acme.example/robots.txt",
+          "captured_at": "2026-10-22T16:27:22.745780+00:00",
+          "http_status": 200,
+          "content_type": "text/plain",
+          "redirects": [],
+          "sha256": "54f6fd1edcf3f22736cbfd2643c832438727dfe6a6a1cdb5e4846a3fd5a9b5ec",
+          "source_field": "robots.txt",
+          "excerpt": "User-agent: GPTBot\nDisallow: /\n\nUser-agent: OAI-SearchBot\nDisallow: /private\nAllow: /private/open\n\nUser-agent: *\nAllow: /\n"
+        },
+        {
+          "id": "e-94435df769ffc42c9517",
+          "resource_id": "resource-3",
+          "url": "https://acme.example/llms.txt",
+          "captured_at": "2026-10-22T16:27:22.746414+00:00",
+          "http_status": 200,
+          "content_type": "text/plain",
+          "redirects": [],
+          "sha256": "2446abb1cdeae199cc2aa7e4c1ff98fb7c8d5a7d00433d741595cfd0770087a3",
+          "source_field": "response"
+        },
+        {
+          "id": "e-14390962b2d2059c594b",
+          "resource_id": "resource-4",
+          "url": "https://acme.example/index.md",
+          "captured_at": "2026-10-22T16:27:22.746732+00:00",
+          "http_status": 200,
+          "content_type": "text/plain",
+          "redirects": [],
+          "sha256": "cd373e7e91a36a2571016b8b40499e9cd1e1073c5d55090904a6293221744023",
+          "source_field": "response"
+        },
+        {
+          "id": "e-0ee4341cf4cdd39fa5e0",
+          "resource_id": "resource-5",
+          "url": "https://acme.example/about",
+          "captured_at": "2026-10-22T16:27:22.747029+00:00",
+          "http_status": 200,
+          "content_type": "text/plain",
+          "redirects": [],
+          "sha256": "ef91fa9e70b0dcd8604ba65b4945d5b9a5f8c05c4a2b9e6a2dd03f5c9de43a07",
+          "source_field": "response",
+          "error_code": "unsupported_content"
+        },
+        {
+          "id": "e-6322b20f9bfd36c7023e",
+          "resource_id": "resource-1",
+          "url": "https://acme.example/",
+          "captured_at": "2026-10-22T16:27:22.735244+00:00",
+          "http_status": 200,
+          "content_type": "text/html",
+          "redirects": [],
+          "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+          "source_field": "robots",
+          "excerpt": "noindex"
+        },
+        {
+          "id": "e-7550531051d272e11d1a",
+          "resource_id": "resource-1",
+          "url": "https://acme.example/",
+          "captured_at": "2026-10-22T16:27:22.735244+00:00",
+          "http_status": 200,
+          "content_type": "text/html",
+          "redirects": [],
+          "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+          "source_field": "x-robots-tag",
+          "excerpt": "googlebot: noindex"
+        },
+        {
+          "id": "e-7c7540892c08c662765c",
+          "resource_id": "resource-1",
+          "url": "https://acme.example/",
+          "captured_at": "2026-10-22T16:27:22.735244+00:00",
+          "http_status": 200,
+          "content_type": "text/html",
+          "redirects": [],
+          "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+          "source_field": "identity.observable_clues",
+          "excerpt": "Acme Tea [{\"name\": \"Acme Tea\", \"source\": \"JSON-LD Organization.name\"}]"
+        },
+        {
+          "id": "e-45d57f8f2b2ef3b848fc",
+          "resource_id": "resource-1",
+          "url": "https://acme.example/",
+          "captured_at": "2026-10-22T16:27:22.735244+00:00",
+          "http_status": 200,
+          "content_type": "text/html",
+          "redirects": [],
+          "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+          "source_field": "contact.observable_clues",
+          "excerpt": "Contact us /contact"
+        },
+        {
+          "id": "e-c4a24d5f9f78c1e1d3f9",
+          "resource_id": "resource-1",
+          "url": "https://acme.example/",
+          "captured_at": "2026-10-22T16:27:22.735244+00:00",
+          "http_status": 200,
+          "content_type": "text/html",
+          "redirects": [],
+          "sha256": "3f109eae7b862916a74c55c7656572d53169362bd3462b7c1e65bb8bf19f54cc",
+          "source_field": "policy.observable_clues",
+          "excerpt": "Privacy policy /privacy"
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "recommend-markdown",
+          "priority": "low",
+          "check_ids": [
+            "markdown"
+          ],
+          "evidence_ids": [
+            "e-14390962b2d2059c594b"
+          ],
+          "action": "可选提供清晰的公开文本文件并复测；非强制要求。",
+          "retest": "用户明确选择重新检测后核对同规则与同页面。"
+        },
+        {
+          "id": "recommend-llms-full",
+          "priority": "low",
+          "check_ids": [
+            "llms-full"
+          ],
+          "evidence_ids": [
+            "e-0e50a5772a1c341eb766"
+          ],
+          "action": "可选提供清晰的公开文本文件并复测；非强制要求。",
+          "retest": "用户明确选择重新检测后核对同规则与同页面。"
+        },
+        {
+          "id": "recommend-indexing-declarations",
+          "priority": "low",
+          "check_ids": [
+            "indexing-declarations"
+          ],
+          "evidence_ids": [
+            "e-6322b20f9bfd36c7023e",
+            "e-7550531051d272e11d1a"
+          ],
+          "action": "核对meta robots/googlebot及X-Robots-Tag的预期收录声明，再重新检测。",
+          "retest": "用户明确选择重新检测后核对同规则与同页面。"
+        },
+        {
+          "id": "recommend-author-date",
+          "priority": "low",
+          "check_ids": [
+            "author-date"
+          ],
+          "evidence_ids": [
+            "e-0e50a5772a1c341eb766"
+          ],
+          "action": "补充页面证据后重新检测。",
+          "retest": "用户明确选择重新检测后核对同规则与同页面。"
+        }
+      ],
+      "model_analysis": {
+        "status": "not_tested",
+        "binding": {
+          "audit_id": "82f0ed31-05a8-45ea-8b10-669a3a96e7cf",
+          "url": "https://acme.example/",
+          "market": "US",
+          "brand_aliases": [
+            "Acme Tea"
+          ]
+        },
+        "job_id": null,
+        "report": null
+      }
+    },
+    "limitations": [
+      "官网规则准备度与模型问答表现分开；不是平台排名或事实认证。",
+      "未逐条核验的问题覆盖、事实完整性和跨页一致性保持unknown。",
+      "最多8资源/10HTTP/4MiB/累计60秒，遵守同源、robots及安全连接约束。"
+    ]
+  },
+  "summary": {
+    "applicable_weight": 100,
+    "unknown_weight": 45,
+    "earned": 55,
+    "lower": 55.0,
+    "upper": 100.0,
+    "coverage": 0.55,
+    "total": null
+  },
+  "error_code": null,
+  "baseline_id": null,
+  "trend": null,
+  "legacy": null,
+  "website_usage": {
+    "http_requests": 7,
+    "resources_requested": 7,
+    "bytes_received": 5989,
+    "active_duration_ms": 6,
+    "model_calls": 0,
+    "bytes_budget_used": 5989
+  },
+  "pages": [
+    {
+      "url": "https://acme.example/",
+      "status": 200,
+      "error_code": null
+    },
+    {
+      "url": "https://acme.example/robots.txt",
+      "status": 200,
+      "error_code": null
+    },
+    {
+      "url": "https://acme.example/llms.txt",
+      "status": 200,
+      "error_code": null
+    },
+    {
+      "url": "https://acme.example/index.md",
+      "status": 200,
+      "error_code": null
+    },
+    {
+      "url": "https://acme.example/about",
+      "status": 200,
+      "error_code": "unsupported_content"
+    },
+    {
+      "url": "https://acme.example/contact",
+      "status": 404,
+      "error_code": "http_error"
+    },
+    {
+      "url": "https://acme.example/privacy",
+      "status": 404,
+      "error_code": "http_error"
+    }
+  ],
+  "frozen_prompts": [
+    "Which tea choices meet need 0?",
+    "Which tea choices meet need 1?",
+    "Which tea choices meet need 2?",
+    "Which tea choices meet need 3?",
+    "Which tea choices meet need 4?",
+    "Which tea choices meet need 5?",
+    "Which tea choices meet need 6?",
+    "Which tea choices meet need 7?",
+    "Which tea choices meet need 8?",
+    "Which tea choices meet need 9?",
+    "Which tea choices meet need 10?",
+    "Which tea choices meet need 11?",
+    "Which tea choices meet need 12?",
+    "Which tea choices meet need 13?",
+    "Which tea choices meet need 14?",
+    "Which tea choices meet need 15?",
+    "Which tea choices meet need 16?",
+    "Which tea choices meet need 17?",
+    "Which tea choices meet need 18?",
+    "Which tea choices meet need 19?",
+    "Which tea choices meet need 20?",
+    "Which tea choices meet need 21?",
+    "Which tea choices meet need 22?",
+    "Which tea choices meet need 23?",
+    "Which tea choices meet need 24?",
+    "Which tea choices meet need 25?",
+    "Which tea choices meet need 26?",
+    "Which tea choices meet need 27?",
+    "Which tea choices meet need 28?",
+    "Which tea choices meet need 29?"
+  ],
+  "question_set_version": "54c7804df38f976d0df2f47e5f1d6119d40c34ae18a14a0ee7e571b6d8dab6b0",
+  "completed_at": "2026-10-22T16:27:22.775982+00:00",
+  "shares": []
+}

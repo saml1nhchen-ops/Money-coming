@@ -202,6 +202,17 @@ class DiagnosticManager:
    if not permitted(url):continue
    roles.add(role(url));extra.append(budget.fetch(url,'about',base,permitted=permitted))
   return extra,budget.finish()
+ def source_material(self,d,audit,extra,usage):
+  resources=(audit['_internal']['resources']+extra)[:8];parts=[];remaining=24000
+  for resource in resources:
+   if resource.get('error') or not resource.get('parsed'):continue
+   content=resource['parsed'].get('extracted_text') or resource['parsed'].get('text','')
+   if not content:continue
+   block=('Source URL: '+resource['url']+'\n'+content)[:remaining];parts.append(block);remaining-=len(block)+2
+   if remaining<=0:break
+  snapshot={'version':'audited-material-v1','website':d['website'],'captured_at':now(),'text':'\n\n'.join(parts)[:24000],'resources':[{'url':r['url'],'http_status':r.get('status'),'error_code':r.get('error'),'sha256':r.get('sha256')} for r in resources],'usage':usage,'limits':{'resources':8,'http_requests':10,'bytes':4*1024*1024,'active_seconds':60}}
+  snapshot['evidence_signature']=digest(snapshot)
+  return snapshot
  def execute(self,d,baseline=None):
   try:
    d.update(status='running',stage='website');self.save(d)
@@ -222,7 +233,7 @@ class DiagnosticManager:
     path='sample' if d.get('frozen_prompts') else 'start'
     if d.get('frozen_prompts'):cfg['prompts']=d['frozen_prompts']
     d['stage']='model_submitting';self.save(d)
-    result,_=self.w.dispatch(path,cfg,_diagnostic=d['id']);d['job_id']=result['id'];d['stage']='sampling';self.save(d)
+    result,_=self.w.dispatch(path,cfg,_diagnostic=d['id'],_source_snapshot=self.source_material(d,audit,extra,usage) if path=='start' else None);d['job_id']=result['id'];d['stage']='sampling';self.save(d)
     while True:
      flow=self.w.api.call('geo','run?id='+d['job_id'])
      if flow['status'] not in ('queued','running'):break

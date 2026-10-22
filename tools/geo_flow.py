@@ -181,9 +181,28 @@ def validate(d,check_models=True):
  d['configuration']={pid:profiles[pid] for pid in set([*ids,d['generator']])}
  return d
 
-def start(d):
+def validate_source_snapshot(snapshot,website):
+ # Authenticated loopback-only capability; public gateway schemas reject this.
+ fields={'version','website','captured_at','text','resources','usage','limits','evidence_signature'}
+ if not isinstance(snapshot,dict) or set(snapshot)!=fields or snapshot['version']!='audited-material-v1' or snapshot['website']!=website:raise ValueError('Invalid audited material')
+ if not isinstance(snapshot['text'],str) or len(snapshot['text'])>24000 or not isinstance(snapshot['captured_at'],str) or len(snapshot['captured_at'])>64:raise ValueError('Invalid audited material')
+ if not isinstance(snapshot['resources'],list) or not 1<=len(snapshot['resources'])<=8:raise ValueError('Invalid audited material')
+ for row in snapshot['resources']:
+  if not isinstance(row,dict) or set(row)!={'url','http_status','error_code','sha256'} or not isinstance(row['url'],str) or len(row['url'])>4096:raise ValueError('Invalid audited material')
+  if website_inspection.normalize_url(row['url'])!=row['url'] or row['http_status'] is not None and (type(row['http_status'])!=int or not 100<=row['http_status']<=599):raise ValueError('Invalid audited material')
+  if row['error_code'] is not None and (not isinstance(row['error_code'],str) or not re.fullmatch(r'[a-z_]{1,64}',row['error_code'])):raise ValueError('Invalid audited material')
+  if row['sha256'] is not None and (not isinstance(row['sha256'],str) or not re.fullmatch(r'[a-f0-9]{64}',row['sha256'])):raise ValueError('Invalid audited material')
+ limits={'resources':8,'http_requests':10,'bytes':4*1024*1024,'active_seconds':60}
+ if snapshot['limits']!=limits or not isinstance(snapshot['usage'],dict) or set(snapshot['usage'])-{'resources_requested','http_requests','bytes_received','bytes_budget_used','active_duration_ms','model_calls'} or any(type(v)!=int or v<0 for v in snapshot['usage'].values()):raise ValueError('Invalid audited material')
+ if snapshot['usage'].get('resources_requested',0)>8 or snapshot['usage'].get('http_requests',0)>10 or max(snapshot['usage'].get('bytes_received',0),snapshot['usage'].get('bytes_budget_used',0))>limits['bytes']:raise ValueError('Invalid audited material')
+ signature=hashlib.sha256(json.dumps({k:v for k,v in snapshot.items() if k!='evidence_signature'},ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+ if snapshot['evidence_signature']!=signature:raise ValueError('Invalid audited material signature')
+ return copy.deepcopy(snapshot)
+
+def start(d,source_snapshot=None):
  global BUSY
  config=validate(d)
+ if source_snapshot is not None:source_snapshot=validate_source_snapshot(source_snapshot,config['website'])
  with GUARD:
   if BUSY:raise ValueError('已有流程正在执行，请等待或停止当前流程')
   BUSY=True
@@ -192,6 +211,7 @@ def start(d):
   lock=json.loads((ROOT/'tools/upstreams.lock.json').read_text('utf-8'));source=next(x for x in lock if x['id']=='niubigeo')
   task_plan=geo_plan.plan(config)
   job={'id':rid,'created_at':shared.stamp(),'status':'queued','stage':'queued','config':config,'generation':None,'generations':[],'prompts':[],'calls':[],'samples':[],'report':None,'plan':task_plan,'planned_max_calls':task_plan['maximum_calls'],'upstream':{'repository':source.get('repository'),'commit':source['commit'],'module':'src/prompts/prompt-generator.ts'},'entry_type':'model_api'}
+  if source_snapshot is not None:job['source_snapshot']=source_snapshot
   persist(job);POOL.submit(execute,job);return job
  except Exception:
   with GUARD:BUSY=False
@@ -216,10 +236,14 @@ def execute(job):
  global BUSY
  try:
   job['status']='running';job['stage']='website';persist(job);cfg=job['config']
-  try:job['website']=fetch_website(cfg['website'])
-  except Exception as e:
-   job['website']={'url':cfg['website'],'error':str(e) if isinstance(e,ValueError) else '官网读取失败','text':''}
-   if not cfg.get('context'):raise ValueError('官网抓取失败，请补充业务背景再运行；尚未调用模型') from None
+  if 'source_snapshot' in job:
+   material=validate_source_snapshot(job['source_snapshot'],cfg['website'])
+   job['website']={'url':cfg['website'],'text':material['text'],'source':'audited_snapshot','evidence_signature':material['evidence_signature'],'read_status':'captured' if material['text'] else 'unavailable','material_note':'仅使用已审计网页摘录，不再次请求官网。' if material['text'] else '官网未取得可读材料；仅依据用户确认品牌/产品/竞品与背景出题，未声称读取成功。'}
+  else:
+   try:job['website']=fetch_website(cfg['website'])
+   except Exception as e:
+    job['website']={'url':cfg['website'],'error':str(e) if isinstance(e,ValueError) else '官网读取失败','text':''}
+    if not cfg.get('context'):raise ValueError('官网抓取失败，请补充业务背景再运行；尚未调用模型') from None
   job['stage']='generating';persist(job)
   generate_bank(job)
   if len(job['prompts'])<cfg['count']:raise ValueError('题库去重后不足目标题数，已保留现有题目。请审核后使用可编辑题集；没有自动补题或开始采样')
@@ -236,7 +260,7 @@ def generate_bank(job):
  for batch_index,specs in enumerate(geo_plan.blueprint(cfg['count'])):
   if job['id'] in CANCEL:raise ValueError('自动出题已停止，已生成的问题保留')
   batch_cfg={**cfg,'count':len(specs),'question_blueprint':specs,'batch_index':batch_index,'previous_questions':[p['text'] for p in job['prompts'][-6:]]}
-  prompt=niubi('build',batch_cfg,website_text='User supplied scope: '+cfg.get('context','')+'\nWebsite excerpt: '+job['website']['text'])['prompt']
+  prompt=niubi('build',batch_cfg,website_text='User supplied scope: '+cfg.get('context','')+'\nMaterial provenance: '+job['website'].get('material_note','Live website capture')+'\nWebsite excerpt: '+job['website']['text'])['prompt']
   generated=call(job,cfg['generator'],[prompt],'generation');g={'batch':batch_index+1,'runner_id':generated['id'],'sample':generated['samples'][0] if generated['samples'] else None};job['generation']=g;job['generations'].append(g);persist(job)
   s=g['sample']
   if not s or s['status']!='complete':raise ValueError('自动出题失败：'+(s.get('error','回答不完整') if s else '没有返回样本'))
@@ -360,10 +384,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
   if not self.auth():return
   try:
    n=int(self.headers.get('Content-Length','0'))
-   if not 0<n<=256*1024:raise ValueError('请求不能超过 256 KB')
+   if not 0<n<=(512 if self.path=='/api/geo/diagnostic-start' else 256)*1024:raise ValueError('请求超过允许大小')
    d=json.loads(self.rfile.read(n))
    if self.path=='/api/geo/inspect':return self.reply(inspect_website(d))
    if self.path=='/api/geo/start':return self.reply(start(d),202)
+   if self.path=='/api/geo/diagnostic-start':
+    if not isinstance(d,dict) or set(d)!={'config','source_snapshot'}:raise ValueError('Invalid audited submission')
+    return self.reply(start(d['config'],d['source_snapshot']),202)
    if self.path=='/api/geo/sample':return self.reply(start_manual(d),202)
    if self.path=='/api/geo/analyze':return self.reply(reanalyze(d),201)
    if self.path=='/api/geo/plan':return self.reply(geo_plan.plan(validate(d),bool(d.get('manual'))))

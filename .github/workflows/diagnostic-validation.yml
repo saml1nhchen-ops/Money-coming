@@ -18,6 +18,20 @@ jobs:
         run: |
           python3 -m venv .venv
           .venv/bin/python -m pip install --only-binary=:all: --require-hashes -r tools/requirements-audit.lock
+          .venv/bin/python -m pip install --only-binary=:all: PyYAML==6.0.3
+      - name: Install the locked question-generator runtime
+        run: |
+          python3 - <<'PY'
+          import json,pathlib,subprocess
+          item=next(v for v in json.loads(pathlib.Path('tools/upstreams.lock.json').read_text()) if v['id']=='niubigeo')
+          target=pathlib.Path('runtime/upstreams/niubigeo')
+          subprocess.run(['git','init',str(target)],check=True)
+          subprocess.run(['git','-C',str(target),'remote','add','origin','https://github.com/'+item['repository']+'.git'],check=True)
+          subprocess.run(['git','-C',str(target),'fetch','--depth','1','origin',item['commit']],check=True)
+          subprocess.run(['git','-C',str(target),'checkout','--detach','FETCH_HEAD'],check=True)
+          assert subprocess.check_output(['git','-C',str(target),'rev-parse','HEAD'],text=True).strip()==item['commit']
+          subprocess.run(['npm','ci','--no-audit','--no-fund'],cwd=target,check=True)
+          PY
       - name: Backend regressions
         run: |
           set +e

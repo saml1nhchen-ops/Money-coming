@@ -12,6 +12,7 @@ from remote_gateway import Workspace,Budget,Server
 class FlowAPI:
  def __init__(self):self.calls=[];self.jobs={};self.hold=False;self.busy=False
  def call(self,service,path,body=None):
+  if path=='diagnostic-start':path='start';body=body['config']
   self.calls.append((service,path,copy.deepcopy(body)))
   if service!='geo':raise AssertionError('No vendor API in tests')
   if path=='state':return {'runner':{},'busy':self.busy,'runs':[]}
@@ -94,7 +95,7 @@ class HTTPDiagnostics(unittest.TestCase):
   from remote_gateway import Failure
   original=self.api.call
   def fail(service,path,body=None):
-   if path=='start':self.api.calls.append((service,path,copy.deepcopy(body)));raise Failure(502,'upstream_failed')
+   if path in ('start','diagnostic-start'):self.api.calls.append((service,'start',copy.deepcopy(body)));raise Failure(502,'upstream_failed')
    return original(service,path,body)
   self.api.call=fail;_,d=self.req('POST','/api/diagnostics',self.payload('full'));d=self.done(d['id']);self.assertEqual(d['status'],'partial');self.assertEqual(d['error_code'],'upstream_failed');self.assertEqual(self.w.budget.state()['reserved'],33);self.assertEqual(sum(p=='start' for _,p,_ in self.api.calls),1)
  def test_restart_history_and_store_failure_no_replay(self):
