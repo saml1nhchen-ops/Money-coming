@@ -21,7 +21,11 @@
   }
   function session() {
     const c = identity();
-    if (!sessions.has(c.key)) sessions.set(c.key,{screen:'url',url:'',audit:null,draft:null,message:'',pending:false});
+    if (!sessions.has(c.key)) {
+      // A website typed on the homepage arrives once through sessionStorage and only prefills the field.
+      let handoff=''; try { handoff=normalize(sessionStorage.getItem('signal-diagnose-website')); sessionStorage.removeItem('signal-diagnose-website'); } catch {}
+      sessions.set(c.key,{screen:'url',url:handoff,audit:null,draft:null,message:'',pending:false});
+    }
     return sessions.get(c.key);
   }
   function stop() { sequence++; clearTimeout(pollTimer); }
