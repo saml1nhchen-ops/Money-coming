@@ -41,6 +41,12 @@ class DiagnosticsTests(unittest.TestCase):
   with patch.object(d,'api') as api:
    with self.assertRaises(RuntimeError):d.publish(report,{**env,'GITHUB_RUN_ID':'main'})
    api.assert_not_called()
+ def test_browser_subprocess_strips_credentials_and_records_failures(self):
+  import subprocess
+  from types import SimpleNamespace
+  with patch.dict('os.environ',{'GH_TOKEN':'SECRET','GITHUB_TOKEN':'SECRET','SIGNAL_BAI_API_KEY':'SECRET','SIGNAL_WORKSPACE_PASSWORD':'SECRET','HTTPS_PROXY':'http://proxy.test'}),patch.object(d.subprocess,'run',return_value=SimpleNamespace(stdout='{"error":"chrome_unavailable"}',returncode=0)) as run:
+   self.assertEqual(d.browser_probe(),{'error':'chrome_unavailable'});env=run.call_args.kwargs['env'];self.assertNotIn('GH_TOKEN',env);self.assertNotIn('GITHUB_TOKEN',env);self.assertNotIn('SIGNAL_BAI_API_KEY',env);self.assertNotIn('SIGNAL_WORKSPACE_PASSWORD',env);self.assertEqual(env['HTTPS_PROXY'],'http://proxy.test');self.assertEqual(run.call_args.kwargs['timeout'],48)
+  with patch.object(d.subprocess,'run',side_effect=subprocess.TimeoutExpired('node',48)):self.assertEqual(d.browser_probe(),{'error':'browser_probe_timeout'})
  def test_workflow_is_separate_branch_trigger_and_pinned_checkout(self):
   import yaml
   w=yaml.load((ROOT/'.github/workflows/connection-diagnostics.yml').read_text(),Loader=yaml.BaseLoader);self.assertEqual(w['on'],{'push':{'branches':['diagnose/connection-*']}});job=w['jobs']['diagnose'];self.assertIn('deleted == false',job['if']);self.assertIn('forced == false',job['if']);self.assertEqual(job['permissions'],{'contents':'write'});self.assertRegex(job['steps'][0]['uses'],r'^actions/checkout@[a-f0-9]{40}$')

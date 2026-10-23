@@ -16,7 +16,10 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - name: Probe public DNS TLS and CORS without logging in
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Probe public DNS TLS CORS and the actual Chrome Pages origin without logging in
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 deploy/connection_diagnostics.py
