@@ -1,4 +1,4 @@
-import json,pathlib,sys,tempfile,unittest
+import os,json,pathlib,sys,tempfile,unittest
 from unittest.mock import patch
 sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[1]/'tools'))
 import geo_flow as f
@@ -42,7 +42,7 @@ class BaselineTests(unittest.TestCase):
    rid='00000000-0000-0000-0000-000000000000';f.folder(rid).mkdir();job={'id':rid,'config':cfg,'prompts':[],'samples':[]};f.execute(job);self.assertEqual(len(job['prompts']),1);self.assertEqual(call.call_count,1);self.assertEqual(job['status'],'failed')
  def test_blocked_model_stops_remaining_questions(self):
   cfg=config();job={'id':'fixture','config':cfg,'prompts':[{'text':'question one'},{'text':'question two'}],'samples':[]}
-  with patch.object(f,'persist'),patch.object(f,'call',return_value={'id':'r','samples':[sample('',status='failed',error='B.AI HTTP 403')]}) as call:
+  with patch.dict(os.environ,{'SIGNAL_GEO_PROVIDER_CONCURRENCY':'1'}),patch.object(f,'persist'),patch.object(f,'call',return_value={'id':'r','samples':[sample('',status='failed',error='B.AI HTTP 403')]}) as call:
    f.collect(job);self.assertEqual(call.call_count,1);self.assertEqual(job['status'],'partial');self.assertIn('p',job['blocked_models'])
 
 if __name__=='__main__':unittest.main()

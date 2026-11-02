@@ -16,7 +16,7 @@
 
 本机服务仅在内存保存手工配置的密钥，重启失效；不从父进程偷偷读取供应商凭据，不写浏览器 localStorage、源代码或证据文件。先配置 base URL、账户可用模型 ID（Perplexity 为 Agent preset）及密钥，再勾选平台提交题集。配置成功只证明校验通过，真实可用性需有凭据后运行；本次没有用户密钥，未完成供应商鉴权或付费实测。不同地域 / 业务空间的密钥必须对应其端点。
 
-每次最多 64 个调用，每个平台逐题独立请求，无自动重试和跨供应商回退。接口统一限制输出 4096 token；如果输出被截断、被过滤、只有工具调用或为空，计为不完整，不参加提及分。联网工具已实现 OpenAI Responses、Gemini grounding、Claude web_search 和 Qwen enable_search；其余适配器当前为文本生成。请求联网不保证工具被执行；搜索执行证据另行记录。Perplexity 使用新的 `/v1/agent`，不新接已结束支持的 Sonar Chat Completions。
+每次最多 64 个调用，每个平台逐题独立请求，无自动重试和跨供应商回退。接口默认限制输出 3000 token（SIGNAL_MAX_TOKENS 可调整）；如果输出被截断、被过滤、只有工具调用或为空，计为不完整，不参加提及分。联网工具已实现 OpenAI Responses、Gemini grounding、Claude web_search 和 Qwen enable_search；其余适配器当前为文本生成。请求联网不保证工具被执行；搜索执行证据另行记录。Perplexity 使用新的 `/v1/agent`，不新接已结束支持的 Sonar Chat Completions。
 
 证据保存在忽略的 `runtime/ai-api-runs/<uuid>/`，含固定题集、市场、模型配置、每题原始响应、时间、返回模型、usage、完整性、引用元数据、独立检索来源和 SHA-256。已知凭据若意外出现在响应中会先脱敏，hash 对应保存后的证据文件。可下载完整 JSON 证据包；数据不上传公共站点。
 
@@ -144,7 +144,7 @@ OpenAI, Anthropic and Perplexity use official paid accounts only.
 | --- | --- | --- |
 | OpenAI | `gpt-5` / paid | — |
 | Anthropic | `claude-sonnet-4-5` / paid | — |
-| Gemini | `gemini-2.5-flash` / Google AI Studio free tier | — |
+| Gemini | `gemini-3.5-flash` / Google AI Studio free tier | — |
 | Perplexity | `sonar` / paid; no free API | — |
 | Zhipu | `glm-4.7-flash` / free; paid override `glm-4.6` | siliconflow: `THUDM/GLM-4-9B-0414` |
 | DeepSeek | `deepseek-chat` / paid, low cost | nvidia_nim: `deepseek-ai/deepseek-v4-flash` |
@@ -182,3 +182,29 @@ The expandable sampling settings show the resolved route and free/paid flag,
 allow route selection, and reset the model field to the selected route default.
 Status and exported evidence include route metadata; credentials remain server-side.
 Route selection does not claim that model API results represent consumer apps.
+
+
+GEO direct sampling uses the verified multi-route pools described in
+[Multi-route configuration](../docs/multi-route.md). Global concurrency defaults to
+the sum of active route caps; `SIGNAL_GEO_CONCURRENCY` overrides it.
+`SIGNAL_GEO_PROVIDER_CONCURRENCY` is now a compatibility alias for the per-route
+cap (default 4), superseded by `SIGNAL_ROUTE_CONCURRENCY`. Official GLM Flash
+retains cap 1 unless its specific route cap is explicitly overridden.
+Submitted planned calls are skipped on resume; transient route failovers are
+attempts within one planned call and do not consume extra planned-call budget.
+In-flight calls finish after cancellation. `SIGNAL_CALL_TIMEOUT=90` controls each
+HTTP attempt; output defaults to `SIGNAL_MAX_TOKENS=3000` (128–32768).
+`SIGNAL_GEO_THINKING=1` restores provider default thinking behavior. Otherwise
+pool entries apply their exact platform/model parameters, including the models
+that reject thinking parameters. Existing explicit single-route adapters retain
+their compatibility behavior. The plan estimates answer output at the configured
+token limit and question generation at 2000 tokens per batch.
+Adapter references: [TokenHub thinking](https://intl.cloud.tencent.com/zh/document/product/1300/80637),
+[Kimi models](https://www.kimi.com/code/docs/en/kimi-code/models),
+[MiniMax models](https://docs.cloudbase.net/ai/available-models),
+[NVIDIA Qwen](https://docs.api.nvidia.com/nim/re/reference/qwen-qwen3-5-122b-a10b-infer).
+
+Opt-in benchmark (real API requests, timing-only output, temporary evidence):
+`python3 tools/bench_geo_collect.py --questions 3 --providers gemini deepseek qwen`.
+It loads repository environment settings without displaying keys. It is not run by
+the test suite and may incur provider charges.

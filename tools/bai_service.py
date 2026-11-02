@@ -7,7 +7,8 @@ import ai_api as shared
 ROOT=pathlib.Path(__file__).resolve().parents[1];PORT=8771;TOKEN=secrets.token_urlsafe(32)
 SITE='https://signal-geo-workbench-lh.saml1nhchen.chatgpt.site'
 BASE=shared.registry.configuration(shared.provider('bai'))['base_url'] if shared.registry.configuration(shared.provider('bai')) else shared.provider('bai')['base_url'];KEY='';MODELS=[];PROFILES={};FETCHED=None
-LOCK=threading.RLock();POOL=concurrent.futures.ThreadPoolExecutor(max_workers=2)
+LOCK=threading.RLock()
+AI_RUN_POOL=concurrent.futures.ThreadPoolExecutor(max_workers=shared.env_int('SIGNAL_GEO_CONCURRENCY',16,1,128))
 def remote(path,key,body=None):
  if path not in ('/models','/chat/completions','/responses','/messages'):raise ValueError('Unsupported endpoint')
  if any(not ipaddress.ip_address(x[4][0]).is_global for x in socket.getaddrinfo(urllib.parse.urlsplit(BASE).hostname,443)):raise ValueError('Invalid provider address')
@@ -81,7 +82,7 @@ def prepare(payload):
    profiles[pid]=dict(p)
   key=KEY
  return profiles,key
-def start(payload,pool=POOL):
+def start(payload,pool=AI_RUN_POOL):
  profiles,key=prepare(payload);rid=str(uuid.uuid4());base=run_path(rid);base.mkdir(parents=True)
  run={k:payload.get(k) for k in ('market','providers','prompts','brand_aliases','skus','website')}
  run.update({'id':rid,'entry_type':'model_api','channel':'bai','created_at':shared.stamp(),'status':'queued','planned':len(run['providers'])*len(run['prompts']),'configuration':profiles,'samples':[],'summary':[],'methodology':'api-mention-v1; complete unprompted exact-alias mention rate; coverage reported; not recommendation rank or consumer-app measurement'})
