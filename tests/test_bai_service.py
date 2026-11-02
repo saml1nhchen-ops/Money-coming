@@ -9,6 +9,9 @@ class BaiTests(unittest.TestCase):
  def add(self,model='test-gpt',protocol='chat',market='US'):
   b.profile({'model':model,'protocol':protocol,'markets':[market],'name':'Model name'})
   return next(p['id'] for p in b.state()['profiles'] if p['model']==model and p['protocol']==protocol)
+ def test_default_run_pool_matches_geo_concurrency(self):
+  self.assertEqual(b.AI_RUN_POOL._max_workers,b.shared.env_int('SIGNAL_GEO_CONCURRENCY',16,1,128))
+  self.assertIs(b.start.__defaults__[0],b.AI_RUN_POOL)
  def test_key_is_private_and_failed_refresh_preserves_state(self):
   s=self.connect();self.assertEqual(len(s['models']),3);self.assertNotIn('fixture-private-key',json.dumps(s))
   with patch.object(b,'remote',side_effect=ValueError('HTTP 401')):

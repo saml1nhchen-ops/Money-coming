@@ -51,6 +51,11 @@ def configure(data):
  return {'configured':True}
 class NoRedirect(urllib.request.HTTPRedirectHandler):
  def redirect_request(self,*a,**k):return None
+def env_int(name,default,minimum,maximum):
+ try:return max(minimum,min(maximum,int(os.environ.get(name,str(default)))))
+ except ValueError:return default
+def max_output_tokens():return env_int('SIGNAL_MAX_TOKENS',3000,128,32768)
+def call_timeout():return env_int('SIGNAL_CALL_TIMEOUT',90,1,600)
 def http_json(url,headers,body):
  host=urllib.parse.urlsplit(url).hostname
  # Some egress proxies use RFC 2544 fake-IP DNS; permit only this range on opt-in.
@@ -61,7 +66,7 @@ def http_json(url,headers,body):
   if not address.is_global and not (fake_ip_dns and address in fake_ip_range):raise ValueError('API host must resolve to public addresses')
  req=urllib.request.Request(url,json.dumps(body).encode(),{'Content-Type':'application/json',**headers},method='POST')
  try:
-  with urllib.request.build_opener(NoRedirect).open(req,timeout=120) as r:
+  with urllib.request.build_opener(NoRedirect).open(req,timeout=call_timeout()) as r:
    raw=r.read(8*1024*1024+1)
    if len(raw)>8*1024*1024:raise ValueError('Provider response exceeds 8 MB')
    return json.loads(raw)
@@ -70,25 +75,44 @@ def http_json(url,headers,body):
   raise ValueError('Provider HTTP '+str(e.code)+'; verify key, balance, model permissions and endpoint') from None
  except urllib.error.URLError:raise ValueError('Provider connection failed or timed out') from None
 def request_for(p,c,prompt):
- base=c['base_url'];model=c['model'];search=c['search'];kind=c.get('protocol',p['protocol'])
+ base=c['base_url'];model=c['model'];search=c['search'];kind=c.get('protocol',p['protocol']);tokens=max_output_tokens();fast=os.environ.get('SIGNAL_GEO_THINKING')!='1'
  headers={'Authorization':'Bearer '+c['key']}
  if kind=='responses':
-  body={'model':model,'input':prompt,'max_output_tokens':4096,'store':False}
+  body={'model':model,'input':prompt,'max_output_tokens':tokens,'store':False}
+  if fast and (model.startswith('gpt-5') and 'chat' not in model or re.match(r'^(o3|o4-mini|o1)(?:-20|$)',model)):body['reasoning']={'effort':'low'}
   if search:body['tools']=[{'type':'web_search'}]
   return base+'/responses',headers,body
  if kind=='perplexity':return base+'/agent',headers,{'preset':model,'input':prompt}
  if kind=='gemini':
-  body={'contents':[{'role':'user','parts':[{'text':prompt}]}],'generationConfig':{'maxOutputTokens':4096}}
+  body={'contents':[{'role':'user','parts':[{'text':prompt}]}],'generationConfig':{'maxOutputTokens':tokens}}
+  if fast and model.startswith('gemini-3'):body['generationConfig']['thinkingConfig']={'thinkingLevel':'low'}
+  elif fast and model.startswith('gemini-2.5'):body['generationConfig']['thinkingConfig']={'thinkingBudget':128 if 'pro' in model else 0}
   if search:body['tools']=[{'google_search':{}}]
   return base+'/models/'+urllib.parse.quote(model,safe='')+':generateContent',{'x-goog-api-key':c['key']},body
  if kind=='anthropic':
-  body={'model':model,'max_tokens':4096,'messages':[{'role':'user','content':prompt}]}
+  body={'model':model,'max_tokens':tokens,'messages':[{'role':'user','content':prompt}]}
   if search:body['tools']=[{'type':'web_search_20250305','name':'web_search','max_uses':3}]
   return base+'/messages',{'x-api-key':c['key'],'anthropic-version':'2023-06-01'},body
  body={'model':model,'messages':[{'role':'user','content':prompt}],'stream':False}
- try:max_tokens=max(4096,int(os.environ.get('SIGNAL_MAX_TOKENS','4096')))
- except ValueError:max_tokens=4096
- body['max_completion_tokens' if p['id']=='minimax' and c.get('route','official')=='official' else 'max_tokens']=max_tokens
+ body['max_completion_tokens' if p['id']=='minimax' and c.get('route','official')=='official' else 'max_tokens']=tokens
+ if fast:
+  pid=p['id'];route=c.get('route','official');lower=model.lower()
+  if pid=='qwen' and route in ('official','siliconflow'):body['enable_thinking']=False
+  if pid=='qwen' and route=='nvidia_nim' and 'instruct' not in lower:body['chat_template_kwargs']={'enable_thinking':False}
+  # MiniMax M3.1 Flash requires thinking; use its supported low effort setting.
+  if pid=='minimax' and 'm3.1' in lower:
+   if route=='nvidia_nim':body['chat_template_kwargs']={'reasoning_effort':'low'}
+   else:body['reasoning_effort']='low'
+  elif pid=='minimax' and route=='tokenhub' and any(x in lower for x in ('m2.5','m2.7','m3')):body['thinking']={'type':'disabled'}
+  if pid=='hunyuan' and route=='tokenhub' and lower.startswith(('hy3','hy4')):body['thinking']={'type':'disabled'}
+  if (pid=='doubao' and route in ('official','tokenhub')) or (pid=='zhipu' and route=='official'):body['thinking']={'type':'disabled'}
+  # TokenHub GLM rejects thinking disabled and reasoning_effort none.
+  if pid=='zhipu' and route=='tokenhub':body['reasoning_effort']='low'
+  if pid=='deepseek' and route in ('official','tokenhub'):
+   if model=='deepseek-reasoner':body['model']='deepseek-chat'
+   elif 'v4' in lower or 'v3.2' in lower:body['thinking']={'type':'disabled'}
+  # TokenHub Kimi K3.x also supports disabling thinking.
+  if pid=='kimi' and ((route in ('official','tokenhub') and any(x in lower for x in ('k2.5','k2.6'))) or (route=='tokenhub' and 'k3.' in lower)):body['thinking']={'type':'disabled'}
  if search and p['id']=='qwen':body['enable_search']=True
  return base+'/chat/completions',headers,body
 def parse(p,raw):

@@ -1,6 +1,7 @@
 import importlib.util,json,pathlib,sys,threading,unittest,urllib.request,urllib.error
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'tools'))
+from unittest.mock import patch
 import native_service as service
 class Tests(unittest.TestCase):
  @classmethod
@@ -44,4 +45,17 @@ class Tests(unittest.TestCase):
   for r in service.CATALOG:
    self.assertRegex(r['commit'],r'^[a-f0-9]{40}$');self.assertTrue(r['licenses'],r['id'])
    for s in r['skill_documents']:self.assertTrue(s['text']);self.assertEqual(len(s['sha256']),64)
+class RunPoolTests(unittest.TestCase):
+ def test_ai_run_uses_separate_configured_pool(self):
+  self.assertIsNot(service.AI_RUN_POOL,service.POOL)
+  self.assertGreaterEqual(service.AI_RUN_POOL._max_workers,service.ai_api.env_int('SIGNAL_GEO_CONCURRENCY',16,1,128))
+  self.assertEqual(service.POOL._max_workers,2)
+  from io import BytesIO
+  from unittest.mock import Mock
+  handler=Mock(path='/api/tools/ai/run',headers={'Content-Length':'2'},rfile=BytesIO(b'{}'))
+  handler.auth.return_value=True
+  with patch.object(service.ai_api,'start_run',return_value={'id':'fixture'}) as start:
+   service.Handler.do_POST(handler)
+  handler.reply.assert_called_once_with({'id':'fixture'},202)
+  start.assert_called_once_with({},service.AI_RUN_POOL)
 if __name__=='__main__':unittest.main()

@@ -145,7 +145,7 @@ OpenAI, Anthropic and Perplexity use official paid accounts only.
 | --- | --- | --- |
 | OpenAI | `gpt-5` / paid | — |
 | Anthropic | `claude-sonnet-4-5` / paid | — |
-| Gemini | `gemini-2.5-flash` / Google AI Studio free tier | — |
+| Gemini | `gemini-3.5-flash` / Google AI Studio free tier | — |
 | Perplexity | `sonar` / paid; no free API | — |
 | Zhipu | `glm-4.7-flash` / free; paid override `glm-4.6` | siliconflow: `THUDM/GLM-4-9B-0414` |
 | DeepSeek | `deepseek-chat` / paid, low cost | nvidia_nim: `deepseek-ai/deepseek-v4-flash` |

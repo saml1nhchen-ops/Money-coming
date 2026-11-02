@@ -11,7 +11,7 @@ import website_inspection
 import pinned_http
 import website_check
 ROOT=pathlib.Path(__file__).resolve().parents[1];DATA=ROOT/'runtime/geo-flows';PORT=8772
-TOKEN=secrets.token_urlsafe(32);POOL=concurrent.futures.ThreadPoolExecutor(max_workers=1);GUARD=threading.Lock();BUSY=False;CANCEL=set()
+TOKEN=secrets.token_urlsafe(32);POOL=concurrent.futures.ThreadPoolExecutor(max_workers=1);GUARD=threading.Lock();BUSY=False;CANCEL=set();JOB_LOCK=threading.RLock();CALL_CONTEXT=threading.local()
 SITE='https://signal-geo-workbench-lh.saml1nhchen.chatgpt.site';SESSIONS={}
 
 def bridge(path,body=None):
@@ -131,7 +131,8 @@ def folder(rid):
  return DATA/rid
 
 def get(rid):return json.loads((folder(rid)/'flow.json').read_text('utf-8'))
-def persist(job):shared.save(folder(job['id'])/'flow.json',job)
+def persist(job):
+ with JOB_LOCK:shared.save(folder(job['id'])/'flow.json',job)
 def catalog():
  try:state=bridge('state')
  except Exception:state={'configured':False,'profiles':[],'models':[]}
@@ -241,15 +242,16 @@ def call(job,pid,prompts,kind):
  if job['id'] in CANCEL:raise ValueError('已停止；已提交的单次调用会完成并保留证据')
  cfg=job['config'];is_direct=pid.startswith('direct:');remote=direct_bridge if is_direct else bridge
  r=remote('run',{'market':cfg['market'],'providers':[pid.removeprefix('direct:')],'prompts':prompts,'brand_aliases':cfg['brand_aliases'],'skus':cfg['skus'],'website':cfg['website'],**({'models':{pid.removeprefix('direct:'):cfg['configuration'][pid]['model']},'routes':{pid.removeprefix('direct:'):cfg['configuration'][pid].get('route','official')}} if is_direct else {})})
- job['calls'].append({'kind':kind,'runner_id':r['id'],'provider':pid,'planned':r['planned'],**job.get('inflight_spec',{})});persist(job)
- deadline=time.monotonic()+145*len(prompts)+30
+ with JOB_LOCK:
+  job.setdefault('calls',[]).append({'kind':kind,'runner_id':r['id'],'provider':pid,'planned':r['planned'],**getattr(CALL_CONTEXT,'spec',job.get('inflight_spec',{}))});persist(job)
+ deadline=time.monotonic()+(shared.call_timeout()+15)*len(prompts)+15;interval=0.25
  while time.monotonic()<deadline:
   r=remote('run?id='+r['id'])
   if r['status'] in ('finished','failed'):
    raw=remote('export?id='+r['id']);shared.save(folder(job['id'])/(r['id']+'.json'),raw)
    for s in raw['samples']:s.update(provider=pid,channel='direct' if is_direct else 'bai',protocol=cfg['configuration'][pid]['protocol'],model_requested=cfg['configuration'][pid]['model'])
    return raw
-  time.sleep(1)
+  time.sleep(interval);interval=min(1,interval*1.5)
  raise ValueError('执行器等待超时；请查看原始调用记录，流程未自动重试')
 
 def execute(job):
@@ -293,23 +295,58 @@ def generate_bank(job):
 
 def collect(job):
  if job['id'] in CANCEL:raise ValueError('流程已停止，已有回答已保存')
- cfg=job['config'];prompts=[p['text'] for p in job['prompts']]
- attempted={(s['provider'],s.get('repeat',1),s['question_index']) for s in job['samples']};blocked=job.setdefault('blocked_models',{})
- for repeat in range(cfg['repeats']):
-  for pid in cfg['providers']:
-   if pid in blocked:continue
-   for n,prompt in enumerate(prompts):
-    if (pid,repeat+1,n) in attempted:continue
-    if job['id'] in CANCEL:raise ValueError('流程已停止，已有回答已保存')
-    job['inflight_spec']={'question_index':n,'repeat':repeat+1,'batch':len(job['samples'])//64+1}
-    result=call(job,pid,[prompt],'sampling')
-    for s in result['samples']:job['samples'].append({**s,'id':result['id']+'-'+str(n),'question_index':n,'runner_id':result['id'],'repeat':repeat+1})
-    job.pop('inflight_spec',None)
-    if len(job['samples'])%10==0:job['report']=geo_analysis.analyze(job['samples'],cfg,job['prompts'])
-    persist(job)
-    errors=[s.get('error','') for s in result['samples'] if s['status']=='failed']
-    if any(re.search(r'HTTP (400|401|403|404|429)|余额|额度|权限',e) for e in errors):blocked[pid]=errors[0];persist(job);break
- job['report']=geo_analysis.analyze(job['samples'],cfg,job['prompts']);job['status']='finished' if not blocked and len(job['samples'])==len(prompts)*len(cfg['providers'])*cfg['repeats'] and all(s['status']=='complete' for s in job['samples']) else 'partial';job['stage']='report'
+ cfg=job['config'];prompts=[p['text'] for p in job['prompts']];providers=cfg['providers']
+ attempted={(s['provider'],s.get('repeat',1),s['question_index']) for s in job['samples']}
+ # A submitted call is never retried, including after an interrupted polling session.
+ attempted.update((c['provider'],c.get('repeat',1),c['question_index']) for c in job.get('calls',[]) if c.get('kind')=='sampling' and 'question_index' in c)
+ blocked=job.setdefault('blocked_models',{})
+ cap=shared.env_int('SIGNAL_GEO_CONCURRENCY',16,1,128);per=shared.env_int('SIGNAL_GEO_PROVIDER_CONCURRENCY',4,1,128)
+ semaphores={pid:threading.BoundedSemaphore(per) for pid in providers};active={pid:0 for pid in providers}
+ pending={pid:[(repeat+1,n) for repeat in range(cfg['repeats']) for n in range(len(prompts)) if (pid,repeat+1,n) not in attempted] for pid in providers}
+ used=sum(c.get('planned',1) for c in job.get('calls',[]));limit=job.get('planned_max_calls',used+sum(map(len,pending.values())))
+ inflight={};first_error=None
+ def run(pid,repeat,n):
+  with semaphores[pid]:
+   CALL_CONTEXT.spec={'question_index':n,'repeat':repeat,'batch':(repeat-1)*len(prompts)//64+n//64+1}
+   try:return call(job,pid,[prompts[n]],'sampling')
+   finally:del CALL_CONTEXT.spec
+ def progress():
+  job['inflight']=[{'provider':pid,'repeat':repeat,'question_index':n} for pid,repeat,n in inflight.values()]
+  if job['inflight']:job['inflight_spec']=job['inflight'][-1]
+  else:job.pop('inflight_spec',None)
+ with concurrent.futures.ThreadPoolExecutor(max_workers=cap) as pool:
+  while True:
+   with JOB_LOCK:
+    if job['id'] not in CANCEL and first_error is None:
+     # Round robin submission prevents a slow provider from filling the queue.
+     for slot in range(per):
+      for pid in providers:
+       if len(inflight)>=cap or used>=limit:break
+       if pid in blocked or active[pid]>=per or not pending[pid]:continue
+       repeat,n=pending[pid].pop(0);used+=1;active[pid]+=1
+       inflight[pool.submit(run,pid,repeat,n)]=(pid,repeat,n)
+    progress();persist(job)
+   if not inflight:break
+   done,_=concurrent.futures.wait(inflight,return_when=concurrent.futures.FIRST_COMPLETED)
+   with JOB_LOCK:
+    for future in done:
+     pid,repeat,n=inflight.pop(future);active[pid]-=1
+     try:result=future.result()
+     except Exception as e:
+      if first_error is None:first_error=e
+      continue
+     for sample in result['samples']:
+      job['samples'].append({**sample,'id':result['id']+'-'+str(n),'question_index':n,'runner_id':result['id'],'repeat':repeat})
+      error=sample.get('error','')
+      if sample['status']=='failed' and re.search(r'HTTP (400|401|403|404|429)|余额|额度|权限',error):blocked[pid]=error
+     if len(job['samples'])%10==0:job['report']=geo_analysis.analyze(job['samples'],cfg,job['prompts'])
+    progress();persist(job)
+ with JOB_LOCK:
+  job['samples'].sort(key=lambda s:(s.get('repeat',1),providers.index(s['provider']),s['question_index']))
+  job['report']=geo_analysis.analyze(job['samples'],cfg,job['prompts'])
+  job['status']='finished' if not blocked and len(job['samples'])==len(prompts)*len(providers)*cfg['repeats'] and all(s['status']=='complete' for s in job['samples']) else 'partial';job['stage']='report';persist(job)
+ if job['id'] in CANCEL:raise ValueError('流程已停止，已有回答已保存')
+ if first_error:raise first_error
 
 def start_manual(d):
  global BUSY

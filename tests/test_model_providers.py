@@ -47,7 +47,7 @@ class Providers(unittest.TestCase):
   with self.assertRaises(ValueError):api.safe_endpoint(p,'https://untrusted.example/v1')
  def test_chat_token_budget_and_minimax_routes(self):
   p=registry.provider('minimax')
-  for value,expected in [('8192',8192),('12',4096),('invalid',4096)]:
+  for value,expected in [('8192',8192),('12',128),('invalid',3000)]:
    with patch.dict(os.environ,{'SIGNAL_MAX_TOKENS':value},clear=True):
     for route in ('official','tokenhub','openrouter','nvidia_nim'):
      c=registry.configuration(p,{next(r for r in p['routes'] if r['id']==route)['env_key_var']:'fixture'},route)
@@ -144,7 +144,7 @@ class Providers(unittest.TestCase):
    with self.assertRaisesRegex(ValueError,'fixture-stop'):flow.call(job,'direct:qwen',['Question'],'sampling')
   self.assertEqual(bridge.call_args.args[1]['routes'],{'qwen':'siliconflow'})
  def test_all_protocols_and_region_contracts(self):
-  expected={'openai':('responses','gpt-5'),'anthropic':('anthropic','claude-sonnet-4-5'),'gemini':('gemini','gemini-2.5-flash'),'perplexity':('chat','sonar'),'deepseek':('chat','deepseek-chat'),'zhipu':('chat','glm-4.7-flash')}
+  expected={'openai':('responses','gpt-5'),'anthropic':('anthropic','claude-sonnet-4-5'),'gemini':('gemini','gemini-3.5-flash'),'perplexity':('chat','sonar'),'deepseek':('chat','deepseek-chat'),'zhipu':('chat','glm-4.7-flash')}
   for pid,(style,model) in expected.items():
    p=registry.provider(pid);self.assertEqual(p['api_style'],style);self.assertEqual(p['default_model'],model)
    self.assertIn(p['region'],['us','cn'])

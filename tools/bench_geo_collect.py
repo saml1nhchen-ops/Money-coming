@@ -1,0 +1,43 @@
+"""Opt-in real provider benchmark; prints timing only, never credentials or answers."""
+import argparse, concurrent.futures, pathlib, statistics, tempfile, time, uuid
+from unittest.mock import patch
+from repo_env import load_repo_env
+load_repo_env()
+import ai_api
+import geo_flow
+
+
+def main():
+ parser=argparse.ArgumentParser(description=__doc__)
+ parser.add_argument('--questions',type=int,default=3)
+ parser.add_argument('--prompts-file',type=pathlib.Path,help='UTF-8 file with one question per nonblank line; overrides --questions')
+ parser.add_argument('--market',choices=('CN','US'),default='US')
+ parser.add_argument('--providers',nargs='+',required=True,help='Registry provider IDs; uses configured routes')
+ args=parser.parse_args()
+ if not 1<=args.questions<=300:parser.error('questions must be 1–300')
+ if args.prompts_file:
+  try:questions=[line.strip() for line in args.prompts_file.read_text(encoding='utf-8').splitlines() if line.strip()]
+  except (OSError,UnicodeError):parser.error('Cannot read prompts file as UTF-8')
+  if not 1<=len(questions)<=300 or any(len(q)>4000 for q in questions):parser.error('Use 1–300 questions, each under 4000 characters')
+ else:questions=[f'Name three products for everyday use in scenario {n+1}. Answer briefly.' for n in range(args.questions)]
+ configs={pid:ai_api.resolved(ai_api.provider(pid)) for pid in args.providers}
+ if any(c is None for c in configs.values()):parser.error('All selected providers must be configured')
+ providers=['direct:'+pid for pid in args.providers]
+ cfg={'market':args.market,'website':'https://example.com','brand_aliases':['Example'],'skus':[],'competitors':[], 'repeats':1,'providers':providers,'configuration':{'direct:'+pid:{k:v for k,v in c.items() if k!='key'} for pid,c in configs.items()}}
+ bank=[{'text':question} for question in questions]
+ job={'id':str(uuid.uuid4()),'config':cfg,'prompts':bank,'samples':[],'calls':[],'planned_max_calls':len(providers)*len(bank)}
+ with tempfile.TemporaryDirectory(prefix='geo-bench-') as tmp,concurrent.futures.ThreadPoolExecutor(max_workers=ai_api.env_int('SIGNAL_GEO_CONCURRENCY',16,1,128)) as pool:
+  root=pathlib.Path(tmp);(root/'runs').mkdir();(root/'flows'/job['id']).mkdir(parents=True)
+  def direct_bridge(path,body=None):
+   if path=='run':return ai_api.start_run(body,pool)
+   run=ai_api.get_run(path.split('id=',1)[1])
+   return run
+  with patch.object(geo_flow,'direct_bridge',direct_bridge),patch.object(geo_flow,'DATA',root/'flows'),patch.object(ai_api,'results_dir',return_value=root/'runs'):
+   started=time.monotonic();geo_flow.collect(job);elapsed=time.monotonic()-started
+  for pid in providers:
+   rows=[s for s in job['samples'] if s['provider']==pid];times=[s['latency_ms']/1000 for s in rows]
+   if times:print(f'{pid}: calls={len(rows)} complete={sum(s["status"]=="complete" for s in rows)} median={statistics.median(times):.2f}s max={max(times):.2f}s')
+  print(f'total: calls={len(job["calls"])} wall={elapsed:.2f}s')
+ return 0
+
+if __name__=='__main__':raise SystemExit(main())

@@ -11,6 +11,7 @@ JOBS.mkdir(parents=True,exist_ok=True)
 LOCK=json.loads((ROOT/'tools/upstreams.lock.json').read_text('utf-8'))
 INDEX={r['id']:r for r in LOCK};CATALOG=json.loads((ROOT/'dist/upstreams.json').read_text('utf-8'))
 TOKEN=secrets.token_urlsafe(32);POOL=concurrent.futures.ThreadPoolExecutor(max_workers=2);states={};guard=threading.Lock()
+AI_RUN_POOL=concurrent.futures.ThreadPoolExecutor(max_workers=ai_api.env_int('SIGNAL_GEO_CONCURRENCY',16,1,128))
 SITE='https://signal-geo-workbench-lh.saml1nhchen.chatgpt.site'
 NODE=os.environ.get('SIGNAL_NODE') or shutil.which('node');PORT=int(os.environ.get('SIGNAL_PORT','8770'))
 KEYS={'OPENROUTER_API_KEY','ANTHROPIC_API_KEY','GEMINI_API_KEY','PERPLEXITY_API_KEY','DEEPSEEK_API_KEY'}
@@ -255,7 +256,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     if not 0<n<=512*1024:raise ValueError('API request limit 512 KB')
     payload=json.loads(self.rfile.read(n))
     if self.path.endswith('/configure'):return self.reply(ai_api.configure(payload))
-    return self.reply(ai_api.start_run(payload,POOL),202)
+    return self.reply(ai_api.start_run(payload,AI_RUN_POOL),202)
    if self.path!='/api/tools/run':return self.reply({'error':'Unknown endpoint'},404)
    n=int(self.headers.get('Content-Length','0'))
    if not 0<n<=8*1024*1024:raise ValueError('Body limit 8 MB')
