@@ -36,6 +36,16 @@ def prepare_dependencies(root=ROOT):
  return bool(shutil.which('node') and (target/'node_modules/tsx/dist/cli.mjs').is_file())
 def bootstrap(w,environ=os.environ):
  w.ready=False
+ import model_providers
+ direct=[p for p in model_providers.catalog() if model_providers.configuration(p,environ) and p['id']!='bai']
+ if direct:
+  try:
+   state=w.api.call('geo','state')
+   w.profiles=state['runner']['profiles']
+   if not w.profiles:w.reason='missing_provider_key';return
+   if not prepare_dependencies():w.reason='runtime_unavailable';return
+   w.ready=True;w.reason=None;return
+  except Exception:w.reason='catalog_unavailable';return
  if not environ.get('SIGNAL_BAI_API_KEY'):w.reason='missing_bai_key';return
  try:
   state=w.api.call('bai','connect',{'key':environ['SIGNAL_BAI_API_KEY']})
@@ -67,8 +77,8 @@ class Services:
   self.root.joinpath('runtime').mkdir(parents=True,exist_ok=True)
   try:
    for port,filename,service,path in [(8770,'native_service.py','native','ai/providers'),(8771,'bai_service.py','bai','state'),(8772,'geo_flow.py','geo','state')]:
-    # Legacy services never receive edge or vendor credentials in their environment.
-    env={k:v for k,v in os.environ.items() if k not in ('SIGNAL_BAI_API_KEY','SIGNAL_WORKSPACE_PASSWORD')}
+    # Only the native adapter receives vendor credentials; never pass the workspace password.
+    env={k:v for k,v in os.environ.items() if k!='SIGNAL_WORKSPACE_PASSWORD' and (service=='native' or not (k.startswith('SIGNAL_') and k.endswith('_API_KEY')))}
     child=subprocess.Popen([sys.executable,str(self.root/'tools'/filename)],cwd=self.root,env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);self.children.append(child)
     for attempt in range(100):
      if child.poll() is not None:raise RuntimeError('Loopback service exited')

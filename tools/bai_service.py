@@ -6,11 +6,11 @@ import concurrent.futures,datetime,hashlib,http.server,ipaddress,json,pathlib,re
 import ai_api as shared
 ROOT=pathlib.Path(__file__).resolve().parents[1];PORT=8771;TOKEN=secrets.token_urlsafe(32)
 SITE='https://signal-geo-workbench-lh.saml1nhchen.chatgpt.site'
-BASE='https://api.b.ai/v1';KEY='';MODELS=[];PROFILES={};FETCHED=None
+BASE=shared.registry.configuration(shared.provider('bai'))['base_url'] if shared.registry.configuration(shared.provider('bai')) else shared.provider('bai')['base_url'];KEY='';MODELS=[];PROFILES={};FETCHED=None
 LOCK=threading.RLock();POOL=concurrent.futures.ThreadPoolExecutor(max_workers=2)
 def remote(path,key,body=None):
  if path not in ('/models','/chat/completions','/responses','/messages'):raise ValueError('Unsupported endpoint')
- if any(not ipaddress.ip_address(x[4][0]).is_global for x in socket.getaddrinfo('api.b.ai',443)):raise ValueError('Invalid provider address')
+ if any(not ipaddress.ip_address(x[4][0]).is_global for x in socket.getaddrinfo(urllib.parse.urlsplit(BASE).hostname,443)):raise ValueError('Invalid provider address')
  headers={'Authorization':'Bearer '+key,'Content-Type':'application/json'}
  if path=='/messages':headers['anthropic-version']='2023-06-01'
  req=urllib.request.Request(BASE+path,None if body is None else json.dumps(body).encode(),headers,method='GET' if body is None else 'POST')
