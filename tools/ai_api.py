@@ -53,7 +53,12 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
  def redirect_request(self,*a,**k):return None
 def http_json(url,headers,body):
  host=urllib.parse.urlsplit(url).hostname
- if any(not ipaddress.ip_address(x[4][0]).is_global for x in socket.getaddrinfo(host,443)):raise ValueError('API host must resolve to public addresses')
+ # Some egress proxies use RFC 2544 fake-IP DNS; permit only this range on opt-in.
+ fake_ip_dns=os.environ.get('SIGNAL_ALLOW_FAKE_IP_DNS')=='1'
+ fake_ip_range=ipaddress.ip_network('198.18.0.0/15')
+ for entry in socket.getaddrinfo(host,443):
+  address=ipaddress.ip_address(entry[4][0])
+  if not address.is_global and not (fake_ip_dns and address in fake_ip_range):raise ValueError('API host must resolve to public addresses')
  req=urllib.request.Request(url,json.dumps(body).encode(),{'Content-Type':'application/json',**headers},method='POST')
  try:
   with urllib.request.build_opener(NoRedirect).open(req,timeout=120) as r:
@@ -81,11 +86,13 @@ def request_for(p,c,prompt):
   if search:body['tools']=[{'type':'web_search_20250305','name':'web_search','max_uses':3}]
   return base+'/messages',{'x-api-key':c['key'],'anthropic-version':'2023-06-01'},body
  body={'model':model,'messages':[{'role':'user','content':prompt}],'stream':False}
- body['max_completion_tokens' if p['id']=='minimax' else 'max_tokens']=4096
+ try:max_tokens=max(4096,int(os.environ.get('SIGNAL_MAX_TOKENS','4096')))
+ except ValueError:max_tokens=4096
+ body['max_completion_tokens' if p['id']=='minimax' and c.get('route','official')=='official' else 'max_tokens']=max_tokens
  if search and p['id']=='qwen':body['enable_search']=True
  return base+'/chat/completions',headers,body
 def parse(p,raw):
- kind=p['protocol'];text='';complete=False;citations=[];sources=[];search_observed=False
+ kind=p['protocol'];text='';complete=False;citations=[];sources=[];search_observed=False;answer_from_reasoning=False
  def source(obj,target):
   if not isinstance(obj,dict):return
   u=obj.get('url') or obj.get('uri')
@@ -124,14 +131,19 @@ def parse(p,raw):
   c=(raw.get('choices') or [{}])[0];m=c.get('message',{});content=m.get('content','')
   text=content if isinstance(content,str) else '\n'.join(x.get('text','') for x in content or [] if isinstance(x,dict))
   # Some providers include thinking inside content. Retain it in raw evidence only.
-  text=re.sub(r'<think>.*?</think>','',text,flags=re.S)
+  text=re.sub(r'<think\b[^>]*>.*?(?:</think\s*>|$)','',text,flags=re.S|re.I)
+  if not text.strip():
+   reasoning=m.get('reasoning_content') or m.get('reasoning')
+   if isinstance(reasoning,str):
+    text=re.sub(r'<think\b[^>]*>.*?(?:</think\s*>|$)','',reasoning,flags=re.S|re.I)
+    answer_from_reasoning=bool(text.strip())
   complete=c.get('finish_reason')=='stop'
   for a in m.get('annotations',[]):source(a.get('url_citation',a),citations)
   for u in raw.get('citations',[]):source({'url':u} if isinstance(u,str) else u,citations)
   for s in raw.get('search_results',[]):source(s,sources)
   search_observed=bool(sources)
   for s in raw.get('search_info',{}).get('search_results',[]):source(s,sources);search_observed=True
- return {'answer':text.strip(),'complete':complete and bool(text.strip()),'model_returned':raw.get('model') or raw.get('modelVersion'), 'usage':raw.get('usage') or raw.get('usageMetadata'),'citations':citations,'retrieved_sources':sources,'search_observed':search_observed,'citation_coverage':'returned_metadata_only'}
+ return {'answer':text.strip(),'answer_from_reasoning':answer_from_reasoning,'complete':complete and bool(text.strip()),'model_returned':raw.get('model') or raw.get('modelVersion'), 'usage':raw.get('usage') or raw.get('usageMetadata'),'citations':citations,'retrieved_sources':sources,'search_observed':search_observed,'citation_coverage':'returned_metadata_only'}
 def normalize(s):return ' '.join(unicodedata.normalize('NFKC',s).casefold().replace('’',"'").split())
 def mention(text,aliases):
  text=normalize(text)

@@ -376,7 +376,8 @@
     "protocol": "chat",
     "base_url": "https://api.deepseek.com/v1",
     "hosts": [
-      "api.deepseek.com"
+      "api.deepseek.com",
+      "tokenhub.tencentmaas.com"
     ],
     "model_hint": "Model ID; default deepseek-chat",
     "search": false,
@@ -410,6 +411,17 @@
         "free": true,
         "verified": false,
         "env_model_var": "SIGNAL_DEEPSEEK_NVIDIA_NIM_MODEL"
+      },
+      {
+        "id": "tokenhub",
+        "name": "Tencent TokenHub",
+        "base_url": "https://tokenhub.tencentmaas.com/v1",
+        "env_key_var": "SIGNAL_TOKENHUB_API_KEY",
+        "default_model": "deepseek-v4-flash-202605",
+        "protocol": "chat",
+        "free": false,
+        "verified": false,
+        "env_model_var": "SIGNAL_DEEPSEEK_TOKENHUB_MODEL"
       }
     ]
   },
@@ -421,11 +433,12 @@
       "US"
     ],
     "protocol": "chat",
-    "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "base_url": "https://ws-ixip3dluugdr0m7r.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
     "hosts": [
       "dashscope.aliyuncs.com",
       "dashscope-intl.aliyuncs.com",
-      "dashscope-us.aliyuncs.com"
+      "dashscope-us.aliyuncs.com",
+      "ws-ixip3dluugdr0m7r.cn-beijing.maas.aliyuncs.com"
     ],
     "model_hint": "填写账户可用的 Qwen 模型 ID",
     "search": true,
@@ -434,7 +447,7 @@
     "label": "Qwen",
     "region": "cn",
     "api_style": "chat",
-    "default_model": "qwen-plus",
+    "default_model": "qwen3.8-flash",
     "env_key_var": "SIGNAL_QWEN_API_KEY",
     "env_model_var": "SIGNAL_QWEN_MODEL",
     "env_base_url_var": "SIGNAL_QWEN_BASE_URL",
@@ -442,9 +455,9 @@
     "routes": [
       {
         "id": "official",
-        "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "base_url": "https://ws-ixip3dluugdr0m7r.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
         "env_key_var": "SIGNAL_QWEN_API_KEY",
-        "default_model": "qwen-plus",
+        "default_model": "qwen3.8-flash",
         "protocol": "chat",
         "free": false,
         "verified": false,
@@ -483,7 +496,8 @@
     "base_url": "https://open.bigmodel.cn/api/paas/v4",
     "hosts": [
       "open.bigmodel.cn",
-      "api.z.ai"
+      "api.z.ai",
+      "tokenhub.tencentmaas.com"
     ],
     "model_hint": "Free: glm-4.7-flash; paid override: glm-4.6",
     "search": false,
@@ -517,6 +531,17 @@
         "free": true,
         "verified": false,
         "env_model_var": "SIGNAL_ZHIPU_SILICONFLOW_MODEL"
+      },
+      {
+        "id": "tokenhub",
+        "name": "Tencent TokenHub",
+        "base_url": "https://tokenhub.tencentmaas.com/v1",
+        "env_key_var": "SIGNAL_TOKENHUB_API_KEY",
+        "default_model": "glm-5.3-flash",
+        "protocol": "chat",
+        "free": false,
+        "verified": false,
+        "env_model_var": "SIGNAL_ZHIPU_TOKENHUB_MODEL"
       }
     ]
   },
@@ -531,7 +556,8 @@
     "base_url": "https://api.moonshot.cn/v1",
     "hosts": [
       "api.moonshot.cn",
-      "api.moonshot.ai"
+      "api.moonshot.ai",
+      "tokenhub.tencentmaas.com"
     ],
     "model_hint": "Model ID; default kimi-k2-0905-preview",
     "search": false,
@@ -565,6 +591,17 @@
         "free": true,
         "verified": false,
         "env_model_var": "SIGNAL_KIMI_NVIDIA_NIM_MODEL"
+      },
+      {
+        "id": "tokenhub",
+        "name": "Tencent TokenHub",
+        "base_url": "https://tokenhub.tencentmaas.com/v1",
+        "env_key_var": "SIGNAL_TOKENHUB_API_KEY",
+        "default_model": "kimi-k3.1-pro",
+        "protocol": "chat",
+        "free": false,
+        "verified": false,
+        "env_model_var": "SIGNAL_KIMI_TOKENHUB_MODEL"
       }
     ]
   },
@@ -587,7 +624,7 @@
     "label": "豆包",
     "region": "cn",
     "api_style": "chat",
-    "default_model": "",
+    "default_model": "doubao-seed-2-1-turbo-260628",
     "env_key_var": "SIGNAL_DOUBAO_API_KEY",
     "env_model_var": "SIGNAL_DOUBAO_MODEL",
     "env_base_url_var": "SIGNAL_DOUBAO_BASE_URL",
@@ -597,7 +634,7 @@
         "id": "official",
         "base_url": "https://ark.cn-beijing.volces.com/api/v3",
         "env_key_var": "SIGNAL_DOUBAO_API_KEY",
-        "default_model": "",
+        "default_model": "doubao-seed-2-1-turbo-260628",
         "protocol": "chat",
         "free": false,
         "verified": false,
@@ -617,7 +654,8 @@
     "hosts": [
       "api.minimax.cn",
       "api.minimax.io",
-      "api.minimaxi.com"
+      "api.minimaxi.com",
+      "tokenhub.tencentmaas.com"
     ],
     "model_hint": "Model ID; default MiniMax-M2",
     "search": false,
@@ -661,6 +699,17 @@
         "free": true,
         "verified": false,
         "env_model_var": "SIGNAL_MINIMAX_NVIDIA_NIM_MODEL"
+      },
+      {
+        "id": "tokenhub",
+        "name": "Tencent TokenHub",
+        "base_url": "https://tokenhub.tencentmaas.com/v1",
+        "env_key_var": "SIGNAL_TOKENHUB_API_KEY",
+        "default_model": "minimax-m3.1-flash",
+        "protocol": "chat",
+        "free": false,
+        "verified": false,
+        "env_model_var": "SIGNAL_MINIMAX_TOKENHUB_MODEL"
       }
     ]
   },
@@ -675,7 +724,8 @@
     "base_url": "https://api.hunyuan.cloud.tencent.com/v1",
     "hosts": [
       "api.hunyuan.cloud.tencent.com",
-      "api.tokenhub.tencentmaas.com"
+      "api.tokenhub.tencentmaas.com",
+      "tokenhub.tencentmaas.com"
     ],
     "model_hint": "填写已开通模型 ID；新账号按 TokenHub 控制台配置地址",
     "search": false,
@@ -699,6 +749,17 @@
         "free": true,
         "verified": false,
         "env_model_var": "SIGNAL_HUNYUAN_OFFICIAL_MODEL"
+      },
+      {
+        "id": "tokenhub",
+        "name": "Tencent TokenHub",
+        "base_url": "https://tokenhub.tencentmaas.com/v1",
+        "env_key_var": "SIGNAL_TOKENHUB_API_KEY",
+        "default_model": "hy3",
+        "protocol": "chat",
+        "free": false,
+        "verified": false,
+        "env_model_var": "SIGNAL_HUNYUAN_TOKENHUB_MODEL"
       }
     ]
   },

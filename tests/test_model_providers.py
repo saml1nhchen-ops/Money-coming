@@ -7,12 +7,90 @@ import geo_flow as flow
 import remote_service
 
 class Providers(unittest.TestCase):
+ def test_http_json_fake_ip_dns_default_deny(self):
+  for value in (None,'0','true','yes'):
+   env={} if value is None else {'SIGNAL_ALLOW_FAKE_IP_DNS':value}
+   for address in ('198.18.0.0','198.18.1.2','198.19.255.255'):
+    with self.subTest(value=value,address=address),patch.dict(os.environ,env,clear=True),patch.object(api.socket,'getaddrinfo',return_value=[(2,1,6,'',(address,443))]),patch.object(api.urllib.request,'build_opener') as opener:
+     with self.assertRaisesRegex(ValueError,'API host must resolve to public addresses'):api.http_json('https://api.example/v1',{},{})
+     opener.assert_not_called()
+ def test_http_json_fake_ip_dns_opt_in(self):
+  for address in ('198.18.0.0','198.18.1.2','198.19.255.255','8.8.8.8','2606:4700:4700::1111'):
+   for enabled in ('0','1') if address in ('8.8.8.8','2606:4700:4700::1111') else ('1',):
+    with self.subTest(address=address,enabled=enabled),patch.dict(os.environ,{'SIGNAL_ALLOW_FAKE_IP_DNS':enabled},clear=True),patch.object(api.socket,'getaddrinfo',return_value=[(2,1,6,'',(address,443))]),patch.object(api.urllib.request,'build_opener') as opener:
+     opener.return_value.open.return_value.__enter__.return_value.read.return_value=b'{"ok":true}'
+     self.assertEqual(api.http_json('https://api.example/v1',{},{}),{'ok':True})
+     opener.return_value.open.assert_called_once()
+ def test_http_json_fake_ip_dns_keeps_other_non_global_addresses_blocked(self):
+  for address in ('10.0.0.1','172.16.0.1','192.168.0.1','127.0.0.1','169.254.1.1','0.0.0.0','192.0.2.1','::1','fc00::1','fe80::1','::ffff:198.18.0.1'):
+   with self.subTest(address=address),patch.dict(os.environ,{'SIGNAL_ALLOW_FAKE_IP_DNS':'1'},clear=True),patch.object(api.socket,'getaddrinfo',return_value=[(2,1,6,'',('198.18.1.2',443)),(2,1,6,'',(address,443))]),patch.object(api.urllib.request,'build_opener') as opener:
+    with self.assertRaisesRegex(ValueError,'API host must resolve to public addresses'):api.http_json('https://api.example/v1',{},{})
+    opener.assert_not_called()
+ def test_tokenhub_priority_models_and_hosts(self):
+  defaults={'hunyuan':'hy3','deepseek':'deepseek-v4-flash-202605','kimi':'kimi-k3.1-pro','zhipu':'glm-5.3-flash','minimax':'minimax-m3.1-flash'}
+  env={'SIGNAL_TOKENHUB_API_KEY':'fixture','SIGNAL_NVIDIA_API_KEY':'fixture','SIGNAL_ZHIPU_API_KEY':'fixture'}
+  for pid,model in defaults.items():
+   p=registry.provider(pid);c=registry.configuration(p,env)
+   self.assertEqual((c['route'],c['model']),('tokenhub',model))
+   self.assertFalse(c['free'])
+   self.assertEqual(api.safe_endpoint(p,c['base_url']),'https://tokenhub.tencentmaas.com/v1')
+   env[p['env_route_var']]='official'
+   self.assertNotEqual((registry.configuration(p,env) or {}).get('route'),'tokenhub')
+   del env[p['env_route_var']]
+   env[f'SIGNAL_{pid.upper()}_TOKENHUB_MODEL']='fixture-model'
+   self.assertEqual(registry.configuration(p,env)['model'],'fixture-model')
+  self.assertEqual(registry.configuration(registry.provider('deepseek'),{'SIGNAL_TOKENHUB_API_KEY':'','SIGNAL_NVIDIA_API_KEY':'fixture'})['route'],'nvidia_nim')
+ def test_official_defaults_and_safe_hosts(self):
+  p=registry.provider('qwen');c=registry.configuration(p,{'SIGNAL_QWEN_API_KEY':'fixture'})
+  self.assertEqual(c['model'],'qwen3.8-flash')
+  self.assertEqual(api.safe_endpoint(p,c['base_url']),'https://ws-ixip3dluugdr0m7r.cn-beijing.maas.aliyuncs.com/compatible-mode/v1')
+  with self.assertRaises(ValueError):api.safe_endpoint(p,'https://untrusted.example/v1')
+ def test_chat_token_budget_and_minimax_routes(self):
+  p=registry.provider('minimax')
+  for value,expected in [('8192',8192),('12',4096),('invalid',4096)]:
+   with patch.dict(os.environ,{'SIGNAL_MAX_TOKENS':value},clear=True):
+    for route in ('official','tokenhub','openrouter','nvidia_nim'):
+     c=registry.configuration(p,{next(r for r in p['routes'] if r['id']==route)['env_key_var']:'fixture'},route)
+     body=api.request_for(p,c,'Question')[2]
+     field='max_completion_tokens' if route=='official' else 'max_tokens'
+     self.assertEqual(body[field],expected)
+     self.assertNotIn('max_tokens' if route=='official' else 'max_completion_tokens',body)
+ def test_reasoning_fallback_and_think_stripping(self):
+  p=registry.provider('deepseek')
+  for field in ('reasoning_content','reasoning'):
+   for finish in ('stop','length',None):
+    result=api.parse(p,{'choices':[{'message':{'content':None,field:'推理回答'},'finish_reason':finish}]})
+    self.assertEqual(result['answer'],'推理回答');self.assertTrue(result['answer_from_reasoning'])
+    self.assertEqual(result['complete'],finish=='stop')
+  result=api.parse(p,{'choices':[{'message':{'content':'<think>hidden</think>答案','reasoning_content':'hidden'},'finish_reason':'stop'}]})
+  self.assertEqual(result['answer'],'答案');self.assertFalse(result['answer_from_reasoning'])
+  result=api.parse(p,{'choices':[{'message':{'content':'<think>unfinished'},'finish_reason':'length'}]})
+  self.assertEqual(result['answer'],'');self.assertFalse(result['complete'])
+ def test_repo_env_loader_without_real_credentials(self):
+  from repo_env import load_repo_env
+  with tempfile.TemporaryDirectory() as t,patch.dict(os.environ,{'EXISTING':'keep'},clear=True):
+   path=pathlib.Path(t)/'fixture.env'
+   path.write_text('# comment\nEXISTING=replace\nNEW="fixture value"\nINVALID-NAME=skip\nBROKEN\nEMPTY=\n')
+   load_repo_env(path)
+   self.assertEqual(os.environ['EXISTING'],'keep');self.assertEqual(os.environ['NEW'],'fixture value')
+   self.assertEqual(os.environ['EMPTY'],'');self.assertNotIn('INVALID-NAME',os.environ)
+   os.environ['SIGNAL_LOAD_DOTENV']='0'
+   with patch.object(pathlib.Path,'read_text',side_effect=AssertionError('must not read')):load_repo_env(path)
+ def test_smoke_uses_client_path_and_redacts_answers(self):
+  import contextlib, io, smoke_cn_providers as smoke
+  env={'SIGNAL_TOKENHUB_API_KEY':'secret-fixture','SIGNAL_QWEN_API_KEY':'secret-fixture','SIGNAL_DOUBAO_API_KEY':'secret-fixture'}
+  raw={'choices':[{'message':{'content':'蓝色 secret-fixture'},'finish_reason':'stop'}]}
+  output=io.StringIO()
+  with patch.dict(os.environ,env,clear=True),patch.object(api,'http_json',return_value=raw) as http,contextlib.redirect_stdout(output):
+   self.assertEqual(smoke.main(),0)
+  self.assertEqual(http.call_count,7);self.assertEqual(output.getvalue().count('PASS'),7)
+  self.assertNotIn('secret-fixture',output.getvalue())
  def tearDown(self):api.CONFIG.clear()
  def test_defaults_overrides_and_doubao(self):
   with patch.dict(os.environ,{},clear=True):
    self.assertTrue(all(not p['configured'] for p in api.config_public()))
    os.environ.update(SIGNAL_DOUBAO_API_KEY='secret')
-   self.assertIsNone(registry.configuration(registry.provider('doubao')))
+   self.assertEqual(registry.configuration(registry.provider('doubao'))['model'],'doubao-seed-2-1-turbo-260628')
    os.environ['SIGNAL_DOUBAO_MODEL']='ep-fixture'
    self.assertEqual(registry.configuration(registry.provider('doubao'))['model'],'ep-fixture')
    os.environ.update(SIGNAL_OPENAI_API_KEY='secret',SIGNAL_OPENAI_MODEL='gpt-fixture',SIGNAL_OPENAI_BASE_URL='https://proxy.example/v1')

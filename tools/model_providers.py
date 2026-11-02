@@ -1,5 +1,8 @@
 """Single provider registry; public metadata never contains credentials."""
 import json, os, pathlib, re, urllib.parse
+from repo_env import load_repo_env
+
+load_repo_env()
 
 CATALOG_PATH = pathlib.Path(__file__).resolve().parents[1] / 'dist/ai-providers.json'
 ALIASES = {'claude': 'anthropic', 'glm': 'zhipu'}
@@ -20,7 +23,7 @@ def configuration(p, environ=None, route=None):
     selected = route if route is not None else (env.get(p['env_route_var'], '').strip() or 'auto')
     routes = p['routes']
     if selected == 'auto':
-        routes = sorted(routes, key=lambda r: (not r['free'], r['id'] != 'official'))
+        routes = sorted(routes, key=lambda r: (r['id'] != 'tokenhub', not r['free'], r['id'] != 'official'))
     else:
         routes = [r for r in routes if r['id'] == selected]
     for r in routes:
