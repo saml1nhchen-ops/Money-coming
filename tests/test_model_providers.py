@@ -7,6 +7,8 @@ import geo_flow as flow
 import remote_service
 
 class Providers(unittest.TestCase):
+ def setUp(self):
+  isolation=patch.object(registry,"LOAD_SECRETS",False);isolation.start();self.addCleanup(isolation.stop)
  def test_http_json_fake_ip_dns_default_deny(self):
   for value in (None,'0','true','yes'):
    env={} if value is None else {'SIGNAL_ALLOW_FAKE_IP_DNS':value}
@@ -153,7 +155,7 @@ class Providers(unittest.TestCase):
   with patch.dict(os.environ,{'SIGNAL_DEEPSEEK_API_KEY':'secret','SIGNAL_QWEN_API_KEY':'secret'},clear=True),tempfile.TemporaryDirectory() as t,patch.object(api,'results_dir',return_value=pathlib.Path(t)),patch.object(api,'http_json',return_value=raw) as http:
    d={'market':'US','prompts':['Question'],'brand_aliases':['Brand'],'skus':[]}
    with concurrent.futures.ThreadPoolExecutor() as pool:r=api.start_run(d,pool)
-   self.assertEqual(http.call_count,2)
+   self.assertEqual(http.call_count,4) # Shared Bailian key also configures Kimi and GLM pools.
    http.reset_mock()
    with concurrent.futures.ThreadPoolExecutor() as pool:r=api.start_run({**d,'providers':['deepseek','doubao'],'models':{'deepseek':'override'}},pool)
    run=api.get_run(r['id'])

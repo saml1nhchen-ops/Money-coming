@@ -3,6 +3,7 @@ import json, os, pathlib, re, urllib.parse
 from repo_env import load_repo_env
 
 load_repo_env()
+LOAD_SECRETS = os.environ.get("SIGNAL_LOAD_DOTENV", "1") != "0"
 
 CATALOG_PATH = pathlib.Path(__file__).resolve().parents[1] / 'dist/ai-providers.json'
 ALIASES = {'claude': 'anthropic', 'glm': 'zhipu'}
@@ -21,14 +22,14 @@ def configuration(p, environ=None, route=None):
     """Resolve once before a call; never retry on another route after an error."""
     env = os.environ if environ is None else environ
     selected = route if route is not None else (env.get(p['env_route_var'], '').strip() or 'auto')
-    routes = p['routes']
+    routes = [r for r in p['routes'] if not r.get('pool') or r['id']==selected]
     if selected == 'auto':
         routes = sorted(routes, key=lambda r: (r['id'] != 'tokenhub', not r['free'], r['id'] != 'official'))
     else:
         routes = [r for r in routes if r['id'] == selected]
     for r in routes:
-        key = env.get(r['env_key_var'], '').strip()
-        model = env.get(r['env_model_var'], '').strip() or (env.get(p['env_model_var'], '').strip() if r['id'] == 'official' else '') or r['default_model']
+        key = credential(r['env_key_var'], env)
+        model = env.get(r.get('env_model_var', ''), '').strip() or (env.get(p['env_model_var'], '').strip() if r['id'] == 'official' else '') or r['default_model']
         base = (env.get(p['env_base_url_var'], '').strip() if r['id'] == 'official' else '') or r['base_url']
         try:
             u = urllib.parse.urlsplit(base)
@@ -43,7 +44,8 @@ def configuration(p, environ=None, route=None):
         if selected == 'auto' and r['free'] and not free:
             continue
         return {'key': key, 'model': model, 'base_url': base.rstrip('/'), 'search': False,
-                'route': r['id'], 'free': free, 'protocol': r['protocol']}
+                'route': r['id'], 'free': free, 'protocol': r['protocol'],
+                **({'thinking_off':r['thinking_off'],'route_platform':r['platform']} if r.get('pool') else {})}
     # Official model overrides (including paid models) are the last auto choice.
     if selected == 'auto':
         return configuration(p, env, 'official')
@@ -58,3 +60,60 @@ def model_is_free(route, model):
     if route['id'] == 'openrouter': return model.endswith(':free')
     if route['id'] == 'nvidia_nim': return True
     return route['free'] and model == route['default_model']
+
+
+def credential(name, env):
+    value = env.get(name, '')
+    if not value and LOAD_SECRETS and env is os.environ and env.get('SIGNAL_LOAD_DOTENV', '1') != '0':
+        try:
+            with (pathlib.Path.home() / '.secrets' / name).open() as handle:
+                value = handle.readline()
+        except OSError:
+            pass
+    return value.splitlines()[0].strip() if value else ''
+
+
+def route_pool(p, environ=None):
+    env = os.environ if environ is None else environ
+    defaults = [r for r in p['routes'] if r.get('pool')]
+    override = env.get('SIGNAL_' + p['id'].upper() + '_ROUTES', '').strip()
+    if override:
+        try:
+            specs = json.loads(override) if override.startswith('[') else override.split(',')
+            if not isinstance(specs, list): raise ValueError()
+            routes = []
+            for spec in specs:
+                if isinstance(spec, str):
+                    platform, model = spec.strip().split(':', 1)
+                    match = next(r for r in defaults if r['platform'] == platform and r['default_model'] == model)
+                    routes.append(dict(match))
+                else:
+                    platform = spec['platform']
+                    template = next(r for r in defaults if r['platform'] == platform)
+                    routes.append({**template, **spec, 'default_model': spec.get('model', spec.get('default_model', template['default_model']))})
+        except (ValueError, KeyError, StopIteration, TypeError):
+            raise ValueError('Invalid route pool for ' + p['id']) from None
+    else:
+        routes = defaults
+    result = []
+    for r in routes:
+        key = credential(r['env_key_var'], env)
+        if not key: continue
+        model = r['default_model']
+        if not re.fullmatch(r'[\w./:@+-]{1,200}', model): raise ValueError('Invalid route model')
+        u = urllib.parse.urlsplit(r['base_url'])
+        if u.scheme != 'https' or not u.hostname or u.username or u.password or u.query or u.fragment or u.port not in (None,443):
+            raise ValueError('Invalid route base URL')
+        name = 'SIGNAL_' + re.sub(r'[^A-Z0-9]', '_', p['id'].upper()+'_'+r['platform'].upper()+'_'+model.upper()) + '_CONCURRENCY'
+        cap = r.get('concurrency', 4)
+        for var in ('SIGNAL_GEO_PROVIDER_CONCURRENCY', 'SIGNAL_ROUTE_CONCURRENCY'):
+            try: cap = max(1, min(128, int(env.get(var, cap))))
+            except ValueError: pass
+        if r['platform']=='zhipu' and model=='glm-4.7-flash':cap=min(cap,1)
+        try: cap=max(1,min(128,int(env.get(name,cap))))
+        except ValueError:pass
+        result.append({'route': r['id'], 'route_platform': r['platform'], 'model': model,
+                       'base_url': r['base_url'].rstrip('/'), 'key': key, 'search': False,
+                       'protocol': r['protocol'], 'free': model_is_free(r, model),
+                       'thinking_off': r['thinking_off'], 'concurrency': cap})
+    return result

@@ -2,7 +2,7 @@ import os,pathlib,sys,threading,time,unittest
 from unittest.mock import patch
 sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[1]/'tools'))
 import geo_flow as f
-from test_geo_flow import config,sample
+from tests.test_geo_flow import config,sample
 
 class ConcurrentCollection(unittest.TestCase):
  def job(self):

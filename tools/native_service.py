@@ -11,7 +11,7 @@ JOBS.mkdir(parents=True,exist_ok=True)
 LOCK=json.loads((ROOT/'tools/upstreams.lock.json').read_text('utf-8'))
 INDEX={r['id']:r for r in LOCK};CATALOG=json.loads((ROOT/'dist/upstreams.json').read_text('utf-8'))
 TOKEN=secrets.token_urlsafe(32);POOL=concurrent.futures.ThreadPoolExecutor(max_workers=2);states={};guard=threading.Lock()
-AI_RUN_POOL=concurrent.futures.ThreadPoolExecutor(max_workers=ai_api.env_int('SIGNAL_GEO_CONCURRENCY',16,1,128))
+AI_RUN_POOL=concurrent.futures.ThreadPoolExecutor(max_workers=ai_api.env_int('SIGNAL_GEO_CONCURRENCY',ai_api.active_route_capacity(),1,4096))
 SITE='https://signal-geo-workbench-lh.saml1nhchen.chatgpt.site'
 NODE=os.environ.get('SIGNAL_NODE') or shutil.which('node');PORT=int(os.environ.get('SIGNAL_PORT','8770'))
 KEYS={'OPENROUTER_API_KEY','ANTHROPIC_API_KEY','GEMINI_API_KEY','PERPLEXITY_API_KEY','DEEPSEEK_API_KEY'}

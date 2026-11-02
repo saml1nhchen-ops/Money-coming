@@ -48,7 +48,7 @@ class Tests(unittest.TestCase):
 class RunPoolTests(unittest.TestCase):
  def test_ai_run_uses_separate_configured_pool(self):
   self.assertIsNot(service.AI_RUN_POOL,service.POOL)
-  self.assertGreaterEqual(service.AI_RUN_POOL._max_workers,service.ai_api.env_int('SIGNAL_GEO_CONCURRENCY',16,1,128))
+  self.assertGreaterEqual(service.AI_RUN_POOL._max_workers,service.ai_api.env_int('SIGNAL_GEO_CONCURRENCY',service.ai_api.active_route_capacity(),1,4096))
   self.assertEqual(service.POOL._max_workers,2)
   from io import BytesIO
   from unittest.mock import Mock

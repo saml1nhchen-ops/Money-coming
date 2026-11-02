@@ -1,7 +1,7 @@
 """Explicit provider API adapters. Credentials live in process memory, evidence on disk.
 
-API observations never imply consumer application visibility. No automatic retries,
-fallbacks, fabricated responses, or client-provided headers/unchecked URL targets.
+API observations never imply consumer application visibility. Route pools fail over
+only on transient transport errors; no fabricated responses or unchecked headers.
 """
 import copy, datetime, hashlib, ipaddress, json, os, pathlib, re, socket, threading, time, unicodedata, urllib.error, urllib.parse, urllib.request, uuid
 
@@ -9,12 +9,22 @@ ROOT=pathlib.Path(__file__).resolve().parents[1]
 CONFIG={}; LOCK=threading.RLock()
 
 import model_providers as registry
+import route_pool
 def catalog():return registry.catalog()
 def provider(pid):return registry.provider(pid)
 def resolved(p,route=None):
  c=CONFIG.get(p['id'])
  if c and route in (None,'auto','official'):return {**c,'route':'official','free':registry.model_is_free(p['routes'][0],c['model']),'protocol':p['protocol']}
+ if route=='pool' or route in (None,'auto') and not os.environ.get(p['env_route_var'], '').strip():
+  routes=registry.route_pool(p)
+  if routes:return {**routes[0], 'route':'pool'}
  return registry.configuration(p,route=route)
+def active_route_capacity():
+ total=0
+ for p in catalog():
+  c=resolved(p)
+  if c:total+=sum(r['concurrency'] for r in registry.route_pool(p)) if c.get('route')=='pool' else c.get('concurrency',4)
+ return max(1,total)
 def stamp():return datetime.datetime.now(datetime.UTC).isoformat()
 def save(path,obj):
  data=json.dumps(obj,ensure_ascii=False,indent=2).encode('utf-8')
@@ -113,6 +123,9 @@ def request_for(p,c,prompt):
    elif 'v4' in lower or 'v3.2' in lower:body['thinking']={'type':'disabled'}
   # TokenHub Kimi K3.x also supports disabling thinking.
   if pid=='kimi' and ((route in ('official','tokenhub') and any(x in lower for x in ('k2.5','k2.6'))) or (route=='tokenhub' and 'k3.' in lower)):body['thinking']={'type':'disabled'}
+ if fast and 'thinking_off' in c:
+  for field in ('thinking','enable_thinking','chat_template_kwargs','reasoning_effort'):body.pop(field,None)
+  body.update(copy.deepcopy(c['thinking_off']))
  if search and p['id']=='qwen':body['enable_search']=True
  return base+'/chat/completions',headers,body
 def parse(p,raw):
@@ -191,15 +204,19 @@ def validate_run(d):
  with LOCK:
   for pid in ids:
    p=provider(pid)
-   c=resolved(p,(d.get('routes') or {}).get(pid))
+   selected_route=(d.get('routes') or {}).get(pid)
+   c=resolved(p,selected_route)
+   if c and c.get('route')=='pool' and (d.get('models') or {}).get(pid) and selected_route!='pool':c=registry.configuration(p,route=selected_route)
    if not c:continue
    c=copy.deepcopy(c)
    model=(d.get('models') or {}).get(pid)
    if model:
     if not isinstance(model,str) or not re.fullmatch(r'[\w./:@+-]{1,200}',model):raise ValueError('Invalid model ID')
     c['model']=model
-   route=next(r for r in p['routes'] if r['id']==c.get('route','official'))
-   c['free']=registry.model_is_free(route,c['model'])
+   if c.get('route')!='pool':
+    route=next(r for r in p['routes'] if r['id']==c.get('route','official'))
+    c['free']=registry.model_is_free(route,c['model'])
+   elif model:raise ValueError('Select an explicit route when overriding a model')
    configs[pid]=c
  if len(configs)*len(prompts)>64:raise ValueError('Maximum 64 calls per batch')
  return configs
@@ -232,7 +249,8 @@ def start_run(d,pool):
  save(out/'run.json',manifest);pool.submit(execute_run,manifest,configs,out);return {'id':rid,'status':'queued','planned':manifest['planned'],'skipped_providers':skipped}
 def execute_run(run,configs,out):
  run['status']='running';save(out/'run.json',run)
- secrets=[c['key'] for c in configs.values()]
+ pools={pid:registry.route_pool(provider(pid)) for pid,c in configs.items() if c.get('route')=='pool'}
+ secrets=[c['key'] for c in configs.values()]+[r['key'] for routes in pools.values() for r in routes]
  def redact(obj):
   if isinstance(obj,str):
    for secret in secrets:obj=obj.replace(secret,'[REDACTED]')
@@ -245,9 +263,16 @@ def execute_run(run,configs,out):
    if pid not in configs:continue
    p=provider(pid);c=configs[pid]
    for n,prompt in enumerate(run['prompts']):
+    c=configs[pid]
     sample={'provider':pid,'question_index':n,'prompt':prompt,'captured_at':stamp(),'entry_type':'model_api','search_requested':c['search'],'brand_prompted':bool(mention(prompt,run['brand_aliases'])),'status':'failed'};started=time.monotonic()
     try:
-     url,headers,body=request_for(p,c,prompt);raw=http_json(url,headers,body)
+     def request(route):
+      url,headers,body=request_for(p,route,prompt);return http_json(url,headers,body)
+     if pid in pools:answered,raw=route_pool.invoke(pid,pools[pid],request,sample,timeout=route_pool.setting('SIGNAL_ROUTE_ATTEMPT_TIMEOUT',30,.001),deadline=started+call_timeout())
+     else:
+      single={**c,'route_platform':c.get('route_platform',c.get('route','official')),'concurrency':c.get('concurrency',env_int('SIGNAL_ROUTE_CONCURRENCY',env_int('SIGNAL_GEO_PROVIDER_CONCURRENCY',4,1,128),1,128))}
+      answered,raw=route_pool.invoke(pid,[single],request,sample)
+     c=answered
      sample.update(route=c.get('route','official'),free=c.get('free',False));sample.update(parse({**p,'protocol':c.get('protocol',p['protocol'])},raw));sample['status']='complete' if sample['complete'] else 'incomplete';sample['brand_match']=mention(sample['answer'],run['brand_aliases']);sample['sku_matches']={k['name']:mention(sample['answer'],k['aliases']) for k in run.get('skus') or []}
      rawfile=out/(pid+'-'+str(n)+'-raw.json');sample['raw_sha256']=save(rawfile,redact(raw));sample['raw_file']=rawfile.name
      # Exclude explicitly prompted SKU samples from that SKU's discovery scoring.

@@ -184,17 +184,21 @@ Status and exported evidence include route metadata; credentials remain server-s
 Route selection does not claim that model API results represent consumer apps.
 
 
-GEO Python sampling uses `SIGNAL_GEO_CONCURRENCY=16` globally and
-`SIGNAL_GEO_PROVIDER_CONCURRENCY=4` per provider. In-flight calls finish after
-cancellation or provider blocking; no new calls are submitted for blocked providers.
-Submitted attempts are skipped on resume, and planned call limits are retained.
-`SIGNAL_CALL_TIMEOUT=90` controls provider HTTP timeout; output defaults to
-`SIGNAL_MAX_TOKENS=3000` (128–32768). `SIGNAL_GEO_THINKING=1` restores provider
-default thinking behavior. Otherwise supported adapters disable thinking or request
-low effort. TokenHub Zhipu uses `reasoning_effort=low`; official Zhipu keeps
-`thinking` disabled. TokenHub Kimi K3.x disables thinking; MiniMax M3.1 Flash
-uses low effort. The plan estimates answer output at the configured token limit
-and question generation at 2000 tokens per batch. Unknown model/route combinations are unchanged.
+GEO direct sampling uses the verified multi-route pools described in
+[Multi-route configuration](../docs/multi-route.md). Global concurrency defaults to
+the sum of active route caps; `SIGNAL_GEO_CONCURRENCY` overrides it.
+`SIGNAL_GEO_PROVIDER_CONCURRENCY` is now a compatibility alias for the per-route
+cap (default 4), superseded by `SIGNAL_ROUTE_CONCURRENCY`. Official GLM Flash
+retains cap 1 unless its specific route cap is explicitly overridden.
+Submitted planned calls are skipped on resume; transient route failovers are
+attempts within one planned call and do not consume extra planned-call budget.
+In-flight calls finish after cancellation. `SIGNAL_CALL_TIMEOUT=90` controls each
+HTTP attempt; output defaults to `SIGNAL_MAX_TOKENS=3000` (128–32768).
+`SIGNAL_GEO_THINKING=1` restores provider default thinking behavior. Otherwise
+pool entries apply their exact platform/model parameters, including the models
+that reject thinking parameters. Existing explicit single-route adapters retain
+their compatibility behavior. The plan estimates answer output at the configured
+token limit and question generation at 2000 tokens per batch.
 Adapter references: [TokenHub thinking](https://intl.cloud.tencent.com/zh/document/product/1300/80637),
 [Kimi models](https://www.kimi.com/code/docs/en/kimi-code/models),
 [MiniMax models](https://docs.cloudbase.net/ai/available-models),

@@ -1,8 +1,10 @@
-import concurrent.futures,importlib,json,pathlib,sys,tempfile,unittest
+import concurrent.futures,importlib,json,os,pathlib,sys,tempfile,unittest
 from unittest.mock import patch
 sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[1]/'tools'))
 import ai_api as a
 class APIContracts(unittest.TestCase):
+ def setUp(self):
+  isolation=patch.dict(os.environ,{"SIGNAL_LOAD_DOTENV":"0"},clear=True);isolation.start();self.addCleanup(isolation.stop)
  def tearDown(self):a.CONFIG.clear()
  def cfg(self,p):return {'key':'private-fixture-key','model':'fixture-model','base_url':p['base_url'],'search':False}
  def test_catalog_and_request_contracts(self):

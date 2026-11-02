@@ -187,6 +187,7 @@ def validate(d,check_models=True):
  for pid,route in (d.get('routes') or {}).items():
   if pid in d['configuration'] and pid.startswith('direct:'):
    entry=next(p for p in state['providers'] if 'direct:'+p['id']==pid)
+   if route in ('auto','pool') and d['configuration'][pid].get('route')=='pool':continue
    if route=='auto':continue
    selected=next((r for r in entry['routes'] if r['id']==route and r['configured']),None)
    if not selected:raise ValueError('Selected route is not configured')
@@ -195,6 +196,9 @@ def validate(d,check_models=True):
  for pid,model in d.get('models',{}).items():
   if pid in d['configuration']:
    if not isinstance(model,str) or not re.fullmatch(r'[\w./:@+-]{1,200}',model):raise ValueError('Invalid model ID')
+   if d['configuration'][pid].get('route')=='pool':
+    if model==d['configuration'][pid]['model']:continue
+    raise ValueError('Select an explicit route when overriding a model')
    d['configuration'][pid]['model']=model
    if pid.startswith('direct:'):
     entry=next(p for p in state['providers'] if 'direct:'+p['id']==pid)
@@ -241,15 +245,16 @@ def start(d,source_snapshot=None):
 def call(job,pid,prompts,kind):
  if job['id'] in CANCEL:raise ValueError('已停止；已提交的单次调用会完成并保留证据')
  cfg=job['config'];is_direct=pid.startswith('direct:');remote=direct_bridge if is_direct else bridge
- r=remote('run',{'market':cfg['market'],'providers':[pid.removeprefix('direct:')],'prompts':prompts,'brand_aliases':cfg['brand_aliases'],'skus':cfg['skus'],'website':cfg['website'],**({'models':{pid.removeprefix('direct:'):cfg['configuration'][pid]['model']},'routes':{pid.removeprefix('direct:'):cfg['configuration'][pid].get('route','official')}} if is_direct else {})})
+ r=remote('run',{'market':cfg['market'],'providers':[pid.removeprefix('direct:')],'prompts':prompts,'brand_aliases':cfg['brand_aliases'],'skus':cfg['skus'],'website':cfg['website'],**({**({'models':{pid.removeprefix('direct:'):cfg['configuration'][pid]['model']}} if cfg['configuration'][pid].get('route')!='pool' else {}),'routes':{pid.removeprefix('direct:'):cfg['configuration'][pid].get('route','official')}} if is_direct else {})})
  with JOB_LOCK:
   job.setdefault('calls',[]).append({'kind':kind,'runner_id':r['id'],'provider':pid,'planned':r['planned'],**getattr(CALL_CONTEXT,'spec',job.get('inflight_spec',{}))});persist(job)
- deadline=time.monotonic()+(shared.call_timeout()+15)*len(prompts)+15;interval=0.25
+ route_count=max(1,len(shared.registry.route_pool(shared.provider(pid.removeprefix('direct:'))))) if is_direct and cfg['configuration'][pid].get('route')=='pool' else 1
+ deadline=time.monotonic()+(shared.call_timeout()+15)*len(prompts)*route_count+15;interval=0.25
  while time.monotonic()<deadline:
   r=remote('run?id='+r['id'])
   if r['status'] in ('finished','failed'):
    raw=remote('export?id='+r['id']);shared.save(folder(job['id'])/(r['id']+'.json'),raw)
-   for s in raw['samples']:s.update(provider=pid,channel='direct' if is_direct else 'bai',protocol=cfg['configuration'][pid]['protocol'],model_requested=cfg['configuration'][pid]['model'])
+   for s in raw['samples']:s.update(provider=pid,channel='direct' if is_direct else 'bai',protocol=cfg['configuration'][pid]['protocol'],model_requested=s.get('route_model',cfg['configuration'][pid]['model']))
    return raw
   time.sleep(interval);interval=min(1,interval*1.5)
  raise ValueError('执行器等待超时；请查看原始调用记录，流程未自动重试')
@@ -300,8 +305,13 @@ def collect(job):
  # A submitted call is never retried, including after an interrupted polling session.
  attempted.update((c['provider'],c.get('repeat',1),c['question_index']) for c in job.get('calls',[]) if c.get('kind')=='sampling' and 'question_index' in c)
  blocked=job.setdefault('blocked_models',{})
- cap=shared.env_int('SIGNAL_GEO_CONCURRENCY',16,1,128);per=shared.env_int('SIGNAL_GEO_PROVIDER_CONCURRENCY',4,1,128)
- semaphores={pid:threading.BoundedSemaphore(per) for pid in providers};active={pid:0 for pid in providers}
+ per=shared.env_int('SIGNAL_GEO_PROVIDER_CONCURRENCY',4,1,128)
+ limits={}
+ for pid in providers:
+  routes=shared.registry.route_pool(shared.provider(pid.removeprefix('direct:'))) if pid.startswith('direct:') and cfg.get('configuration',{}).get(pid,{}).get('route')=='pool' else []
+  limits[pid]=sum(r['concurrency'] for r in routes) or per
+ cap=shared.env_int('SIGNAL_GEO_CONCURRENCY',sum(limits.values()) or 1,1,4096)
+ semaphores={pid:threading.BoundedSemaphore(limits[pid]) for pid in providers};active={pid:0 for pid in providers}
  pending={pid:[(repeat+1,n) for repeat in range(cfg['repeats']) for n in range(len(prompts)) if (pid,repeat+1,n) not in attempted] for pid in providers}
  used=sum(c.get('planned',1) for c in job.get('calls',[]));limit=job.get('planned_max_calls',used+sum(map(len,pending.values())))
  inflight={};first_error=None
@@ -319,10 +329,10 @@ def collect(job):
    with JOB_LOCK:
     if job['id'] not in CANCEL and first_error is None:
      # Round robin submission prevents a slow provider from filling the queue.
-     for slot in range(per):
+     for slot in range(max(limits.values(),default=1)):
       for pid in providers:
        if len(inflight)>=cap or used>=limit:break
-       if pid in blocked or active[pid]>=per or not pending[pid]:continue
+       if pid in blocked or active[pid]>=limits[pid] or not pending[pid]:continue
        repeat,n=pending[pid].pop(0);used+=1;active[pid]+=1
        inflight[pool.submit(run,pid,repeat,n)]=(pid,repeat,n)
     progress();persist(job)
@@ -338,7 +348,7 @@ def collect(job):
      for sample in result['samples']:
       job['samples'].append({**sample,'id':result['id']+'-'+str(n),'question_index':n,'runner_id':result['id'],'repeat':repeat})
       error=sample.get('error','')
-      if sample['status']=='failed' and re.search(r'HTTP (400|401|403|404|429)|余额|额度|权限',error):blocked[pid]=error
+      if sample['status']=='failed' and cfg.get('configuration',{}).get(pid,{}).get('route')!='pool' and re.search(r'HTTP (400|401|403|404|429)|余额|额度|权限',error):blocked[pid]=error
      if len(job['samples'])%10==0:job['report']=geo_analysis.analyze(job['samples'],cfg,job['prompts'])
     progress();persist(job)
  with JOB_LOCK:
