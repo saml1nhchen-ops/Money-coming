@@ -140,7 +140,7 @@ class Workspace:
   if isinstance(value,str):return self.redact_text(value)
   return value
  def validate(self,path,d):
-  common={'website','market','brand_aliases','skus','competitors','focus','context','count','repeats','providers','generator'}
+  common={'website','market','brand_aliases','skus','competitors','focus','context','count','repeats','providers','generator','models','routes'}
   fields={'inspect':{'website','market'},'start':common|{'generate_only'},'sample':common|{'prompts'},'plan':common|{'generate_only','manual'},'analyze':{'id','brand_aliases','skus','competitors'},'stop':{'id'}}
   if set(d)-fields[path]:raise Failure(400,'invalid_request')
   if path in ('analyze','stop'):

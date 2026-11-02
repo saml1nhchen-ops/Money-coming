@@ -6,14 +6,15 @@ fallbacks, fabricated responses, or client-provided headers/unchecked URL target
 import copy, datetime, hashlib, ipaddress, json, os, pathlib, re, socket, threading, time, unicodedata, urllib.error, urllib.parse, urllib.request, uuid
 
 ROOT=pathlib.Path(__file__).resolve().parents[1]
-CATALOG_PATH=ROOT/'dist/ai-providers.json'
 CONFIG={}; LOCK=threading.RLock()
 
-def catalog():return json.loads(CATALOG_PATH.read_text('utf-8'))
-def provider(pid):
- p=next((p for p in catalog() if p['id']==pid),None)
- if not p:raise ValueError('Unknown API provider')
- return p
+import model_providers as registry
+def catalog():return registry.catalog()
+def provider(pid):return registry.provider(pid)
+def resolved(p,route=None):
+ c=CONFIG.get(p['id'])
+ if c and route in (None,'auto','official'):return {**c,'route':'official','free':registry.model_is_free(p['routes'][0],c['model']),'protocol':p['protocol']}
+ return registry.configuration(p,route=route)
 def stamp():return datetime.datetime.now(datetime.UTC).isoformat()
 def save(path,obj):
  data=json.dumps(obj,ensure_ascii=False,indent=2).encode('utf-8')
@@ -28,7 +29,13 @@ def safe_endpoint(p,url):
  return url.rstrip('/')
 def config_public():
  with LOCK:
-  return [{**p,'configured':bool(CONFIG.get(p['id'],{}).get('key')),'configuration':{k:v for k,v in CONFIG.get(p['id'],{}).items() if k!='key'}} for p in catalog()]
+  result=[]
+  for p in catalog():
+   c=resolved(p)
+   routes=registry.route_status(p)
+   if CONFIG.get(p['id']):routes[0].update({k:v for k,v in resolved(p,'official').items() if k!='key'},configured=True)
+   result.append({**p,'routes':routes,'configured':bool(c),'status':'configured' if c else 'not configured','configuration':{k:v for k,v in (c or {'model':p['default_model'],'base_url':p['base_url'],'search':False}).items() if k!='key'}})
+  return result
 def configure(data):
  p=provider(data.get('provider'));pid=p['id']
  if data.get('clear'):
@@ -46,7 +53,12 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
  def redirect_request(self,*a,**k):return None
 def http_json(url,headers,body):
  host=urllib.parse.urlsplit(url).hostname
- if any(not ipaddress.ip_address(x[4][0]).is_global for x in socket.getaddrinfo(host,443)):raise ValueError('API host must resolve to public addresses')
+ # Some egress proxies use RFC 2544 fake-IP DNS; permit only this range on opt-in.
+ fake_ip_dns=os.environ.get('SIGNAL_ALLOW_FAKE_IP_DNS')=='1'
+ fake_ip_range=ipaddress.ip_network('198.18.0.0/15')
+ for entry in socket.getaddrinfo(host,443):
+  address=ipaddress.ip_address(entry[4][0])
+  if not address.is_global and not (fake_ip_dns and address in fake_ip_range):raise ValueError('API host must resolve to public addresses')
  req=urllib.request.Request(url,json.dumps(body).encode(),{'Content-Type':'application/json',**headers},method='POST')
  try:
   with urllib.request.build_opener(NoRedirect).open(req,timeout=120) as r:
@@ -58,7 +70,7 @@ def http_json(url,headers,body):
   raise ValueError('Provider HTTP '+str(e.code)+'; verify key, balance, model permissions and endpoint') from None
  except urllib.error.URLError:raise ValueError('Provider connection failed or timed out') from None
 def request_for(p,c,prompt):
- base=c['base_url'];model=c['model'];search=c['search'];kind=p['protocol']
+ base=c['base_url'];model=c['model'];search=c['search'];kind=c.get('protocol',p['protocol'])
  headers={'Authorization':'Bearer '+c['key']}
  if kind=='responses':
   body={'model':model,'input':prompt,'max_output_tokens':4096,'store':False}
@@ -74,11 +86,13 @@ def request_for(p,c,prompt):
   if search:body['tools']=[{'type':'web_search_20250305','name':'web_search','max_uses':3}]
   return base+'/messages',{'x-api-key':c['key'],'anthropic-version':'2023-06-01'},body
  body={'model':model,'messages':[{'role':'user','content':prompt}],'stream':False}
- body['max_completion_tokens' if p['id']=='minimax' else 'max_tokens']=4096
+ try:max_tokens=max(4096,int(os.environ.get('SIGNAL_MAX_TOKENS','4096')))
+ except ValueError:max_tokens=4096
+ body['max_completion_tokens' if p['id']=='minimax' and c.get('route','official')=='official' else 'max_tokens']=max_tokens
  if search and p['id']=='qwen':body['enable_search']=True
  return base+'/chat/completions',headers,body
 def parse(p,raw):
- kind=p['protocol'];text='';complete=False;citations=[];sources=[];search_observed=False
+ kind=p['protocol'];text='';complete=False;citations=[];sources=[];search_observed=False;answer_from_reasoning=False
  def source(obj,target):
   if not isinstance(obj,dict):return
   u=obj.get('url') or obj.get('uri')
@@ -117,14 +131,19 @@ def parse(p,raw):
   c=(raw.get('choices') or [{}])[0];m=c.get('message',{});content=m.get('content','')
   text=content if isinstance(content,str) else '\n'.join(x.get('text','') for x in content or [] if isinstance(x,dict))
   # Some providers include thinking inside content. Retain it in raw evidence only.
-  text=re.sub(r'<think>.*?</think>','',text,flags=re.S)
+  text=re.sub(r'<think\b[^>]*>.*?(?:</think\s*>|$)','',text,flags=re.S|re.I)
+  if not text.strip():
+   reasoning=m.get('reasoning_content') or m.get('reasoning')
+   if isinstance(reasoning,str):
+    text=re.sub(r'<think\b[^>]*>.*?(?:</think\s*>|$)','',reasoning,flags=re.S|re.I)
+    answer_from_reasoning=bool(text.strip())
   complete=c.get('finish_reason')=='stop'
   for a in m.get('annotations',[]):source(a.get('url_citation',a),citations)
   for u in raw.get('citations',[]):source({'url':u} if isinstance(u,str) else u,citations)
   for s in raw.get('search_results',[]):source(s,sources)
   search_observed=bool(sources)
   for s in raw.get('search_info',{}).get('search_results',[]):source(s,sources);search_observed=True
- return {'answer':text.strip(),'complete':complete and bool(text.strip()),'model_returned':raw.get('model') or raw.get('modelVersion'), 'usage':raw.get('usage') or raw.get('usageMetadata'),'citations':citations,'retrieved_sources':sources,'search_observed':search_observed,'citation_coverage':'returned_metadata_only'}
+ return {'answer':text.strip(),'answer_from_reasoning':answer_from_reasoning,'complete':complete and bool(text.strip()),'model_returned':raw.get('model') or raw.get('modelVersion'), 'usage':raw.get('usage') or raw.get('usageMetadata'),'citations':citations,'retrieved_sources':sources,'search_observed':search_observed,'citation_coverage':'returned_metadata_only'}
 def normalize(s):return ' '.join(unicodedata.normalize('NFKC',s).casefold().replace('’',"'").split())
 def mention(text,aliases):
  text=normalize(text)
@@ -133,23 +152,32 @@ def mention(text,aliases):
   if a and re.search((r'(?<!\w)' if a[0].isascii() and a[0].isalnum() else '')+re.escape(a)+(r'(?!\w)' if a[-1].isascii() and a[-1].isalnum() else ''),text):return alias
  return None
 def validate_run(d):
- market=d.get('market');ids=d.get('providers');prompts=d.get('prompts');aliases=d.get('brand_aliases');skus=d.get('skus',[])
+ market=d.get('market');ids=d.get('providers') if d.get('providers') is not None else [p['id'] for p in catalog() if resolved(p)];prompts=d.get('prompts');aliases=d.get('brand_aliases');skus=d.get('skus',[])
  if market not in ('CN','US'):raise ValueError('Select CN or US market')
- if not isinstance(ids,list) or not 1<=len(ids)<=16 or len(set(ids))!=len(ids):raise ValueError('Select 1–16 unique providers')
+ if not isinstance(ids,list) or not 0<=len(ids)<=24 or len(set(ids))!=len(ids):raise ValueError('Select up to 24 unique providers')
  if not isinstance(prompts,list) or not 1<=len(prompts)<=10 or any(not isinstance(x,str) or not x.strip() or len(x)>4000 for x in prompts):raise ValueError('Enter 1–10 questions, each under 4000 characters')
- if len(ids)*len(prompts)>64:raise ValueError('Maximum 64 calls per batch')
  if not isinstance(aliases,list) or not aliases or any(not isinstance(a,str) or not a.strip() or len(a)>200 for a in aliases):raise ValueError('Enter exact brand aliases')
  if not isinstance(skus,list) or len(skus)>50:raise ValueError('Maximum 50 SKU rows')
  for s in skus:
   if not isinstance(s,dict) or not isinstance(s.get('name'),str) or not s['name'].strip() or not isinstance(s.get('aliases'),list) or not s['aliases'] or any(not isinstance(a,str) or not a.strip() or len(a)>200 for a in s['aliases']):raise ValueError('Each SKU needs a name and exact aliases')
  if len({s['name'] for s in skus})!=len(skus):raise ValueError('SKU names must be unique within a batch')
+ for field in ('routes','models'):
+  if field in d and (not isinstance(d[field],dict) or any(not isinstance(k,str) or not isinstance(v,str) for k,v in d[field].items())):raise ValueError('Invalid '+field)
  configs={}
  with LOCK:
   for pid in ids:
    p=provider(pid)
-   if market not in p['markets']:raise ValueError(pid+': not listed for this market')
-   if not CONFIG.get(pid,{}).get('key'):raise ValueError(pid+': API key/model not configured; no calls submitted')
-   configs[pid]=copy.deepcopy(CONFIG[pid])
+   c=resolved(p,(d.get('routes') or {}).get(pid))
+   if not c:continue
+   c=copy.deepcopy(c)
+   model=(d.get('models') or {}).get(pid)
+   if model:
+    if not isinstance(model,str) or not re.fullmatch(r'[\w./:@+-]{1,200}',model):raise ValueError('Invalid model ID')
+    c['model']=model
+   route=next(r for r in p['routes'] if r['id']==c.get('route','official'))
+   c['free']=registry.model_is_free(route,c['model'])
+   configs[pid]=c
+ if len(configs)*len(prompts)>64:raise ValueError('Maximum 64 calls per batch')
  return configs
 def results_dir():
  p=ROOT/'runtime/ai-api-runs';p.mkdir(parents=True,exist_ok=True);return p
@@ -168,9 +196,16 @@ def aggregate(samples,providers,skus):
   result.append({'provider':pid,'attempted':len(allp),'complete':len(ok),'discovery_complete':len(discovery),'brand_mention_score':round(100*sum(bool(s['brand_match']) for s in discovery)/len(discovery),1) if discovery else None,'skus':sku_results})
  return result
 def start_run(d,pool):
- configs=validate_run(d);rid=str(uuid.uuid4());out=results_dir()/rid;out.mkdir();manifest={k:copy.deepcopy(d.get(k)) for k in ('market','providers','prompts','brand_aliases','skus','website')}
- manifest.update({'id':rid,'entry_type':'model_api','created_at':stamp(),'status':'queued','planned':len(d['providers'])*len(d['prompts']),'samples':[],'summary':[],'configuration':{pid:{k:v for k,v in c.items() if k!='key'} for pid,c in configs.items()},'methodology':'api-mention-v1: 100 × exact alias hits / complete unbranded answers; errors and truncated answers excluded, coverage reported; no consumer-app or market-population claim'})
- save(out/'run.json',manifest);pool.submit(execute_run,manifest,configs,out);return {'id':rid,'status':'queued','planned':manifest['planned']}
+ configs=validate_run(d)
+ if not configs and d.get('providers') is not None:
+  ids=d['providers']
+  raise ValueError('Selected providers not configured: '+(', '.join(ids) or '(none selected)'))
+ d={**d,'providers':d.get('providers') if d.get('providers') is not None else (list(configs) if configs else [p['id'] for p in catalog()])}
+ skipped=[pid for pid in d['providers'] if pid not in configs]
+ rid=str(uuid.uuid4());out=results_dir()/rid;out.mkdir();manifest={k:copy.deepcopy(d.get(k)) for k in ('market','providers','prompts','brand_aliases','skus','website')}
+ manifest.update({'id':rid,'entry_type':'model_api','created_at':stamp(),'status':'queued','planned':len(configs)*len(d['prompts']),'provider_status':{pid:'configured' if pid in configs else 'not configured' for pid in d['providers']},'samples':[],'summary':[],'configuration':{pid:{k:v for k,v in c.items() if k!='key'} for pid,c in configs.items()},'methodology':'api-mention-v1: 100 × exact alias hits / complete unbranded answers; errors and truncated answers excluded, coverage reported; no consumer-app or market-population claim'})
+ manifest['skipped_providers']=skipped
+ save(out/'run.json',manifest);pool.submit(execute_run,manifest,configs,out);return {'id':rid,'status':'queued','planned':manifest['planned'],'skipped_providers':skipped}
 def execute_run(run,configs,out):
  run['status']='running';save(out/'run.json',run)
  secrets=[c['key'] for c in configs.values()]
@@ -179,16 +214,17 @@ def execute_run(run,configs,out):
    for secret in secrets:obj=obj.replace(secret,'[REDACTED]')
    return obj
   if isinstance(obj,list):return [redact(x) for x in obj]
-  if isinstance(obj,dict):return {k:redact(v) for k,v in obj.items()}
+  if isinstance(obj,dict):return {redact(k):redact(v) for k,v in obj.items()}
   return obj
  try:
   for pid in run['providers']:
+   if pid not in configs:continue
    p=provider(pid);c=configs[pid]
    for n,prompt in enumerate(run['prompts']):
     sample={'provider':pid,'question_index':n,'prompt':prompt,'captured_at':stamp(),'entry_type':'model_api','search_requested':c['search'],'brand_prompted':bool(mention(prompt,run['brand_aliases'])),'status':'failed'};started=time.monotonic()
     try:
      url,headers,body=request_for(p,c,prompt);raw=http_json(url,headers,body)
-     sample.update(parse(p,raw));sample['status']='complete' if sample['complete'] else 'incomplete';sample['brand_match']=mention(sample['answer'],run['brand_aliases']);sample['sku_matches']={k['name']:mention(sample['answer'],k['aliases']) for k in run.get('skus') or []}
+     sample.update(route=c.get('route','official'),free=c.get('free',False));sample.update(parse({**p,'protocol':c.get('protocol',p['protocol'])},raw));sample['status']='complete' if sample['complete'] else 'incomplete';sample['brand_match']=mention(sample['answer'],run['brand_aliases']);sample['sku_matches']={k['name']:mention(sample['answer'],k['aliases']) for k in run.get('skus') or []}
      rawfile=out/(pid+'-'+str(n)+'-raw.json');sample['raw_sha256']=save(rawfile,redact(raw));sample['raw_file']=rawfile.name
      # Exclude explicitly prompted SKU samples from that SKU's discovery scoring.
      sample['sku_prompted']={k['name']:bool(mention(prompt,k['aliases'])) for k in run.get('skus') or []}

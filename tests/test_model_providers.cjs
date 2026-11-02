@@ -1,0 +1,27 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const sandbox={console,esc:String,names:{},localStorage:{getItem:()=>null},location:{hostname:'example.com'},window:{},render:()=>{},$:()=>null};
+vm.createContext(sandbox);
+vm.runInContext(fs.readFileSync('dist/research.js','utf8'),sandbox);
+const registry=JSON.parse(fs.readFileSync('dist/ai-providers.json','utf8'));
+sandbox.providers=registry.map(p=>({...p,configured:p.id==='deepseek',configuration:{model:p.default_model}}));
+vm.runInContext("geoState.runner={profiles:[],providers};",sandbox);
+const html=vm.runInContext("geoManufacturerControls({providers:['direct:deepseek']})",sandbox);
+assert.match(html,/美国 \/ US/);assert.match(html,/中国 \/ China/);
+assert.match(html,/未配置 \/ not configured/);
+assert.match(html,/data-provider-model="direct:deepseek" value="deepseek-chat"/);
+assert.match(html,/value="direct:deepseek"  checked/);
+assert.match(fs.readFileSync('dist/research-ui.js','utf8'),/geoManufacturerControls\(d\)/);
+assert.match(fs.readFileSync('dist/research-ui.js','utf8'),/data-provider-model/);
+console.log('Provider registry UI grouping, configured state, selection, editable model and active UI integration passed');
+
+const routed=registry.map(p=>({...p,configured:p.id==='qwen',configuration:{route:'siliconflow',free:true,model:'Qwen/Qwen3-8B'},routes:p.routes.map(r=>({...r,configured:true,model:r.default_model}))}));
+sandbox.routed=routed;vm.runInContext('geoState.runner={profiles:[],providers:routed}',sandbox);
+const routeHtml=vm.runInContext("geoManufacturerControls({providers:['direct:qwen'],routes:{'direct:qwen':'nvidia_nim'}})",sandbox);
+assert.match(routeHtml,/data-provider-route="direct:qwen"/);
+assert.match(routeHtml,/value="nvidia_nim" selected/);
+assert.match(routeHtml,/自动 · siliconflow/);
+assert.match(routeHtml,/siliconflow · 免费/);
+let modelInput={value:''};sandbox.el={dataset:{providerRoute:'direct:qwen'},value:'nvidia_nim',closest:()=>({querySelector:()=>modelInput})};
+vm.runInContext('geoCapture=()=>{};render=()=>{};geoRouteChange(el)',sandbox);
+assert.equal(modelInput.value,'qwen/qwen3-next-80b-a3b-instruct');
+console.log('Route selector, resolved free status and model switching passed');

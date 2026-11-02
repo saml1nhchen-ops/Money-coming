@@ -23,7 +23,9 @@ class Tests(unittest.TestCase):
  def test_ai_api_auth_and_no_key_state(self):
   self.assertEqual(self.request('/api/tools/ai/providers')[0],401)
   code,j=self.request('/api/tools/ai/providers',service.TOKEN)
-  self.assertEqual(code,200);self.assertEqual(len(j['providers']),17)
+  providers=json.loads((ROOT/'dist/ai-providers.json').read_text('utf-8'))
+  self.assertEqual(len({p['id'] for p in providers}),len(providers))
+  self.assertEqual(code,200);self.assertEqual(len(j['providers']),len(providers))
   self.assertFalse(any(p['configured'] for p in j['providers']))
   code,j=self.request('/api/tools/ai/run',service.TOKEN,body={'market':'CN','providers':['deepseek'],'prompts':['question'],'brand_aliases':['Brand'],'skus':[]})
   self.assertEqual(code,400);self.assertIn('not configured',j['error'])

@@ -136,8 +136,9 @@ def catalog():
  try:state=bridge('state')
  except Exception:state={'configured':False,'profiles':[],'models':[]}
  try:
-  for p in direct_bridge('providers')['providers']:
-   if p['configured']:state['profiles'].append({'id':'direct:'+p['id'],'name':p['name'],'markets':p['markets'],'protocol':p['protocol'],'provider':p['id'],'channel':'direct',**p['configuration']})
+  state['providers']=direct_bridge('providers')['providers']
+  for p in state['providers']:
+   if p['configured']:state['profiles'].append({'id':'direct:'+p['id'],'name':p['name'],'markets':p['markets'],'protocol':p['protocol'],'provider':p['id'],'channel':'direct','region':p['region'],**p['configuration']})
  except Exception:pass
  for p in state['profiles']:p['manufacturer']=geo_plan.vendor(p)
  state['configured']=bool(state['profiles']);return state
@@ -166,16 +167,38 @@ def validate(d,check_models=True):
   limit=300 if f=='count' else (5 if not check_models else 1)
   if type(v)!=int or not 1<=v<=limit:raise ValueError('题数 1–300；新任务每题只调用一次，默认每市场 30 道不同题目')
   d[f]=v
- ids=d.get('providers',[])
+ ids=d.get('providers')
+ if ids is None:ids=[p['id'] for p in catalog()['profiles']];d['providers']=ids
  if not isinstance(ids,list) or not 1<=len(ids)<=16 or len(set(ids))!=len(ids) or len(ids)*d['count']*d['repeats']>15000:raise ValueError('请选择 1–16 个实际模型；单任务最多 15000 次回答')
  for f in ('focus','context'):
   if not isinstance(d.get(f,''),str) or len(d.get(f,''))>18000:raise ValueError('业务背景过长')
  if not check_models:return d
  state=catalog();profiles={p['id']:p for p in state['profiles']}
  if not state['configured']:raise ValueError('请先在 B.AI 页面连接密钥并配置模型')
- for pid in [*ids,d.get('generator')]:
+ known={'direct:'+p['id'] for p in shared.catalog()}
+ if any(pid not in profiles and pid not in known for pid in ids):raise ValueError('Unknown provider')
+ d['providers']=[pid for pid in ids if pid in profiles]
+ d['skipped_providers']={pid:'not configured' for pid in ids if pid not in profiles}
+ if not d.get('generator'):d['generator']=next(iter(d['providers']),None)
+ for pid in [*d['providers'],d.get('generator')]:
   if pid not in profiles or d['market'] not in profiles[pid]['markets']:raise ValueError('生成模型和测试模型必须属于当前市场')
- d['configuration']={pid:profiles[pid] for pid in set([*ids,d['generator']])}
+ d['configuration']={pid:dict(profiles[pid]) for pid in set([*d['providers'],d['generator']])}
+ for pid,route in (d.get('routes') or {}).items():
+  if pid in d['configuration'] and pid.startswith('direct:'):
+   entry=next(p for p in state['providers'] if 'direct:'+p['id']==pid)
+   if route=='auto':continue
+   selected=next((r for r in entry['routes'] if r['id']==route and r['configured']),None)
+   if not selected:raise ValueError('Selected route is not configured')
+   d['configuration'][pid].update({k:selected[k] for k in ('model','base_url','protocol','free')})
+   d['configuration'][pid]['route']=route
+ for pid,model in d.get('models',{}).items():
+  if pid in d['configuration']:
+   if not isinstance(model,str) or not re.fullmatch(r'[\w./:@+-]{1,200}',model):raise ValueError('Invalid model ID')
+   d['configuration'][pid]['model']=model
+   if pid.startswith('direct:'):
+    entry=next(p for p in state['providers'] if 'direct:'+p['id']==pid)
+    route=next(r for r in entry['routes'] if r['id']==d['configuration'][pid].get('route','official'))
+    d['configuration'][pid]['free']=shared.registry.model_is_free(route,model)
  return d
 
 def validate_source_snapshot(snapshot,website):
@@ -217,7 +240,7 @@ def start(d,source_snapshot=None):
 def call(job,pid,prompts,kind):
  if job['id'] in CANCEL:raise ValueError('已停止；已提交的单次调用会完成并保留证据')
  cfg=job['config'];is_direct=pid.startswith('direct:');remote=direct_bridge if is_direct else bridge
- r=remote('run',{'market':cfg['market'],'providers':[pid.removeprefix('direct:')],'prompts':prompts,'brand_aliases':cfg['brand_aliases'],'skus':cfg['skus'],'website':cfg['website']})
+ r=remote('run',{'market':cfg['market'],'providers':[pid.removeprefix('direct:')],'prompts':prompts,'brand_aliases':cfg['brand_aliases'],'skus':cfg['skus'],'website':cfg['website'],**({'models':{pid.removeprefix('direct:'):cfg['configuration'][pid]['model']},'routes':{pid.removeprefix('direct:'):cfg['configuration'][pid].get('route','official')}} if is_direct else {})})
  job['calls'].append({'kind':kind,'runner_id':r['id'],'provider':pid,'planned':r['planned'],**job.get('inflight_spec',{})});persist(job)
  deadline=time.monotonic()+145*len(prompts)+30
  while time.monotonic()<deadline:
@@ -327,7 +350,7 @@ def resume(d):
  if geo_plan.fingerprint(job['prompts'])!=job['prompt_hash']:raise ValueError('冻结题库已变化，不能继续原任务')
  current=validate(job['config'])
  for pid in job['config']['providers']:
-  for k in ('model','protocol','base_url','search'):
+  for k in ('model','protocol','base_url','search','route','free'):
    if current['configuration'][pid].get(k)!=job['config']['configuration'][pid].get(k):raise ValueError('模型配置与原任务不一致，请恢复原配置或新建任务')
  # Reconcile already-submitted calls; never blindly repeat a possibly billed request.
  accounted={s.get('runner_id') for s in job['samples']}

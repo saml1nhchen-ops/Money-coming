@@ -6,7 +6,7 @@ class APIContracts(unittest.TestCase):
  def tearDown(self):a.CONFIG.clear()
  def cfg(self,p):return {'key':'private-fixture-key','model':'fixture-model','base_url':p['base_url'],'search':False}
  def test_catalog_and_request_contracts(self):
-  self.assertEqual(len(a.catalog()),17)
+  self.assertEqual(len(a.catalog()),18)
   for p in a.catalog():
    c=self.cfg(p);u,h,b=a.request_for(p,c,'neutral question')
    self.assertTrue(u.startswith('https://'));self.assertNotIn(c['key'],u);self.assertNotIn(c['key'],json.dumps(b))
@@ -32,7 +32,7 @@ class APIContracts(unittest.TestCase):
  def test_all_native_response_formats(self):
   fixtures={
    'openai':{'status':'completed','output':[{'type':'message','content':[{'type':'output_text','text':'answer','annotations':[{'type':'url_citation','url':'https://official.example/a'}]}]}]},
-   'perplexity':{'status':'completed','output':[{'type':'search_results','results':[{'url':'https://source.example'}]},{'type':'message','content':[{'type':'output_text','text':'answer'}]}]},
+   'perplexity':{'choices':[{'message':{'content':'answer'},'finish_reason':'stop'}],'search_results':[{'url':'https://source.example'}]},
    'gemini':{'candidates':[{'finishReason':'STOP','content':{'parts':[{'text':'answer'}]},'groundingMetadata':{'groundingChunks':[{'web':{'uri':'https://source.example'}}],'groundingSupports':[{'groundingChunkIndices':[0]}]}}]},
    'claude':{'stop_reason':'end_turn','content':[{'type':'text','text':'answer','citations':[{'url':'https://source.example'}]}]}}
   for pid,f in fixtures.items():
@@ -48,7 +48,7 @@ class APIContracts(unittest.TestCase):
   self.assertIsNone(a.aggregate([{**s,'status':'failed'}],['deepseek'],[])[0]['brand_mention_score'])
  def test_atomic_batch_preflight_and_evidence(self):
   d={'market':'CN','providers':['deepseek'],'prompts':['neutral question'],'brand_aliases':['Brand'],'skus':[{'name':'serum','aliases':['Serum 123']}]}
-  with self.assertRaises(ValueError):a.validate_run(d)
+  self.assertEqual(a.validate_run(d),{})
   a.configure({'provider':'deepseek','key':'private-fixture-key','model':'test'})
   raw={'model':'returned-model','choices':[{'message':{'content':'Brand Serum 123 private-fixture-key'},'finish_reason':'stop'}]}
   with tempfile.TemporaryDirectory() as folder,patch.object(a,'results_dir',return_value=pathlib.Path(folder)),patch.object(a,'http_json',return_value=raw) as request:
