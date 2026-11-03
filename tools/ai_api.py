@@ -119,7 +119,7 @@ def thinking_policy(p,c):
   fields={'enable_thinking':False}
  elif pid in ('deepseek','kimi','doubao','zhipu','hunyuan','minimax'):
   fields={'thinking':{'type':'disabled'}}
- if pid=='zhipu' and (route=='tokenhub' or route=='bailian' and 'glm-5.3' in model):
+ if pid=='zhipu' and route=='tokenhub' and model in ('glm-5.2','glm-5.3-flash'):
   fields={'reasoning_effort':'low'}
  if pid=='minimax' and route=='tokenhub' and 'm3.1' in model:
   fields={'reasoning_effort':'low'}
@@ -287,7 +287,7 @@ def execute_run(run,configs,out):
    p=provider(pid);c=configs[pid]
    for n,prompt in enumerate(run['prompts']):
     c=configs[pid]
-    sample={'provider':pid,'question_index':n,'prompt':prompt,'captured_at':stamp(),'entry_type':'model_api','search_requested':c['search'],'brand_prompted':bool(mention(prompt,run['brand_aliases'])),'status':'failed'};started=time.monotonic()
+    sample={'model_version':p.get('pool_model',c['model']),'route_model':c['model'],'provider':pid,'question_index':n,'prompt':prompt,'captured_at':stamp(),'entry_type':'model_api','search_requested':c['search'],'brand_prompted':bool(mention(prompt,run['brand_aliases'])),'status':'failed'};started=time.monotonic()
     try:
      def request(route):
       url,headers,body=request_for(p,route,prompt);return http_json(url,headers,body)

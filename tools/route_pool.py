@@ -13,6 +13,11 @@ STATE = {}
 CURSOR = {}
 
 
+def validate_pool_model(family, version, model):
+    if not version or model != version:
+        raise ValueError(f'Route pool model mismatch for {family}: expected {version!r}, got {model!r}')
+
+
 def setting(name, default, minimum):
     try: return max(minimum, float(os.getenv(name, str(default))))
     except ValueError: return default
@@ -52,6 +57,13 @@ def bounded_request(request, route, timeout, release):
 
 
 def invoke(family, routes, request, sample, *, timeout=None, deadline=None):
+    for route in routes:
+        if route.get('pool'):
+            from model_providers import provider
+            validate_pool_model(family, provider(family).get('pool_model'), route['model'])
+    if routes:
+        sample.setdefault('model_version', routes[0].get('model_version', routes[0]['model']))
+        sample.setdefault('route_model', routes[0]['model'])
     remaining = list(routes)
     attempts = sample.setdefault('attempts', [])
     sample['failovers'] = 0

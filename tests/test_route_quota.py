@@ -82,7 +82,13 @@ class Quotas(unittest.TestCase):
         self.assertFalse(route['fallback_only'])
         self.assertEqual(route['concurrency'],4)
         self.assertEqual(route['quota'],{'free_tokens':1000000,'expires':'2027-11-03','scope':'per_model'})
-        self.assertEqual(api.request_for(p,route,'OK')[2]['reasoning_effort'],'low')
+        for config in (default,route):
+            body=api.request_for(p,config,'OK')[2]
+            self.assertEqual(config['thinking_off'],{'reasoning_effort':'low'})
+            self.assertEqual(body['reasoning_effort'],'low')
+            self.assertNotIn('thinking',body)
+        self.assertEqual([r['id'] for r in p['routes'] if r.get('pool')],['tokenhub:glm-5.3-flash'])
+        self.assertTrue(next(r for r in p['routes'] if r.get('pool'))['verified'])
 
     def test_fallback_waits_for_preferred_slot_or_grace(self):
         for mode in ('release','release_late','elapsed','deadline','zero','invalid','off'):
@@ -153,14 +159,14 @@ class Quotas(unittest.TestCase):
                 body=api.request_for(p,c,'Reply with OK.')[2]
                 if 'thinking_off' in spec and p['id']!='openai':
                     for name,value in spec['thinking_off'].items():self.assertEqual(body[name],value)
-                if spec.get('fallback_only') and spec.get('platform')!='nvidia':self.assertEqual(body['reasoning_effort'],'low')
+                if spec.get('pool'):self.assertEqual(spec['default_model'],p['pool_model'])
         p=registry.provider('gemini')
         for model,expected in [('gemini-2.5-flash',{'thinkingBudget':0}),('gemini-2.5-pro',{'thinkingBudget':128}),('gemini-3.5-flash',{'thinkingLevel':'minimal'}),('gemini-3-pro',{'thinkingLevel':'low'})]:
             c={'model':model,'base_url':p['base_url'],'key':'fixture','search':False}
             self.assertEqual(api.request_for(p,c,'OK')[2]['generationConfig']['thinkingConfig'],expected)
         p=registry.provider('zhipu')
         for r in registry.route_pool(p,keys):
-            if r['model'] in ('glm-5.2','glm-5.3'):self.assertTrue(r['fallback_only'])
+            self.assertFalse(r.get('fallback_only',False))
 
     def test_benchmark_china_plus_openai_and_averages(self):
         import contextlib,io,bench_geo_collect as bench
@@ -179,18 +185,40 @@ class Quotas(unittest.TestCase):
     def test_verifier_dry_run_no_transport_or_credentials(self):
         import contextlib,io,verify_routes
         out=io.StringIO()
-        with patch.object(sys,'argv',['verify','--dry-run']),patch.object(api,'http_json',side_effect=AssertionError('network forbidden')),patch.object(registry,'credential',side_effect=lambda name,env: env.get(name,'')),contextlib.redirect_stdout(out):
+        with patch.dict(os.environ,{'SIGNAL_DEEPSEEK_ROUTES':'tokenhub:wrong-version'}),patch.object(sys,'argv',['verify','--dry-run']),patch.object(api,'http_json',side_effect=AssertionError('network forbidden')),patch.object(registry,'credential',side_effect=lambda name,env: env.get(name,'')),contextlib.redirect_stdout(out):
             self.assertEqual(verify_routes.main(),0)
         rows=[json.loads(line) for line in out.getvalue().splitlines()]
-        self.assertTrue(rows);self.assertNotIn('Authorization',out.getvalue());self.assertNotIn('dry-run',out.getvalue())
+        self.assertTrue(rows)
+        expected={(p['id'],r['platform'],r['default_model']) for p in registry.catalog() for r in p['routes'] if r.get('pool')}
+        expected.add(('gemini', 'official', 'gemini-3.5-flash'))
+        self.assertEqual({(r['family'],r['platform'],r['model']) for r in rows},expected)
+        self.assertTrue(all(r['model']==r['model_version'] for r in rows))
+        self.assertNotIn('Authorization',out.getvalue());self.assertNotIn('dry-run',out.getvalue())
 
-    def test_probe_reasoning_routes_are_fallback_only(self):
-        keys={r['env_key_var']:'fixture' for p in registry.catalog() for r in p['routes']}
-        for family,platform,model in [('zhipu','tokenhub','glm-5.2'),
-                                      ('minimax','nvidia','minimaxai/minimax-m3.1-flash')]:
-            route=next(r for r in registry.route_pool(registry.provider(family),keys)
-                       if (r['route_platform'],r['model'])==(platform,model))
-            self.assertTrue(route['fallback_only'])
+    def test_verifier_single_routes_and_missing_credentials(self):
+        import contextlib,io,verify_routes
+        families = [p for p in registry.catalog() if not any(r.get('pool') for r in p['routes'])]
+        for p in families:
+            spec = p['routes'][0]
+            for configured in (False, True):
+                with self.subTest(family=p['id'], configured=configured):
+                    out = io.StringIO()
+                    env = {spec['env_key_var']: 'fixture'} if configured else {}
+                    # Model and base overrides must not alter the registry probe.
+                    env.update({p['env_model_var']: 'wrong-model', p['env_base_url_var']: 'https://wrong.example'})
+                    with patch.dict(os.environ, env), patch.object(sys, 'argv', ['verify', '--families', p['id']]), patch.object(registry, 'LOAD_SECRETS', False), patch.object(api, 'http_json', return_value={}) as http, contextlib.redirect_stdout(out):
+                        verify_routes.main()
+                    self.assertIn('model_version=' + (p.get('pool_model') or p['default_model']), out.getvalue())
+                    self.assertIn('official ' + spec['default_model'], out.getvalue())
+                    self.assertEqual(http.call_count, int(configured and bool(spec['default_model'])))
+                    if not configured or not spec['default_model']:
+                        self.assertIn('status=not_configured', out.getvalue())
+                    if configured and spec['default_model']:
+                        self.assertTrue(http.call_args.args[0].startswith(spec['base_url']))
+
+    def test_retired_reasoning_routes_are_absent(self):
+        for family,model in [('zhipu','glm-5.2'),('minimax','minimaxai/minimax-m3.1-flash')]:
+            self.assertFalse(any(r.get('pool') and r['default_model']==model for r in registry.provider(family)['routes']))
 
     def test_verifier_failure_diagnostics_never_echo_exception(self):
         import contextlib,io,urllib.error,verify_routes

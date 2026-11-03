@@ -8,7 +8,7 @@ vm.runInContext("geoState.runner={profiles:[],providers};",sandbox);
 const html=vm.runInContext("geoManufacturerControls({providers:['direct:deepseek']})",sandbox);
 assert.match(html,/美国 \/ US/);assert.match(html,/中国 \/ China/);
 assert.match(html,/未配置 \/ not configured/);
-assert.match(html,/data-provider-model="direct:deepseek" value="deepseek-chat"/);
+assert.match(html,/data-provider-model="direct:deepseek" value="deepseek-v4.1-flash"/);
 assert.match(html,/value="direct:deepseek"  checked/);
 assert.match(fs.readFileSync('dist/research-ui.js','utf8'),/geoManufacturerControls\(d\)/);
 assert.match(fs.readFileSync('dist/research-ui.js','utf8'),/data-provider-model/);

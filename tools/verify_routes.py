@@ -44,20 +44,29 @@ def main():
     failed = False
     for family in args.families:
         p = api.provider(family)
+        version = p.get('pool_model') or p['default_model']
         seen = set()
-        for spec in p['routes']:
-            if not spec['default_model']: continue
-            env = {spec['env_key_var']:'dry-run'} if args.dry_run else None
-            if spec.get('pool'):
-                # Resolve all pool entries once below via their exact identities.
-                candidates = api.registry.route_pool(p, env)
-                c = next((r for r in candidates if r['route']==spec['id']), None)
-            else: c = api.registry.configuration(p, env, spec['id'])
+        specs = [r for r in p['routes'] if r.get('pool')]
+        pooled = bool(specs)
+        if not pooled:
+            # Match the registry's default single-route selection without letting
+            # host route/model/base overrides change what this probe verifies.
+            defaults = [r for r in p['routes'] if r.get('default', True)]
+            specs = sorted(defaults, key=lambda r: (r['id'] != 'tokenhub', not r['free'], r['id'] != 'official'))[:1]
+        # Resolve only registry defaults; family/model/base overrides are not probes.
+        env = {r['env_key_var']: ('dry-run' if args.dry_run else api.registry.credential(r['env_key_var'], os.environ)) for r in specs}
+        if pooled:
+            candidates = api.registry.route_pool(p, env)
+        else:
+            single = api.registry.configuration(p, env, specs[0]['id']) if specs else None
+            candidates = [single] if single else []
+        for spec in specs:
+            c = next((r for r in candidates if r['route'] == spec['id']), None)
             if not c:
                 identity=(spec.get('platform',spec['id']),spec['default_model'])
                 if identity not in seen:
                     seen.add(identity)
-                    print(f'{family} {identity[0]} {identity[1]} status=not_configured answer_nonempty=False input=0 output=0 reasoning=0 latency_ms=0')
+                    print(f'{family} model_version={version} {identity[0]} {identity[1]} status=not_configured answer_nonempty=False input=0 output=0 reasoning=0 latency_ms=0')
                 failed=True
                 continue
             identity = (c.get('route_platform',c['route']),c['model'])
@@ -70,7 +79,7 @@ def main():
                 budget=body['generationConfig'].get('thinkingConfig',{}).get('thinkingBudget',0)
                 body['generationConfig']['maxOutputTokens'] = max(32, budget+128) if budget else 32
             if args.dry_run:
-                print(json.dumps({'family':family,'platform':identity[0],'model':identity[1],'body':body},ensure_ascii=False))
+                print(json.dumps({'family':family,'model_version':version,'platform':identity[0],'model':identity[1],'body':body},ensure_ascii=False))
                 continue
             started = time.monotonic(); status='ok'; nonempty=False; tokens={'input':0,'output':0,'reasoning':0}; diagnostics=''
             try:
@@ -82,7 +91,7 @@ def main():
                 status='failed';failed=True
                 category, http_status = error_diagnostics(error)
                 diagnostics=f' error_category={category} http_status={http_status if http_status is not None else "none"}'
-            print(f'{family} {identity[0]} {identity[1]} status={status} answer_nonempty={nonempty} input={tokens["input"]} output={tokens["output"]} reasoning={tokens["reasoning"]} latency_ms={round((time.monotonic()-started)*1000)}{diagnostics}')
+            print(f'{family} model_version={version} {identity[0]} {identity[1]} status={status} answer_nonempty={nonempty} input={tokens["input"]} output={tokens["output"]} reasoning={tokens["reasoning"]} latency_ms={round((time.monotonic()-started)*1000)}{diagnostics}')
     return int(failed)
 
 if __name__=='__main__': raise SystemExit(main())

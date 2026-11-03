@@ -1,11 +1,31 @@
 # GEO route pools
 
-Default direct GEO sampling uses the ordered, verified `pool: true` routes in
-`dist/ai-providers.json` for the seven China families and OpenAI. Missing credentials silently
-remove routes; a family without a pool falls back to its existing single-route
-configuration. Unconfigured families retain the existing skip behavior. Hunyuan
-currently has one verified platform; Qwen and Doubao have two models on one platform.
-The matrix does not supply additional usable platforms for these families.
+Each GEO family has exactly one measured model version, declared by `pool_model`
+in `dist/ai-providers.json`. The selection criterion is the fewest tokens per call
+with a valid answer and zero reasoning tokens, based on the owner's measurements.
+Multiple platforms may split load or fail over only within that same version.
+
+| Family | Version | Default pool platforms |
+| --- | --- | --- |
+| hunyuan | hy3 | TokenHub |
+| deepseek | deepseek-v4.1-flash | Bailian, TokenHub |
+| kimi | kimi-k3.1-pro | TokenHub |
+| zhipu | glm-5.3-flash | TokenHub |
+| minimax | minimax-m3 | TokenHub |
+| qwen | qwen3.7-plus | Bailian |
+| doubao | doubao-seed-2-1-lite-260915 | Ark |
+| openai | gpt-5.4-mini | Official |
+| gemini | gemini-3.5-flash | Official (existing single route) |
+
+The owner's live verification selected TokenHub GLM-5.3-flash: GLM-5.3 used roughly
+twice as many tokens, while Bailian GLM-5.3 required heavy reasoning. The Flash
+pool has one verified TokenHub route with concurrency 4; the TokenHub single route
+uses the same model and minimum thinking settings.
+
+Default direct GEO sampling uses `pool: true` entries. Missing credentials remove
+routes. Families without a configured pool retain existing single-route fallback
+and skip behavior. Retired NVIDIA NIM routes and failing DeepSeek/Kimi official
+routes have `default: false` and `verified: false`; only explicit selection can use them.
 
 Credentials come from environment, repository `.env`, then `~/.secrets/<VAR>`
 (first line only). `SIGNAL_LOAD_DOTENV=0` disables local credential loading for tests.
@@ -14,16 +34,16 @@ Credentials are never included in route state, attempt records or exports.
 Override a family with `SIGNAL_DEEPSEEK_ROUTES=bailian:deepseek-v4.1-flash,tokenhub:deepseek-v4.1-flash`
 or a JSON list of these strings. JSON objects can override `platform`, `base_url`,
 `env_key_var`, `model`, `thinking_off`, and `concurrency`; the platform must have a
-matrix entry for that family. Supply `thinking_off: {}` for models rejecting thinking
+matrix entry for that family. A different model is rejected with an error naming
+the family and expected version, even when credentials are absent. Supply `thinking_off: {}` for models rejecting thinking
 parameters. An explicit `SIGNAL_<FAMILY>_ROUTE` or request route retains single-route
 behavior. Select an explicit route to override a model rather than a whole pool.
 
-Each route has its own process-wide admission cap. Defaults are 4 and 1 for official
-GLM-4.7-Flash. `SIGNAL_ROUTE_CONCURRENCY` overrides the general default;
-`SIGNAL_GEO_PROVIDER_CONCURRENCY` remains a compatibility alias for this **per-route**
-cap, with the new setting taking precedence. GLM's safety cap stays 1 unless explicitly
-overridden with `SIGNAL_<FAMILY>_<PLATFORM>_<MODEL>_CONCURRENCY` (uppercase, replace
-all non-alphanumeric characters with `_`). This variable takes highest precedence.
+Each route has its own process-wide admission cap, defaulting to 4.
+`SIGNAL_ROUTE_CONCURRENCY` overrides the default;
+`SIGNAL_GEO_PROVIDER_CONCURRENCY` remains a compatibility alias with lower precedence.
+`SIGNAL_<FAMILY>_<PLATFORM>_<MODEL>_CONCURRENCY` (uppercase, replace
+non-alphanumeric characters with `_`) takes highest precedence.
 Limits are per model route, not a platform-wide quota; shared platform quotas may
 still require lower caps. Global GEO concurrency defaults to the sum of selected
 active route caps, overridable with `SIGNAL_GEO_CONCURRENCY`.
@@ -43,6 +63,7 @@ routes are cooling. State is shared across concurrent batches in the process.
 
 One question × family remains one planned/budgeted call even with failover. Attempts
 can incur additional provider charges. Samples record `route_platform`, `route_model`,
+`model_version` (the family version, including explicit single-route samples),
 `attempts` (status, HTTP status when available, latency), and `failovers`, including
 failed samples. These are evidence/export fields, not primary report badges.
 
@@ -52,7 +73,7 @@ Opt-in benchmark (makes real API calls; never part of tests):
 python3 tools/bench_geo_collect.py --china-families --questions 10
 ```
 
-Prints per-provider success counts and aggregate input/output/reasoning token totals
+Prints each family version, per-provider success counts and aggregate input/output/reasoning token totals
 from returned usage (reasoning is part of output, not an additional total), wall time, completion fraction, total observed 429s, failovers and successful
 platform/model split. No answers or credentials are printed.
 
@@ -90,30 +111,14 @@ Existing output token limits and `SIGNAL_MAX_TOKENS` behavior are unchanged.
 | Doubao Ark/official, Zhipu official, Hunyuan TokenHub/official | `thinking: {type: disabled}` |
 | MiniMax official, TokenHub M3 | `thinking: {type: disabled}` |
 | NVIDIA NIM reasoning models | `chat_template_kwargs: {thinking: false, enable_thinking: false}`; instruct models omit unsupported switches |
-| Bailian GLM-5.3, TokenHub GLM-5.2 | Disabling is rejected: `reasoning_effort: low`, fallback-only |
-| TokenHub GLM-5.3-Flash | `reasoning_effort: low`; preferred (owner probe reported zero reasoning tokens) |
-| TokenHub MiniMax M3.1 Flash | Requires thinking: `reasoning_effort: low`, fallback-only when another route is available |
+| Bailian GLM-5.3 (excluded from pool) | Cannot disable thinking: `enable_thinking: false` returns HTTP 400 (`restricted to True`) |
+| TokenHub GLM-5.3-flash | `reasoning_effort: low`; rejects `thinking: {type: disabled}` |
 
-`SIGNAL_<FAMILY>_REASONING_EFFORT` overrides effort strings for OpenAI, Gemini 3.x,
-and low-effort exceptions (for example `SIGNAL_ZHIPU_REASONING_EFFORT=low`). Use
-only a value supported by the selected model. Turning thinking fully off is not
-possible on routes that require it; these are explicitly demoted with
-`fallback_only: true`. Unknown model overrides must provide appropriate
-`thinking_off` settings in their route specification. These policies encode the
-owner-supplied compatibility constraints; this change has not live-verified them.
-
-Owner-reported live probes found TokenHub `glm-5.2` consumed 32 reasoning tokens
-out of a 32-token output cap with `reasoning_effort: low`; NVIDIA
-`minimaxai/minimax-m3.1-flash` consumed 25 reasoning tokens despite the disabling
-switches. Both pool entries are fallback-only. These observations do not establish
-that the other failing routes support thinking-off; their failures need diagnosis.
-
-The Zhipu pool includes preferred TokenHub `glm-5.3-flash` (cap 4, 1M-token
-allowance through 2027-11-03) and official `glm-4.7-flash` (cap 1).
-TokenHub single-route selection also defaults to `glm-5.3-flash`. Bailian
-`glm-5.3` and TokenHub `glm-5.2` remain fallback-only. The owner-reported live
-probe of TokenHub `glm-5.3-flash` returned zero reasoning tokens with
-`reasoning_effort: low`; this follow-up was validated offline only.
+Explicit single-route model overrides retain their existing behavior and are outside
+the pool version restriction. Their `route_model` records the requested model while
+`model_version` records the family's measurement version. All samples, including
+failures before admission, carry both fields. Route overrides do not certify a
+model's availability. This change was validated offline only.
 
 ## Quota allocation and ledger
 
@@ -197,10 +202,11 @@ python3 tools/bench_geo_collect.py --china-families --with openai --questions 10
 # --china-families --providers openai also includes OpenAI.
 ```
 
-The verifier deduplicates each default and pool platform/model, sends one tiny
+The verifier checks only default `pool: true` platform/model entries, ignoring
+family pool overrides and all single routes, sends one tiny
 `Reply with OK.` request per configured route with a 32-token output cap (256 for Gemini 2.5 Pro
 to accommodate its mandatory thinking budget), and
-prints family, platform, model, status, answer_nonempty, input/output/reasoning
+prints family, family version, platform, model, status, answer_nonempty, input/output/reasoning
 tokens and latency. It does not fail over, print answers or print credentials.
 Failures also print a fixed `error_category` and numeric `http_status` (`none`
 when unavailable). Categories distinguish authentication, permission, missing

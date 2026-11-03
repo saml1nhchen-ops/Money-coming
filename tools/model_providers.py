@@ -1,5 +1,6 @@
 """Single provider registry; public metadata never contains credentials."""
 import json, os, pathlib, re, urllib.parse
+from route_pool import validate_pool_model
 from repo_env import load_repo_env
 
 load_repo_env()
@@ -24,7 +25,7 @@ def configuration(p, environ=None, route=None):
     selected = route if route is not None else (env.get(p['env_route_var'], '').strip() or 'auto')
     routes = [r for r in p['routes'] if not r.get('pool') or r['id']==selected]
     if selected == 'auto':
-        routes = sorted(routes, key=lambda r: (r['id'] != 'tokenhub', not r['free'], r['id'] != 'official'))
+        routes = sorted([r for r in routes if r.get('default', True)], key=lambda r: (r['id'] != 'tokenhub', not r['free'], r['id'] != 'official'))
     else:
         routes = [r for r in routes if r['id'] == selected]
     for r in routes:
@@ -50,7 +51,7 @@ def configuration(p, environ=None, route=None):
                 **({'thinking_off':r['thinking_off']} if 'thinking_off' in r else {})}
     # Official model overrides (including paid models) are the last auto choice.
     if selected == 'auto':
-        return configuration(p, env, 'official')
+        return configuration(p, env, 'official') if any(r['id']=='official' and r.get('default', True) for r in p['routes']) else None
     return None
 
 def route_status(p, environ=None):
@@ -87,6 +88,7 @@ def route_pool(p, environ=None):
             for spec in specs:
                 if isinstance(spec, str):
                     platform, model = spec.strip().split(':', 1)
+                    validate_pool_model(p['id'], p.get('pool_model'), model)
                     match = next(r for r in defaults if r['platform'] == platform and r['default_model'] == model)
                     routes.append(dict(match))
                 else:
@@ -94,14 +96,15 @@ def route_pool(p, environ=None):
                     template = next(r for r in defaults if r['platform'] == platform)
                     routes.append({**template, **spec, 'default_model': spec.get('model', spec.get('default_model', template['default_model']))})
         except (ValueError, KeyError, StopIteration, TypeError):
-            raise ValueError('Invalid route pool for ' + p['id']) from None
+            raise ValueError('Invalid route pool for ' + p['id'] + '; expected model ' + str(p.get('pool_model'))) from None
     else:
         routes = defaults
     result = []
     for r in routes:
+        model = r['default_model']
+        validate_pool_model(p['id'], p.get('pool_model'), model)
         key = credential(r['env_key_var'], env)
         if not key: continue
-        model = r['default_model']
         if not re.fullmatch(r'[\w./:@+-]{1,200}', model): raise ValueError('Invalid route model')
         u = urllib.parse.urlsplit(r['base_url'])
         if u.scheme != 'https' or not u.hostname or u.username or u.password or u.query or u.fragment or u.port not in (None,443):
@@ -114,7 +117,7 @@ def route_pool(p, environ=None):
         if r['platform']=='zhipu' and model=='glm-4.7-flash':cap=min(cap,1)
         try: cap=max(1,min(128,int(env.get(name,cap))))
         except ValueError:pass
-        result.append({'route': r['id'], 'route_platform': r['platform'], 'model': model,
+        result.append({'pool': True, 'model_version': p['pool_model'], 'route': r['id'], 'route_platform': r['platform'], 'model': model,
                        'base_url': r['base_url'].rstrip('/'), 'key': key, 'search': False,
                        'protocol': r['protocol'], 'free': model_is_free(r, model),
                        'thinking_off': r['thinking_off'], 'concurrency': cap,

@@ -11,9 +11,11 @@ import urllib.error
 from unittest.mock import patch
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / 'tools'))
-import ai_api as api
-import model_providers as registry
-import route_pool as scheduler
+# Disable import-time .env loading before importing the provider registry.
+with patch.dict(os.environ, {'SIGNAL_LOAD_DOTENV': '0'}):
+    import ai_api as api
+    import model_providers as registry
+    import route_pool as scheduler
 
 ENV = {'SIGNAL_LOAD_DOTENV': '0', 'SIGNAL_QWEN_API_KEY': 'bailian-secret',
        'SIGNAL_TOKENHUB_API_KEY': 'tokenhub-secret'}
@@ -22,6 +24,21 @@ RAW = {'choices': [{'message': {'content': 'Brand'}, 'finish_reason': 'stop'}]}
 
 class MultiRoute(unittest.TestCase):
     def setUp(self):
+        env = patch.dict(os.environ, {**ENV, 'SIGNAL_ROUTE_QUOTA_MODE': 'off',
+                                     'SIGNAL_ROUTE_LEDGER': 'off'}, clear=True)
+        env.start()
+        self.addCleanup(env.stop)
+        secrets = patch.object(registry, 'LOAD_SECRETS', False)
+        secrets.start()
+        self.addCleanup(secrets.stop)
+        # These tests exercise admission/failover, not date-dependent quota policy.
+        # Nested environment fixtures must not re-enable host ledger access.
+        ledger = patch.object(scheduler.route_ledger, 'path', return_value=None)
+        ledger.start()
+        self.addCleanup(ledger.stop)
+        fractions = patch.object(scheduler.route_ledger, 'fraction', return_value=1.0)
+        fractions.start()
+        self.addCleanup(fractions.stop)
         scheduler.STATE.clear()
         scheduler.CURSOR.clear()
         api.CONFIG.clear()
@@ -37,16 +54,67 @@ class MultiRoute(unittest.TestCase):
         self.assertEqual([r['route_platform'] for r in routes], ['tokenhub', 'bailian'])
         self.assertEqual([r['concurrency'] for r in routes], [2, 2])
         env['SIGNAL_DEEPSEEK_ROUTES'] = json.dumps([{'platform': 'tokenhub', 'model': 'custom', 'thinking_off': {}}])
-        self.assertEqual(registry.route_pool(registry.provider('deepseek'), env)[0]['model'], 'custom')
-        env = {'SIGNAL_ZHIPU_API_KEY': 'fixture', 'SIGNAL_ROUTE_CONCURRENCY': '8'}
-        self.assertEqual(registry.route_pool(registry.provider('zhipu'), env)[0]['concurrency'], 1)
-        env['SIGNAL_ZHIPU_ZHIPU_GLM_4_7_FLASH_CONCURRENCY'] = '2'
+        with self.assertRaisesRegex(ValueError, 'expected.*deepseek-v4.1-flash'):
+            registry.route_pool(registry.provider('deepseek'), env)
+        env = {'SIGNAL_TOKENHUB_API_KEY': 'fixture', 'SIGNAL_ROUTE_CONCURRENCY': '8'}
+        self.assertEqual(registry.route_pool(registry.provider('zhipu'), env)[0]['concurrency'], 8)
+        env['SIGNAL_ZHIPU_TOKENHUB_GLM_5_3_FLASH_CONCURRENCY'] = '2'
         self.assertEqual(registry.route_pool(registry.provider('zhipu'), env)[0]['concurrency'], 2)
+
+    def test_one_version_matrix_and_override_enforcement(self):
+        expected = {
+            'hunyuan': ('hy3', {'tokenhub'}),
+            'deepseek': ('deepseek-v4.1-flash', {'bailian', 'tokenhub'}),
+            'kimi': ('kimi-k3.1-pro', {'tokenhub'}),
+            'zhipu': ('glm-5.3-flash', {'tokenhub'}),
+            'minimax': ('minimax-m3', {'tokenhub'}),
+            'qwen': ('qwen3.7-plus', {'bailian'}),
+            'doubao': ('doubao-seed-2-1-lite-260915', {'ark'}),
+            'openai': ('gpt-5.4-mini', {'official'}),
+            'gemini': ('gemini-3.5-flash', set()),
+        }
+        for family, (version, platforms) in expected.items():
+            p = registry.provider(family)
+            self.assertEqual(p['pool_model'], version)
+            self.assertEqual(p['default_model'], version)
+            routes = [r for r in p['routes'] if r.get('pool')]
+            self.assertEqual({r['platform'] for r in routes}, platforms)
+            if not routes: continue
+            self.assertEqual({r['default_model'] for r in routes}, {version})
+            name = 'SIGNAL_' + family.upper() + '_ROUTES'
+            platform = routes[0]['platform']
+            for override in (platform + ':wrong-version', json.dumps([{'platform': platform, 'model': 'wrong-version'}])):
+                with self.assertRaisesRegex(ValueError, 'expected.*' + version):
+                    registry.route_pool(p, {name: override})
+            invalid = {**p, 'routes': [{**routes[0], 'default_model': 'wrong-version'}]}
+            with self.assertRaisesRegex(ValueError, 'model mismatch'):
+                registry.route_pool(invalid, {})
+        routes = self.routes()
+        routes[0]['model'] = 'wrong-version'
+        with self.assertRaisesRegex(ValueError, 'model mismatch'):
+            scheduler.invoke('deepseek', routes, lambda _: self.fail('must reject before request'), {})
+        p = registry.provider('deepseek')
+        single = registry.configuration(p, {**ENV, 'SIGNAL_DEEPSEEK_TOKENHUB_MODEL': 'custom'}, 'tokenhub')
+        self.assertEqual(single['model'], 'custom')
+
+    def test_failed_samples_retain_version_before_admission(self):
+        sample = {}
+        with self.assertRaises(TimeoutError):
+            scheduler.invoke('deepseek', self.routes(), lambda _: self.fail('deadline'), sample, deadline=0)
+        self.assertEqual(sample['model_version'], 'deepseek-v4.1-flash')
+        self.assertEqual(sample['route_model'], 'deepseek-v4.1-flash')
+        with patch.dict(os.environ, ENV, clear=True), tempfile.TemporaryDirectory() as tmp, patch.object(api, 'results_dir', return_value=pathlib.Path(tmp)), patch.object(api, 'http_json', side_effect=ValueError('Provider HTTP 401')):
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                started = api.start_run({'market': 'CN', 'providers': ['deepseek'], 'prompts': ['Question'], 'brand_aliases': ['Brand']}, executor)
+            sample = api.get_run(started['id'])['samples'][0]
+            self.assertEqual(sample['status'], 'failed')
+            self.assertEqual(sample['model_version'], 'deepseek-v4.1-flash')
+            self.assertEqual(sample['route_model'], 'deepseek-v4.1-flash')
 
     def test_distribution_and_caps_across_simultaneous_calls(self):
         routes = self.routes()
         for r in routes: r['concurrency'] = 1
-        barrier = threading.Barrier(4)
+        barrier = threading.Barrier(2)
         active = {}; peak = {}; lock = threading.Lock()
         def request(route):
             name = route['route']
@@ -56,12 +124,12 @@ class MultiRoute(unittest.TestCase):
             barrier.wait(2)
             with lock: active[name] -= 1
             return RAW
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-            results = list(executor.map(lambda _: scheduler.invoke('deepseek', routes, request, {})[0]['route'], range(4)))
-        self.assertEqual(len(set(results)), 4)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            results = list(executor.map(lambda _: scheduler.invoke('deepseek', routes, request, {})[0]['route'], range(2)))
+        self.assertEqual(len(set(results)), 2)
         self.assertEqual(set(peak.values()), {1})
         scheduler.CURSOR.clear()
-        self.assertEqual([scheduler.invoke('deepseek', routes, lambda r: RAW, {})[0]['route'] for _ in range(4)], [r['route'] for r in routes])
+        self.assertEqual([scheduler.invoke('deepseek', routes, lambda r: RAW, {})[0]['route'] for _ in range(2)], [r['route'] for r in routes])
 
     def test_failover_and_nonretryable(self):
         for error in (ValueError('Provider HTTP 429'), ValueError('Provider HTTP 503'),
@@ -77,6 +145,7 @@ class MultiRoute(unittest.TestCase):
                 self.assertEqual(sample['failovers'], 1)
                 self.assertEqual(len(sample['attempts']), 2)
                 self.assertEqual(sample['route_model'], route['model'])
+                self.assertEqual(sample['model_version'], 'deepseek-v4.1-flash')
                 self.assertEqual(sample['route_platform'], route['route_platform'])
         sample = {}
         with self.assertRaises(ValueError):
@@ -166,7 +235,7 @@ class MultiRoute(unittest.TestCase):
         def http(url, headers, body):
             if 'maas.aliyuncs' in url: raise ValueError('Provider HTTP 429')
             return {**RAW, 'model': body['model'], 'echo': 'tokenhub-secret bailian-secret'}
-        with patch.dict(os.environ, ENV, clear=True), tempfile.TemporaryDirectory() as tmp, patch.object(api, 'results_dir', return_value=pathlib.Path(tmp)), patch.object(api, 'http_json', side_effect=http) as mock, patch.object(scheduler, 'invoke', wraps=scheduler.invoke) as invoke:
+        with patch.dict(os.environ, {**ENV, 'SIGNAL_ROUTE_QUOTA_MODE': 'off'}, clear=True), tempfile.TemporaryDirectory() as tmp, patch.object(api, 'results_dir', return_value=pathlib.Path(tmp)), patch.object(api, 'http_json', side_effect=http) as mock, patch.object(scheduler, 'invoke', wraps=scheduler.invoke) as invoke:
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 started = api.start_run({'market': 'CN', 'providers': ['deepseek'], 'prompts': ['Question'], 'brand_aliases': ['Brand']}, executor)
             run = api.get_run(started['id'])
@@ -176,8 +245,8 @@ class MultiRoute(unittest.TestCase):
             self.assertEqual(sample['status'], 'complete')
             self.assertEqual(sample['route_platform'], 'tokenhub')
             self.assertEqual(sample['route_model'], sample['model_returned'])
-            self.assertEqual(sample['failovers'], 2)
-            self.assertEqual(mock.call_count, 3)
+            self.assertEqual(sample['failovers'], 1)
+            self.assertEqual(mock.call_count, 2)
             self.assertEqual(invoke.call_args.kwargs['timeout'], 30)
             self.assertIn('deadline', invoke.call_args.kwargs)
             for file in pathlib.Path(tmp).rglob('*.json'):

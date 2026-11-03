@@ -52,6 +52,7 @@ def main():
   with patch.object(geo_flow,'direct_bridge',direct_bridge),patch.object(geo_flow,'DATA',root/'flows'),patch.object(ai_api,'results_dir',return_value=root/'runs'):
    started=time.monotonic();geo_flow.collect(job);elapsed=time.monotonic()-started
   for pid in providers:
+   print(f'{pid}: model_version={ai_api.provider(pid.removeprefix("direct:")).get("pool_model", configs[pid.removeprefix("direct:")]["model"])}')
    rows=[s for s in job['samples'] if s['provider']==pid];times=[s['latency_ms']/1000 for s in rows]
    tokens=usage_totals(rows)
    if times:print(f'{pid}: success={sum(s["status"]=="complete" for s in rows)} input_tokens={tokens["input"]} output_tokens={tokens["output"]} reasoning_tokens={tokens["reasoning"]} calls={len(rows)} complete={sum(s["status"]=="complete" for s in rows)} median={statistics.median(times):.2f}s max={max(times):.2f}s')

@@ -19,7 +19,7 @@ def test_registry_and_route_resolution():
         route, = ai_api.registry.route_pool(p)
         assert route['route'] == route['route_platform'] == 'official'
         assert route['base_url'] == 'https://api.openai.com/v1'
-        assert route['model'] == 'gpt-5.4-mini'
+        assert route['model'] == route['model_version'] == p['pool_model'] == 'gpt-5.4-mini'
         assert route['concurrency'] == 4
         assert ai_api.resolved(p)['route'] == 'pool'
         assert ai_api.registry.configuration(p, route='official')['model'] == 'gpt-5.4-mini'
