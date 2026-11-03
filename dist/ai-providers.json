@@ -255,7 +255,10 @@
         "pool": true,
         "platform": "official",
         "thinking_off": {},
-        "concurrency": 4
+        "concurrency": 4,
+        "quota": {
+          "kind": "usd_credit"
+        }
       }
     ]
   },
@@ -414,7 +417,11 @@
         "protocol": "chat",
         "free": true,
         "verified": false,
-        "env_model_var": "SIGNAL_DEEPSEEK_NVIDIA_NIM_MODEL"
+        "env_model_var": "SIGNAL_DEEPSEEK_NVIDIA_NIM_MODEL",
+        "quota": {
+          "unlimited": true
+        },
+        "platform": "nvidia"
       },
       {
         "id": "tokenhub",
@@ -425,7 +432,12 @@
         "protocol": "chat",
         "free": false,
         "verified": false,
-        "env_model_var": "SIGNAL_DEEPSEEK_TOKENHUB_MODEL"
+        "env_model_var": "SIGNAL_DEEPSEEK_TOKENHUB_MODEL",
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-11-03",
+          "scope": "per_model"
+        }
       },
       {
         "id": "bailian:deepseek-v4.1-flash",
@@ -440,7 +452,12 @@
         "thinking_off": {
           "enable_thinking": false
         },
-        "concurrency": 4
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-02-01",
+          "scope": "per_model"
+        }
       },
       {
         "id": "bailian:deepseek-v4-flash-0731",
@@ -455,7 +472,12 @@
         "thinking_off": {
           "enable_thinking": false
         },
-        "concurrency": 4
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-02-01",
+          "scope": "per_model"
+        }
       },
       {
         "id": "tokenhub:deepseek-v4.1-flash",
@@ -472,7 +494,12 @@
             "type": "disabled"
           }
         },
-        "concurrency": 4
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-11-03",
+          "scope": "per_model"
+        }
       },
       {
         "id": "tokenhub:deepseek-v4-flash-202605",
@@ -489,7 +516,12 @@
             "type": "disabled"
           }
         },
-        "concurrency": 4
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-11-03",
+          "scope": "per_model"
+        }
       }
     ]
   },
@@ -529,7 +561,13 @@
         "protocol": "chat",
         "free": false,
         "verified": false,
-        "env_model_var": "SIGNAL_QWEN_OFFICIAL_MODEL"
+        "env_model_var": "SIGNAL_QWEN_OFFICIAL_MODEL",
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-02-01",
+          "scope": "per_model"
+        },
+        "platform": "bailian"
       },
       {
         "id": "siliconflow",
@@ -549,7 +587,11 @@
         "protocol": "chat",
         "free": true,
         "verified": false,
-        "env_model_var": "SIGNAL_QWEN_NVIDIA_NIM_MODEL"
+        "env_model_var": "SIGNAL_QWEN_NVIDIA_NIM_MODEL",
+        "quota": {
+          "unlimited": true
+        },
+        "platform": "nvidia"
       },
       {
         "id": "bailian:qwen3.8-flash",
@@ -564,7 +606,12 @@
         "thinking_off": {
           "enable_thinking": false
         },
-        "concurrency": 4
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-02-01",
+          "scope": "per_model"
+        }
       },
       {
         "id": "bailian:qwen3.7-plus",
@@ -579,7 +626,12 @@
         "thinking_off": {
           "enable_thinking": false
         },
-        "concurrency": 4
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-02-01",
+          "scope": "per_model"
+        }
       }
     ]
   },
@@ -618,7 +670,11 @@
         "protocol": "chat",
         "free": true,
         "verified": false,
-        "env_model_var": "SIGNAL_ZHIPU_OFFICIAL_MODEL"
+        "env_model_var": "SIGNAL_ZHIPU_OFFICIAL_MODEL",
+        "quota": {
+          "unlimited": true
+        },
+        "platform": "zhipu"
       },
       {
         "id": "siliconflow",
@@ -638,8 +694,39 @@
         "default_model": "glm-5.3-flash",
         "protocol": "chat",
         "free": false,
-        "verified": false,
-        "env_model_var": "SIGNAL_ZHIPU_TOKENHUB_MODEL"
+        "verified": true,
+        "env_model_var": "SIGNAL_ZHIPU_TOKENHUB_MODEL",
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-11-03",
+          "scope": "per_model"
+        },
+        "thinking_off": {
+          "reasoning_effort": "low"
+        },
+        "fallback_only": false
+      },
+      {
+        "id": "tokenhub:glm-5.3-flash",
+        "name": "Tencent TokenHub",
+        "base_url": "https://tokenhub.tencentmaas.com/v1",
+        "env_key_var": "SIGNAL_TOKENHUB_API_KEY",
+        "default_model": "glm-5.3-flash",
+        "protocol": "chat",
+        "free": false,
+        "verified": true,
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-11-03",
+          "scope": "per_model"
+        },
+        "thinking_off": {
+          "reasoning_effort": "low"
+        },
+        "fallback_only": false,
+        "platform": "tokenhub",
+        "pool": true,
+        "concurrency": 4
       },
       {
         "id": "bailian:glm-5.3",
@@ -651,8 +738,16 @@
         "free": false,
         "verified": true,
         "pool": true,
-        "thinking_off": {},
-        "concurrency": 4
+        "thinking_off": {
+          "reasoning_effort": "low"
+        },
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-02-01",
+          "scope": "per_model"
+        },
+        "fallback_only": true
       },
       {
         "id": "tokenhub:glm-5.2",
@@ -665,11 +760,15 @@
         "verified": true,
         "pool": true,
         "thinking_off": {
-          "thinking": {
-            "type": "disabled"
-          }
+          "reasoning_effort": "low"
         },
-        "concurrency": 4
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-11-03",
+          "scope": "per_model"
+        },
+        "fallback_only": true
       },
       {
         "id": "zhipu:glm-4.7-flash",
@@ -686,7 +785,10 @@
             "type": "disabled"
           }
         },
-        "concurrency": 1
+        "concurrency": 1,
+        "quota": {
+          "unlimited": true
+        }
       }
     ]
   },
@@ -735,7 +837,11 @@
         "protocol": "chat",
         "free": true,
         "verified": false,
-        "env_model_var": "SIGNAL_KIMI_NVIDIA_NIM_MODEL"
+        "env_model_var": "SIGNAL_KIMI_NVIDIA_NIM_MODEL",
+        "quota": {
+          "unlimited": true
+        },
+        "platform": "nvidia"
       },
       {
         "id": "tokenhub",
@@ -746,7 +852,12 @@
         "protocol": "chat",
         "free": false,
         "verified": false,
-        "env_model_var": "SIGNAL_KIMI_TOKENHUB_MODEL"
+        "env_model_var": "SIGNAL_KIMI_TOKENHUB_MODEL",
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-11-03",
+          "scope": "per_model"
+        }
       },
       {
         "id": "bailian:kimi-k3",
@@ -761,7 +872,12 @@
         "thinking_off": {
           "enable_thinking": false
         },
-        "concurrency": 4
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-02-01",
+          "scope": "per_model"
+        }
       },
       {
         "id": "tokenhub:kimi-k3",
@@ -778,7 +894,12 @@
             "type": "disabled"
           }
         },
-        "concurrency": 4
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-11-03",
+          "scope": "per_model"
+        }
       },
       {
         "id": "tokenhub:kimi-k3.1-pro",
@@ -795,7 +916,12 @@
             "type": "disabled"
           }
         },
-        "concurrency": 4
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-11-03",
+          "scope": "per_model"
+        }
       }
     ]
   },
@@ -832,7 +958,12 @@
         "protocol": "chat",
         "free": false,
         "verified": false,
-        "env_model_var": "SIGNAL_DOUBAO_OFFICIAL_MODEL"
+        "env_model_var": "SIGNAL_DOUBAO_OFFICIAL_MODEL",
+        "quota": {
+          "free_tokens": 500000,
+          "scope": "per_model"
+        },
+        "platform": "ark"
       },
       {
         "id": "ark:doubao-seed-2-1-turbo-260628",
@@ -849,7 +980,11 @@
             "type": "disabled"
           }
         },
-        "concurrency": 4
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 500000,
+          "scope": "per_model"
+        }
       },
       {
         "id": "ark:doubao-seed-2-1-lite-260915",
@@ -866,7 +1001,11 @@
             "type": "disabled"
           }
         },
-        "concurrency": 4
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 500000,
+          "scope": "per_model"
+        }
       }
     ]
   },
@@ -926,7 +1065,11 @@
         "protocol": "chat",
         "free": true,
         "verified": false,
-        "env_model_var": "SIGNAL_MINIMAX_NVIDIA_NIM_MODEL"
+        "env_model_var": "SIGNAL_MINIMAX_NVIDIA_NIM_MODEL",
+        "quota": {
+          "unlimited": true
+        },
+        "platform": "nvidia"
       },
       {
         "id": "tokenhub",
@@ -937,7 +1080,16 @@
         "protocol": "chat",
         "free": false,
         "verified": false,
-        "env_model_var": "SIGNAL_MINIMAX_TOKENHUB_MODEL"
+        "env_model_var": "SIGNAL_MINIMAX_TOKENHUB_MODEL",
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-11-03",
+          "scope": "per_model"
+        },
+        "thinking_off": {
+          "reasoning_effort": "low"
+        },
+        "fallback_only": true
       },
       {
         "id": "nvidia:minimaxai/minimax-m3.1-flash",
@@ -955,7 +1107,11 @@
             "enable_thinking": false
           }
         },
-        "concurrency": 4
+        "concurrency": 4,
+        "quota": {
+          "unlimited": true
+        },
+        "fallback_only": true
       },
       {
         "id": "tokenhub:minimax-m3",
@@ -972,7 +1128,12 @@
             "type": "disabled"
           }
         },
-        "concurrency": 4
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-11-03",
+          "scope": "per_model"
+        }
       },
       {
         "id": "tokenhub:minimax-m3.1-flash",
@@ -984,8 +1145,16 @@
         "free": false,
         "verified": true,
         "pool": true,
-        "thinking_off": {},
-        "concurrency": 4
+        "thinking_off": {
+          "reasoning_effort": "low"
+        },
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-11-03",
+          "scope": "per_model"
+        },
+        "fallback_only": true
       }
     ]
   },
@@ -1035,7 +1204,12 @@
         "protocol": "chat",
         "free": false,
         "verified": false,
-        "env_model_var": "SIGNAL_HUNYUAN_TOKENHUB_MODEL"
+        "env_model_var": "SIGNAL_HUNYUAN_TOKENHUB_MODEL",
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-11-03",
+          "scope": "per_model"
+        }
       },
       {
         "id": "tokenhub:hy3",
@@ -1052,7 +1226,12 @@
             "type": "disabled"
           }
         },
-        "concurrency": 4
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-11-03",
+          "scope": "per_model"
+        }
       }
     ]
   },

@@ -53,7 +53,8 @@ def test_model_request_bodies():
                 assert 'max_tokens' not in body
                 with patch.dict(os.environ, {'SIGNAL_GEO_THINKING': '1'}):
                     body = ai_api.request_for(p, c, 'question')[2]
-                    assert 'reasoning' not in body and 'reasoning_effort' not in body
+                    actual = body.get('reasoning', {}).get('effort') if protocol == 'responses' else body.get('reasoning_effort')
+                    assert actual == effort
 
 
 def test_returned_usage_parsing_and_totals():

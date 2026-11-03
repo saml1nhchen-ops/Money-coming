@@ -45,7 +45,9 @@ def configuration(p, environ=None, route=None):
             continue
         return {'key': key, 'model': model, 'base_url': base.rstrip('/'), 'search': False,
                 'route': r['id'], 'free': free, 'protocol': r['protocol'],
-                **({'thinking_off':r['thinking_off'],'route_platform':r['platform']} if r.get('pool') else {})}
+                'quota':r.get('quota',{}), 'fallback_only':r.get('fallback_only',False),
+                'route_platform':r.get('platform',r['id']),
+                **({'thinking_off':r['thinking_off']} if 'thinking_off' in r else {})}
     # Official model overrides (including paid models) are the last auto choice.
     if selected == 'auto':
         return configuration(p, env, 'official')
@@ -115,5 +117,6 @@ def route_pool(p, environ=None):
         result.append({'route': r['id'], 'route_platform': r['platform'], 'model': model,
                        'base_url': r['base_url'].rstrip('/'), 'key': key, 'search': False,
                        'protocol': r['protocol'], 'free': model_is_free(r, model),
-                       'thinking_off': r['thinking_off'], 'concurrency': cap})
+                       'thinking_off': r['thinking_off'], 'concurrency': cap,
+                       'quota':r.get('quota',{}), 'fallback_only':r.get('fallback_only',False)})
     return result

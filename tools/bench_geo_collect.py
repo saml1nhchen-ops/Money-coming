@@ -25,9 +25,11 @@ def main():
  parser.add_argument('--prompts-file',type=pathlib.Path,help='UTF-8 file with one question per nonblank line; overrides --questions')
  parser.add_argument('--market',choices=('CN','US'),default='US')
  parser.add_argument('--china-families',action='store_true',help='Benchmark the seven China families with route pools')
+ parser.add_argument('--with',dest='extra',nargs='+',default=[],help='Additional families, including openai')
  parser.add_argument('--providers',nargs='+',help='Registry provider IDs; uses configured routes')
  args=parser.parse_args()
- if args.china_families:args.providers=['hunyuan','deepseek','kimi','zhipu','minimax','qwen','doubao'];args.market='CN'
+ if args.china_families:args.providers=list(dict.fromkeys(['hunyuan','deepseek','kimi','zhipu','minimax','qwen','doubao']+(args.providers or [])));args.market='CN'
+ args.providers=list(dict.fromkeys((args.providers or [])+args.extra))
  if not args.providers:parser.error('Use --providers or --china-families')
  if not 1<=args.questions<=300:parser.error('questions must be 1–300')
  if args.prompts_file:
@@ -53,6 +55,11 @@ def main():
    rows=[s for s in job['samples'] if s['provider']==pid];times=[s['latency_ms']/1000 for s in rows]
    tokens=usage_totals(rows)
    if times:print(f'{pid}: success={sum(s["status"]=="complete" for s in rows)} input_tokens={tokens["input"]} output_tokens={tokens["output"]} reasoning_tokens={tokens["reasoning"]} calls={len(rows)} complete={sum(s["status"]=="complete" for s in rows)} median={statistics.median(times):.2f}s max={max(times):.2f}s')
+   if rows:
+    averages=' '.join(f'{name}={tokens[name]/len(rows):.1f}' for name in ('input','output','reasoning'))
+    print(f'{pid}: average_tokens_per_call {averages}')
+    split_family=Counter((s.get('route_platform','unknown'),s.get('route_model','unknown')) for s in rows)
+    for (platform,model),count in sorted(split_family.items()):print(f'{pid}: {platform}/{model} calls={count}')
   samples=job['samples'];attempts=[a for s in samples for a in s.get('attempts',[])]
   split=Counter((s.get('route_platform','unknown'),s.get('route_model','unknown')) for s in samples if s['status']=='complete')
   for (platform,model),count in sorted(split.items()):print(f'{platform}/{model}: complete={count}')
