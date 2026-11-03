@@ -146,7 +146,7 @@ class Providers(unittest.TestCase):
    with self.assertRaisesRegex(ValueError,'fixture-stop'):flow.call(job,'direct:qwen',['Question'],'sampling')
   self.assertEqual(bridge.call_args.args[1]['routes'],{'qwen':'siliconflow'})
  def test_all_protocols_and_region_contracts(self):
-  expected={'openai':('responses','gpt-5'),'anthropic':('anthropic','claude-sonnet-4-5'),'gemini':('gemini','gemini-3.5-flash'),'perplexity':('chat','sonar'),'deepseek':('chat','deepseek-chat'),'zhipu':('chat','glm-4.7-flash')}
+  expected={'openai':('responses','gpt-5.4-mini'),'anthropic':('anthropic','claude-sonnet-4-5'),'gemini':('gemini','gemini-3.5-flash'),'perplexity':('chat','sonar'),'deepseek':('chat','deepseek-chat'),'zhipu':('chat','glm-4.7-flash')}
   for pid,(style,model) in expected.items():
    p=registry.provider(pid);self.assertEqual(p['api_style'],style);self.assertEqual(p['default_model'],model)
    self.assertIn(p['region'],['us','cn'])

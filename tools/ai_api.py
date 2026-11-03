@@ -84,12 +84,23 @@ def http_json(url,headers,body):
   # Do not echo provider error bodies, headers or URLs: they can contain secrets.
   raise ValueError('Provider HTTP '+str(e.code)+'; verify key, balance, model permissions and endpoint') from None
  except urllib.error.URLError:raise ValueError('Provider connection failed or timed out') from None
+def openai_reasoning_effort(model):
+ model=model.lower()
+ if model.endswith('-chat-latest'):return None
+ match=re.match(r'^gpt-(\d+)(?:\.(\d+))?(?=-|$)',model)
+ if match:
+  major=int(match[1]);minor=int(match[2] or 0)
+  if major>=6 or major==5 and minor>=1:return 'none'
+  if major==5:return 'minimal'
+ if re.match(r'^o\d+(?=-|$)',model):return 'low'
+ return None
+
 def request_for(p,c,prompt):
  base=c['base_url'];model=c['model'];search=c['search'];kind=c.get('protocol',p['protocol']);tokens=max_output_tokens();fast=os.environ.get('SIGNAL_GEO_THINKING')!='1'
  headers={'Authorization':'Bearer '+c['key']}
  if kind=='responses':
   body={'model':model,'input':prompt,'max_output_tokens':tokens,'store':False}
-  if fast and (model.startswith('gpt-5') and 'chat' not in model or re.match(r'^(o3|o4-mini|o1)(?:-20|$)',model)):body['reasoning']={'effort':'low'}
+  if fast and (effort:=openai_reasoning_effort(model)):body['reasoning']={'effort':effort}
   if search:body['tools']=[{'type':'web_search'}]
   return base+'/responses',headers,body
  if kind=='perplexity':return base+'/agent',headers,{'preset':model,'input':prompt}
@@ -104,9 +115,10 @@ def request_for(p,c,prompt):
   if search:body['tools']=[{'type':'web_search_20250305','name':'web_search','max_uses':3}]
   return base+'/messages',{'x-api-key':c['key'],'anthropic-version':'2023-06-01'},body
  body={'model':model,'messages':[{'role':'user','content':prompt}],'stream':False}
- body['max_completion_tokens' if p['id']=='minimax' and c.get('route','official')=='official' else 'max_tokens']=tokens
+ body['max_completion_tokens' if p['id']=='openai' or p['id']=='minimax' and c.get('route','official')=='official' else 'max_tokens']=tokens
  if fast:
   pid=p['id'];route=c.get('route','official');lower=model.lower()
+  if pid=='openai' and (effort:=openai_reasoning_effort(model)):body['reasoning_effort']=effort
   if pid=='qwen' and route in ('official','siliconflow'):body['enable_thinking']=False
   if pid=='qwen' and route=='nvidia_nim' and 'instruct' not in lower:body['chat_template_kwargs']={'enable_thinking':False}
   # MiniMax M3.1 Flash requires thinking; use its supported low effort setting.
@@ -123,7 +135,7 @@ def request_for(p,c,prompt):
    elif 'v4' in lower or 'v3.2' in lower:body['thinking']={'type':'disabled'}
   # TokenHub Kimi K3.x also supports disabling thinking.
   if pid=='kimi' and ((route in ('official','tokenhub') and any(x in lower for x in ('k2.5','k2.6'))) or (route=='tokenhub' and 'k3.' in lower)):body['thinking']={'type':'disabled'}
- if fast and 'thinking_off' in c:
+ if fast and 'thinking_off' in c and p['id']!='openai':
   for field in ('thinking','enable_thinking','chat_template_kwargs','reasoning_effort'):body.pop(field,None)
   body.update(copy.deepcopy(c['thinking_off']))
  if search and p['id']=='qwen':body['enable_search']=True

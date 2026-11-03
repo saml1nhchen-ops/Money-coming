@@ -1,7 +1,7 @@
 # GEO route pools
 
 Default direct GEO sampling uses the ordered, verified `pool: true` routes in
-`dist/ai-providers.json` for the seven China families. Missing credentials silently
+`dist/ai-providers.json` for the seven China families and OpenAI. Missing credentials silently
 remove routes; a family without a pool falls back to its existing single-route
 configuration. Unconfigured families retain the existing skip behavior. Hunyuan
 currently has one verified platform; Qwen and Doubao have two models on one platform.
@@ -52,5 +52,21 @@ Opt-in benchmark (makes real API calls; never part of tests):
 python3 tools/bench_geo_collect.py --china-families --questions 10
 ```
 
-Prints wall time, completion fraction, total observed 429s, failovers and successful
+Prints per-provider success counts and aggregate input/output/reasoning token totals
+from returned usage (reasoning is part of output, not an additional total), wall time, completion fraction, total observed 429s, failovers and successful
 platform/model split. No answers or credentials are printed.
+
+## OpenAI
+
+OpenAI defaults to `gpt-5.4-mini` via the official Responses endpoint
+`https://api.openai.com/v1`, using `SIGNAL_OPENAI_API_KEY`. Its official pool route
+has concurrency 4 and follows the same pool and concurrency overrides above.
+Use `SIGNAL_OPENAI_ROUTE=official` for single-route model/base overrides, or
+`SIGNAL_OPENAI_ROUTES` to customize the pool.
+
+With thinking off (default), GPT-5.1+ and GPT-6+ use reasoning effort `none`,
+GPT-5/5-mini/5-nano use `minimal`, and o-series use `low`. Chat-latest and
+GPT-4.x/4o models omit reasoning parameters. `SIGNAL_GEO_THINKING=1` leaves
+reasoning settings to the API. `SIGNAL_MAX_TOKENS` controls `max_output_tokens`
+for Responses and `max_completion_tokens` for OpenAI Chat Completions.
+The separate B.AI provider retains its own model default.

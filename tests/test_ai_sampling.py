@@ -25,7 +25,7 @@ class SamplingBodies(unittest.TestCase):
     self.assertNotIn('thinking',self.body('kimi','official',model=model))
    self.assertEqual(self.body('deepseek',model='deepseek-reasoner')['model'],'deepseek-chat')
    self.assertEqual(self.body('gemini')['generationConfig']['thinkingConfig'],{'thinkingLevel':'low'})
-   self.assertEqual(self.body('openai')['reasoning'],{'effort':'low'})
+   self.assertEqual(self.body('openai')['reasoning'],{'effort':'none'})
    self.assertNotIn('reasoning',self.body('openai',model='gpt-4.1'))
   with patch.dict(os.environ,{'SIGNAL_GEO_THINKING':'1'}):
    self.assertNotIn('enable_thinking',self.body('qwen'))

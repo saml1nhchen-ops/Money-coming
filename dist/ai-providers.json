@@ -230,14 +230,14 @@
     "hosts": [
       "api.openai.com"
     ],
-    "model_hint": "Model ID; default gpt-5",
+    "model_hint": "Model ID; default gpt-5.4-mini",
     "search": true,
     "docs": "https://developers.openai.com/api/docs/guides/tools-web-search",
     "boundary": "OpenAI Responses API；不代表 ChatGPT 消费者界面；联网需模型支持",
     "label": "OpenAI",
     "region": "us",
     "api_style": "responses",
-    "default_model": "gpt-5",
+    "default_model": "gpt-5.4-mini",
     "env_key_var": "SIGNAL_OPENAI_API_KEY",
     "env_model_var": "SIGNAL_OPENAI_MODEL",
     "env_base_url_var": "SIGNAL_OPENAI_BASE_URL",
@@ -247,11 +247,15 @@
         "id": "official",
         "base_url": "https://api.openai.com/v1",
         "env_key_var": "SIGNAL_OPENAI_API_KEY",
-        "default_model": "gpt-5",
+        "default_model": "gpt-5.4-mini",
         "protocol": "responses",
         "free": false,
         "verified": false,
-        "env_model_var": "SIGNAL_OPENAI_OFFICIAL_MODEL"
+        "env_model_var": "SIGNAL_OPENAI_OFFICIAL_MODEL",
+        "pool": true,
+        "platform": "official",
+        "thinking_off": {},
+        "concurrency": 4
       }
     ]
   },
