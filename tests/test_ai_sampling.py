@@ -17,20 +17,20 @@ class SamplingBodies(unittest.TestCase):
   with patch.dict(os.environ,{},clear=True):
    self.assertFalse(self.body('qwen')['enable_thinking'])
    for pid,route in [('doubao','official'),('zhipu','official'),('deepseek','tokenhub'),('hunyuan','tokenhub')]:self.assertEqual(self.body(pid,route)['thinking'],{'type':'disabled'})
-   self.assertEqual(self.body('minimax','tokenhub')['reasoning_effort'],'low')
+   self.assertEqual(self.body('minimax','tokenhub')['thinking'],{'type':'disabled'})
    self.assertEqual(self.body('zhipu','tokenhub',model='glm-5.3-flash')['reasoning_effort'],'low')
    self.assertNotIn('thinking',self.body('zhipu','tokenhub',model='glm-5.3-flash'))
    for model in ('kimi-k3.1-pro','kimi-k3.0'):
     self.assertEqual(self.body('kimi','tokenhub',model=model)['thinking'],{'type':'disabled'})
-    self.assertNotIn('thinking',self.body('kimi','official',model=model))
+    self.assertEqual(self.body('kimi','official',model=model)['thinking'],{'type':'disabled'})
    self.assertEqual(self.body('deepseek',model='deepseek-reasoner')['model'],'deepseek-chat')
-   self.assertEqual(self.body('gemini')['generationConfig']['thinkingConfig'],{'thinkingLevel':'low'})
-   self.assertEqual(self.body('openai')['reasoning'],{'effort':'low'})
+   self.assertEqual(self.body('gemini')['generationConfig']['thinkingConfig'],{'thinkingLevel':'minimal'})
+   self.assertEqual(self.body('openai')['reasoning'],{'effort':'none'})
    self.assertNotIn('reasoning',self.body('openai',model='gpt-4.1'))
   with patch.dict(os.environ,{'SIGNAL_GEO_THINKING':'1'}):
-   self.assertNotIn('enable_thinking',self.body('qwen'))
-   self.assertNotIn('thinking',self.body('kimi','tokenhub',model='kimi-k3.1-pro'))
-   self.assertNotIn('reasoning_effort',self.body('zhipu','tokenhub',model='glm-5.3-flash'))
+   self.assertFalse(self.body('qwen')['enable_thinking'])
+   self.assertEqual(self.body('kimi','tokenhub',model='kimi-k3.1-pro')['thinking'],{'type':'disabled'})
+   self.assertEqual(self.body('zhipu','tokenhub',model='glm-5.3-flash')['reasoning_effort'],'low')
  def test_gemini_default(self):self.assertEqual(a.provider('gemini')['default_model'],'gemini-3.5-flash')
  def test_clamps_and_invalid_values(self):
   for value,expected in [('invalid',3000),('0',128),('1000000',32768),('2000',2000)]:
@@ -44,7 +44,7 @@ class SamplingBodies(unittest.TestCase):
    a.http_json('https://fixture.example',{},{});self.assertEqual(opener.return_value.open.call_args.kwargs['timeout'],17)
  def test_plan_uses_configured_tokens(self):
   import geo_plan
-  from test_geo_flow import config
+  from tests.test_geo_flow import config
   with patch.dict(os.environ,{},clear=True):
    plan=geo_plan.plan(config());self.assertEqual(plan['estimated_output_tokens'],plan['generation_calls']*2000+plan['answer_calls']*3000)
   with patch.dict(os.environ,{'SIGNAL_MAX_TOKENS':'2000'}):

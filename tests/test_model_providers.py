@@ -29,7 +29,7 @@ class Providers(unittest.TestCase):
     with self.assertRaisesRegex(ValueError,'API host must resolve to public addresses'):api.http_json('https://api.example/v1',{},{})
     opener.assert_not_called()
  def test_tokenhub_priority_models_and_hosts(self):
-  defaults={'hunyuan':'hy3','deepseek':'deepseek-v4-flash-202605','kimi':'kimi-k3.1-pro','zhipu':'glm-5.3-flash','minimax':'minimax-m3.1-flash'}
+  defaults={'hunyuan':'hy3','deepseek':'deepseek-v4.1-flash','kimi':'kimi-k3.1-pro','zhipu':'glm-5.3-flash','minimax':'minimax-m3'}
   env={'SIGNAL_TOKENHUB_API_KEY':'fixture','SIGNAL_NVIDIA_API_KEY':'fixture','SIGNAL_ZHIPU_API_KEY':'fixture'}
   for pid,model in defaults.items():
    p=registry.provider(pid);c=registry.configuration(p,env)
@@ -41,10 +41,10 @@ class Providers(unittest.TestCase):
    del env[p['env_route_var']]
    env[f'SIGNAL_{pid.upper()}_TOKENHUB_MODEL']='fixture-model'
    self.assertEqual(registry.configuration(p,env)['model'],'fixture-model')
-  self.assertEqual(registry.configuration(registry.provider('deepseek'),{'SIGNAL_TOKENHUB_API_KEY':'','SIGNAL_NVIDIA_API_KEY':'fixture'})['route'],'nvidia_nim')
+  self.assertIsNone(registry.configuration(registry.provider('deepseek'),{'SIGNAL_TOKENHUB_API_KEY':'','SIGNAL_NVIDIA_API_KEY':'fixture'}))
  def test_official_defaults_and_safe_hosts(self):
   p=registry.provider('qwen');c=registry.configuration(p,{'SIGNAL_QWEN_API_KEY':'fixture'})
-  self.assertEqual(c['model'],'qwen3.8-flash')
+  self.assertEqual(c['model'],'qwen3.7-plus')
   self.assertEqual(api.safe_endpoint(p,c['base_url']),'https://ws-ixip3dluugdr0m7r.cn-beijing.maas.aliyuncs.com/compatible-mode/v1')
   with self.assertRaises(ValueError):api.safe_endpoint(p,'https://untrusted.example/v1')
  def test_chat_token_budget_and_minimax_routes(self):
@@ -92,7 +92,7 @@ class Providers(unittest.TestCase):
   with patch.dict(os.environ,{},clear=True):
    self.assertTrue(all(not p['configured'] for p in api.config_public()))
    os.environ.update(SIGNAL_DOUBAO_API_KEY='secret')
-   self.assertEqual(registry.configuration(registry.provider('doubao'))['model'],'doubao-seed-2-1-turbo-260628')
+   self.assertEqual(registry.configuration(registry.provider('doubao'))['model'],'doubao-seed-2-1-lite-260915')
    os.environ['SIGNAL_DOUBAO_MODEL']='ep-fixture'
    self.assertEqual(registry.configuration(registry.provider('doubao'))['model'],'ep-fixture')
    os.environ.update(SIGNAL_OPENAI_API_KEY='secret',SIGNAL_OPENAI_MODEL='gpt-fixture',SIGNAL_OPENAI_BASE_URL='https://proxy.example/v1')
@@ -104,7 +104,8 @@ class Providers(unittest.TestCase):
   env={'SIGNAL_NVIDIA_API_KEY':'shared-fixture','SIGNAL_SILICONFLOW_API_KEY':'silicon-fixture','SIGNAL_OPENROUTER_API_KEY':'router-fixture','SIGNAL_QWEN_API_KEY':'official-fixture'}
   resolve=lambda pid:registry.configuration(registry.provider(pid),env)
   self.assertEqual(resolve('qwen')['route'],'siliconflow')
-  self.assertEqual(resolve('deepseek')['key'],resolve('kimi')['key'])
+  self.assertNotEqual((resolve('deepseek') or {}).get('route'),'nvidia_nim')
+  self.assertIsNone(resolve('kimi'))
   self.assertEqual(resolve('minimax')['route'],'openrouter')
   env['SIGNAL_ZHIPU_API_KEY']='official-fixture'
   self.assertEqual(resolve('zhipu')['route'],'official')
@@ -128,7 +129,7 @@ class Providers(unittest.TestCase):
  def test_routed_mock_request_and_public_status(self):
   with patch.dict(os.environ,{'SIGNAL_NVIDIA_API_KEY':'shared-fixture'},clear=True),tempfile.TemporaryDirectory() as t,patch.object(api,'results_dir',return_value=pathlib.Path(t)),patch.object(api,'http_json',return_value={'choices':[{'message':{'content':'Brand'},'finish_reason':'stop'}]}) as http:
    status=api.config_public();deep=next(p for p in status if p['id']=='deepseek')
-   self.assertEqual(deep['configuration']['route'],'nvidia_nim');self.assertTrue(deep['configuration']['free'])
+   self.assertFalse(deep['configured'])
    self.assertNotIn('shared-fixture',json.dumps(status))
    with concurrent.futures.ThreadPoolExecutor() as pool:
     run=api.start_run({'market':'US','providers':['deepseek'],'routes':{'deepseek':'nvidia_nim'},'prompts':['Question'],'brand_aliases':['Brand']},pool)
@@ -138,7 +139,8 @@ class Providers(unittest.TestCase):
    for file in pathlib.Path(t).rglob('*.json'):self.assertNotIn('shared-fixture',file.read_text())
  def test_blank_compose_route_defaults_to_auto_and_official_paid_fallback(self):
   c=registry.configuration(registry.provider('deepseek'),{'SIGNAL_DEEPSEEK_ROUTE':'','SIGNAL_DEEPSEEK_API_KEY':'fixture'})
-  self.assertEqual(c['route'],'official');self.assertFalse(c['free'])
+  self.assertIsNone(c)
+  self.assertEqual(registry.configuration(registry.provider('deepseek'),{'SIGNAL_DEEPSEEK_API_KEY':'fixture'},'official')['route'],'official')
  def test_geo_selected_route_reaches_direct_runner(self):
   config={'market':'US','brand_aliases':['Brand'],'skus':[],'website':'https://brand.example','configuration':{'direct:qwen':{'model':'Qwen/Qwen3-8B','route':'siliconflow','protocol':'chat'}}}
   job={'id':'fixture','config':config}
@@ -146,7 +148,7 @@ class Providers(unittest.TestCase):
    with self.assertRaisesRegex(ValueError,'fixture-stop'):flow.call(job,'direct:qwen',['Question'],'sampling')
   self.assertEqual(bridge.call_args.args[1]['routes'],{'qwen':'siliconflow'})
  def test_all_protocols_and_region_contracts(self):
-  expected={'openai':('responses','gpt-5'),'anthropic':('anthropic','claude-sonnet-4-5'),'gemini':('gemini','gemini-3.5-flash'),'perplexity':('chat','sonar'),'deepseek':('chat','deepseek-chat'),'zhipu':('chat','glm-4.7-flash')}
+  expected={'openai':('responses','gpt-5.4-mini'),'anthropic':('anthropic','claude-sonnet-4-5'),'gemini':('gemini','gemini-3.5-flash'),'perplexity':('chat','sonar'),'deepseek':('chat','deepseek-v4.1-flash'),'zhipu':('chat','glm-5.3-flash')}
   for pid,(style,model) in expected.items():
    p=registry.provider(pid);self.assertEqual(p['api_style'],style);self.assertEqual(p['default_model'],model)
    self.assertIn(p['region'],['us','cn'])
@@ -155,9 +157,9 @@ class Providers(unittest.TestCase):
   with patch.dict(os.environ,{'SIGNAL_DEEPSEEK_API_KEY':'secret','SIGNAL_QWEN_API_KEY':'secret'},clear=True),tempfile.TemporaryDirectory() as t,patch.object(api,'results_dir',return_value=pathlib.Path(t)),patch.object(api,'http_json',return_value=raw) as http:
    d={'market':'US','prompts':['Question'],'brand_aliases':['Brand'],'skus':[]}
    with concurrent.futures.ThreadPoolExecutor() as pool:r=api.start_run(d,pool)
-   self.assertEqual(http.call_count,4) # Shared Bailian key also configures Kimi and GLM pools.
+   self.assertEqual(http.call_count,2) # Bailian configures the Qwen and DeepSeek pools.
    http.reset_mock()
-   with concurrent.futures.ThreadPoolExecutor() as pool:r=api.start_run({**d,'providers':['deepseek','doubao'],'models':{'deepseek':'override'}},pool)
+   with concurrent.futures.ThreadPoolExecutor() as pool:r=api.start_run({**d,'providers':['deepseek','doubao'],'routes':{'deepseek':'official'},'models':{'deepseek':'override'}},pool)
    run=api.get_run(r['id'])
    self.assertEqual(http.call_count,1);self.assertEqual(run['provider_status']['doubao'],'not configured')
    self.assertEqual(http.call_args.args[2]['model'],'override')
@@ -189,7 +191,7 @@ class Providers(unittest.TestCase):
   class Workspace:api=API()
   w=Workspace()
   with patch.object(remote_service,'prepare_dependencies',return_value=True):
-   remote_service.bootstrap(w,{'SIGNAL_DEEPSEEK_API_KEY':'secret'})
+   remote_service.bootstrap(w,{'SIGNAL_TOKENHUB_API_KEY':'secret'})
   self.assertTrue(w.ready)
 
 if __name__=='__main__':unittest.main()

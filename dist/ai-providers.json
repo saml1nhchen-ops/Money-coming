@@ -230,14 +230,14 @@
     "hosts": [
       "api.openai.com"
     ],
-    "model_hint": "Model ID; default gpt-5",
+    "model_hint": "Model ID; default gpt-5.4-mini",
     "search": true,
     "docs": "https://developers.openai.com/api/docs/guides/tools-web-search",
     "boundary": "OpenAI Responses API；不代表 ChatGPT 消费者界面；联网需模型支持",
     "label": "OpenAI",
     "region": "us",
     "api_style": "responses",
-    "default_model": "gpt-5",
+    "default_model": "gpt-5.4-mini",
     "env_key_var": "SIGNAL_OPENAI_API_KEY",
     "env_model_var": "SIGNAL_OPENAI_MODEL",
     "env_base_url_var": "SIGNAL_OPENAI_BASE_URL",
@@ -247,13 +247,21 @@
         "id": "official",
         "base_url": "https://api.openai.com/v1",
         "env_key_var": "SIGNAL_OPENAI_API_KEY",
-        "default_model": "gpt-5",
+        "default_model": "gpt-5.4-mini",
         "protocol": "responses",
         "free": false,
         "verified": false,
-        "env_model_var": "SIGNAL_OPENAI_OFFICIAL_MODEL"
+        "env_model_var": "SIGNAL_OPENAI_OFFICIAL_MODEL",
+        "pool": true,
+        "platform": "official",
+        "thinking_off": {},
+        "concurrency": 4,
+        "quota": {
+          "kind": "usd_credit"
+        }
       }
-    ]
+    ],
+    "pool_model": "gpt-5.4-mini"
   },
   {
     "id": "anthropic",
@@ -327,7 +335,8 @@
         "verified": false,
         "env_model_var": "SIGNAL_GEMINI_OFFICIAL_MODEL"
       }
-    ]
+    ],
+    "pool_model": "gemini-3.5-flash"
   },
   {
     "id": "perplexity",
@@ -379,14 +388,14 @@
       "api.deepseek.com",
       "tokenhub.tencentmaas.com"
     ],
-    "model_hint": "Model ID; default deepseek-chat",
+    "model_hint": "Model ID; default deepseek-v4.1-flash",
     "search": false,
     "docs": "https://api-docs.deepseek.com/",
     "boundary": "模型 API；不代表 DeepSeek App 的联网搜索结果",
     "label": "DeepSeek",
     "region": "cn",
     "api_style": "chat",
-    "default_model": "deepseek-chat",
+    "default_model": "deepseek-v4.1-flash",
     "env_key_var": "SIGNAL_DEEPSEEK_API_KEY",
     "env_model_var": "SIGNAL_DEEPSEEK_MODEL",
     "env_base_url_var": "SIGNAL_DEEPSEEK_BASE_URL",
@@ -400,7 +409,8 @@
         "protocol": "chat",
         "free": false,
         "verified": false,
-        "env_model_var": "SIGNAL_DEEPSEEK_OFFICIAL_MODEL"
+        "env_model_var": "SIGNAL_DEEPSEEK_OFFICIAL_MODEL",
+        "default": false
       },
       {
         "id": "nvidia_nim",
@@ -410,18 +420,33 @@
         "protocol": "chat",
         "free": true,
         "verified": false,
-        "env_model_var": "SIGNAL_DEEPSEEK_NVIDIA_NIM_MODEL"
+        "env_model_var": "SIGNAL_DEEPSEEK_NVIDIA_NIM_MODEL",
+        "quota": {
+          "unlimited": true
+        },
+        "platform": "nvidia",
+        "default": false
       },
       {
         "id": "tokenhub",
         "name": "Tencent TokenHub",
         "base_url": "https://tokenhub.tencentmaas.com/v1",
         "env_key_var": "SIGNAL_TOKENHUB_API_KEY",
-        "default_model": "deepseek-v4-flash-202605",
+        "default_model": "deepseek-v4.1-flash",
         "protocol": "chat",
         "free": false,
         "verified": false,
-        "env_model_var": "SIGNAL_DEEPSEEK_TOKENHUB_MODEL"
+        "env_model_var": "SIGNAL_DEEPSEEK_TOKENHUB_MODEL",
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-11-03",
+          "scope": "per_model"
+        },
+        "thinking_off": {
+          "thinking": {
+            "type": "disabled"
+          }
+        }
       },
       {
         "id": "bailian:deepseek-v4.1-flash",
@@ -436,22 +461,12 @@
         "thinking_off": {
           "enable_thinking": false
         },
-        "concurrency": 4
-      },
-      {
-        "id": "bailian:deepseek-v4-flash-0731",
-        "platform": "bailian",
-        "base_url": "https://ws-ixip3dluugdr0m7r.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
-        "env_key_var": "SIGNAL_QWEN_API_KEY",
-        "default_model": "deepseek-v4-flash-0731",
-        "protocol": "chat",
-        "free": false,
-        "verified": true,
-        "pool": true,
-        "thinking_off": {
-          "enable_thinking": false
-        },
-        "concurrency": 4
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-02-01",
+          "scope": "per_model"
+        }
       },
       {
         "id": "tokenhub:deepseek-v4.1-flash",
@@ -468,14 +483,20 @@
             "type": "disabled"
           }
         },
-        "concurrency": 4
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-11-03",
+          "scope": "per_model"
+        },
+        "fallback_only": true
       },
       {
-        "id": "tokenhub:deepseek-v4-flash-202605",
-        "platform": "tokenhub",
-        "base_url": "https://tokenhub.tencentmaas.com/v1",
-        "env_key_var": "SIGNAL_TOKENHUB_API_KEY",
-        "default_model": "deepseek-v4-flash-202605",
+        "id": "ark:deepseek-v4.1-flash",
+        "platform": "ark",
+        "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+        "env_key_var": "SIGNAL_DOUBAO_API_KEY",
+        "default_model": "deepseek-v4-1-flash-261017",
         "protocol": "chat",
         "free": false,
         "verified": true,
@@ -485,8 +506,16 @@
             "type": "disabled"
           }
         },
-        "concurrency": 4
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 500000,
+          "scope": "per_model"
+        }
       }
+    ],
+    "pool_model": "deepseek-v4.1-flash",
+    "pool_model_aliases": [
+      "deepseek-v4-1-flash-261017"
     ]
   },
   {
@@ -511,7 +540,7 @@
     "label": "Qwen",
     "region": "cn",
     "api_style": "chat",
-    "default_model": "qwen3.8-flash",
+    "default_model": "qwen3.7-plus",
     "env_key_var": "SIGNAL_QWEN_API_KEY",
     "env_model_var": "SIGNAL_QWEN_MODEL",
     "env_base_url_var": "SIGNAL_QWEN_BASE_URL",
@@ -521,11 +550,20 @@
         "id": "official",
         "base_url": "https://ws-ixip3dluugdr0m7r.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
         "env_key_var": "SIGNAL_QWEN_API_KEY",
-        "default_model": "qwen3.8-flash",
+        "default_model": "qwen3.7-plus",
         "protocol": "chat",
         "free": false,
         "verified": false,
-        "env_model_var": "SIGNAL_QWEN_OFFICIAL_MODEL"
+        "env_model_var": "SIGNAL_QWEN_OFFICIAL_MODEL",
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-02-01",
+          "scope": "per_model"
+        },
+        "platform": "bailian",
+        "thinking_off": {
+          "enable_thinking": false
+        }
       },
       {
         "id": "siliconflow",
@@ -545,22 +583,12 @@
         "protocol": "chat",
         "free": true,
         "verified": false,
-        "env_model_var": "SIGNAL_QWEN_NVIDIA_NIM_MODEL"
-      },
-      {
-        "id": "bailian:qwen3.8-flash",
-        "platform": "bailian",
-        "base_url": "https://ws-ixip3dluugdr0m7r.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
-        "env_key_var": "SIGNAL_QWEN_API_KEY",
-        "default_model": "qwen3.8-flash",
-        "protocol": "chat",
-        "free": false,
-        "verified": true,
-        "pool": true,
-        "thinking_off": {
-          "enable_thinking": false
+        "env_model_var": "SIGNAL_QWEN_NVIDIA_NIM_MODEL",
+        "quota": {
+          "unlimited": true
         },
-        "concurrency": 4
+        "platform": "nvidia",
+        "default": false
       },
       {
         "id": "bailian:qwen3.7-plus",
@@ -575,9 +603,15 @@
         "thinking_off": {
           "enable_thinking": false
         },
-        "concurrency": 4
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-02-01",
+          "scope": "per_model"
+        }
       }
-    ]
+    ],
+    "pool_model": "qwen3.7-plus"
   },
   {
     "id": "zhipu",
@@ -600,7 +634,7 @@
     "label": "智谱",
     "region": "cn",
     "api_style": "chat",
-    "default_model": "glm-4.7-flash",
+    "default_model": "glm-5.3-flash",
     "env_key_var": "SIGNAL_ZHIPU_API_KEY",
     "env_model_var": "SIGNAL_ZHIPU_MODEL",
     "env_base_url_var": "SIGNAL_ZHIPU_BASE_URL",
@@ -614,7 +648,11 @@
         "protocol": "chat",
         "free": true,
         "verified": false,
-        "env_model_var": "SIGNAL_ZHIPU_OFFICIAL_MODEL"
+        "env_model_var": "SIGNAL_ZHIPU_OFFICIAL_MODEL",
+        "quota": {
+          "unlimited": true
+        },
+        "platform": "zhipu"
       },
       {
         "id": "siliconflow",
@@ -634,28 +672,46 @@
         "default_model": "glm-5.3-flash",
         "protocol": "chat",
         "free": false,
-        "verified": false,
-        "env_model_var": "SIGNAL_ZHIPU_TOKENHUB_MODEL"
-      },
-      {
-        "id": "bailian:glm-5.3",
-        "platform": "bailian",
-        "base_url": "https://ws-ixip3dluugdr0m7r.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
-        "env_key_var": "SIGNAL_QWEN_API_KEY",
-        "default_model": "glm-5.3",
-        "protocol": "chat",
-        "free": false,
         "verified": true,
-        "pool": true,
-        "thinking_off": {},
-        "concurrency": 4
+        "env_model_var": "SIGNAL_ZHIPU_TOKENHUB_MODEL",
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-11-03",
+          "scope": "per_model"
+        },
+        "thinking_off": {
+          "reasoning_effort": "low"
+        },
+        "fallback_only": false
       },
       {
-        "id": "tokenhub:glm-5.2",
-        "platform": "tokenhub",
+        "id": "tokenhub:glm-5.3-flash",
+        "name": "Tencent TokenHub",
         "base_url": "https://tokenhub.tencentmaas.com/v1",
         "env_key_var": "SIGNAL_TOKENHUB_API_KEY",
-        "default_model": "glm-5.2",
+        "default_model": "glm-5.3-flash",
+        "protocol": "chat",
+        "free": false,
+        "verified": true,
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-11-03",
+          "scope": "per_model"
+        },
+        "thinking_off": {
+          "reasoning_effort": "low"
+        },
+        "platform": "tokenhub",
+        "pool": true,
+        "concurrency": 4,
+        "fallback_only": true
+      },
+      {
+        "id": "ark:glm-5.3-flash",
+        "platform": "ark",
+        "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+        "env_key_var": "SIGNAL_DOUBAO_API_KEY",
+        "default_model": "glm-5-3-flash-260828",
         "protocol": "chat",
         "free": false,
         "verified": true,
@@ -665,25 +721,16 @@
             "type": "disabled"
           }
         },
-        "concurrency": 4
-      },
-      {
-        "id": "zhipu:glm-4.7-flash",
-        "platform": "zhipu",
-        "base_url": "https://open.bigmodel.cn/api/paas/v4",
-        "env_key_var": "SIGNAL_ZHIPU_API_KEY",
-        "default_model": "glm-4.7-flash",
-        "protocol": "chat",
-        "free": true,
-        "verified": true,
-        "pool": true,
-        "thinking_off": {
-          "thinking": {
-            "type": "disabled"
-          }
-        },
-        "concurrency": 1
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 500000,
+          "scope": "per_model"
+        }
       }
+    ],
+    "pool_model": "glm-5.3-flash",
+    "pool_model_aliases": [
+      "glm-5-3-flash-260828"
     ]
   },
   {
@@ -700,14 +747,14 @@
       "api.moonshot.ai",
       "tokenhub.tencentmaas.com"
     ],
-    "model_hint": "Model ID; default kimi-k2-0905-preview",
+    "model_hint": "Model ID; default kimi-k3.1-pro",
     "search": false,
     "docs": "https://platform.kimi.com/docs/api/chat",
     "boundary": "Kimi 模型文本 API；不包含 App 的托管搜索工作流",
     "label": "Kimi",
     "region": "cn",
     "api_style": "chat",
-    "default_model": "kimi-k2-0905-preview",
+    "default_model": "kimi-k3.1-pro",
     "env_key_var": "SIGNAL_KIMI_API_KEY",
     "env_model_var": "SIGNAL_KIMI_MODEL",
     "env_base_url_var": "SIGNAL_KIMI_BASE_URL",
@@ -721,7 +768,8 @@
         "protocol": "chat",
         "free": false,
         "verified": false,
-        "env_model_var": "SIGNAL_KIMI_OFFICIAL_MODEL"
+        "env_model_var": "SIGNAL_KIMI_OFFICIAL_MODEL",
+        "default": false
       },
       {
         "id": "nvidia_nim",
@@ -731,7 +779,12 @@
         "protocol": "chat",
         "free": true,
         "verified": false,
-        "env_model_var": "SIGNAL_KIMI_NVIDIA_NIM_MODEL"
+        "env_model_var": "SIGNAL_KIMI_NVIDIA_NIM_MODEL",
+        "quota": {
+          "unlimited": true
+        },
+        "platform": "nvidia",
+        "default": false
       },
       {
         "id": "tokenhub",
@@ -742,39 +795,17 @@
         "protocol": "chat",
         "free": false,
         "verified": false,
-        "env_model_var": "SIGNAL_KIMI_TOKENHUB_MODEL"
-      },
-      {
-        "id": "bailian:kimi-k3",
-        "platform": "bailian",
-        "base_url": "https://ws-ixip3dluugdr0m7r.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
-        "env_key_var": "SIGNAL_QWEN_API_KEY",
-        "default_model": "kimi-k3",
-        "protocol": "chat",
-        "free": false,
-        "verified": true,
-        "pool": true,
-        "thinking_off": {
-          "enable_thinking": false
+        "env_model_var": "SIGNAL_KIMI_TOKENHUB_MODEL",
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-11-03",
+          "scope": "per_model"
         },
-        "concurrency": 4
-      },
-      {
-        "id": "tokenhub:kimi-k3",
-        "platform": "tokenhub",
-        "base_url": "https://tokenhub.tencentmaas.com/v1",
-        "env_key_var": "SIGNAL_TOKENHUB_API_KEY",
-        "default_model": "kimi-k3",
-        "protocol": "chat",
-        "free": false,
-        "verified": true,
-        "pool": true,
         "thinking_off": {
           "thinking": {
             "type": "disabled"
           }
-        },
-        "concurrency": 4
+        }
       },
       {
         "id": "tokenhub:kimi-k3.1-pro",
@@ -791,8 +822,39 @@
             "type": "disabled"
           }
         },
-        "concurrency": 4
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-11-03",
+          "scope": "per_model"
+        },
+        "fallback_only": true
+      },
+      {
+        "id": "ark:kimi-k3.1-pro",
+        "platform": "ark",
+        "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+        "env_key_var": "SIGNAL_DOUBAO_API_KEY",
+        "default_model": "kimi-k3-1-pro-261024",
+        "protocol": "chat",
+        "free": false,
+        "verified": true,
+        "pool": true,
+        "thinking_off": {
+          "thinking": {
+            "type": "disabled"
+          }
+        },
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 500000,
+          "scope": "per_model"
+        }
       }
+    ],
+    "pool_model": "kimi-k3.1-pro",
+    "pool_model_aliases": [
+      "kimi-k3-1-pro-261024"
     ]
   },
   {
@@ -814,7 +876,7 @@
     "label": "豆包",
     "region": "cn",
     "api_style": "chat",
-    "default_model": "doubao-seed-2-1-turbo-260628",
+    "default_model": "doubao-seed-2-1-lite-260915",
     "env_key_var": "SIGNAL_DOUBAO_API_KEY",
     "env_model_var": "SIGNAL_DOUBAO_MODEL",
     "env_base_url_var": "SIGNAL_DOUBAO_BASE_URL",
@@ -824,28 +886,21 @@
         "id": "official",
         "base_url": "https://ark.cn-beijing.volces.com/api/v3",
         "env_key_var": "SIGNAL_DOUBAO_API_KEY",
-        "default_model": "doubao-seed-2-1-turbo-260628",
+        "default_model": "doubao-seed-2-1-lite-260915",
         "protocol": "chat",
         "free": false,
         "verified": false,
-        "env_model_var": "SIGNAL_DOUBAO_OFFICIAL_MODEL"
-      },
-      {
-        "id": "ark:doubao-seed-2-1-turbo-260628",
+        "env_model_var": "SIGNAL_DOUBAO_OFFICIAL_MODEL",
+        "quota": {
+          "free_tokens": 500000,
+          "scope": "per_model"
+        },
         "platform": "ark",
-        "base_url": "https://ark.cn-beijing.volces.com/api/v3",
-        "env_key_var": "SIGNAL_DOUBAO_API_KEY",
-        "default_model": "doubao-seed-2-1-turbo-260628",
-        "protocol": "chat",
-        "free": false,
-        "verified": true,
-        "pool": true,
         "thinking_off": {
           "thinking": {
             "type": "disabled"
           }
-        },
-        "concurrency": 4
+        }
       },
       {
         "id": "ark:doubao-seed-2-1-lite-260915",
@@ -862,9 +917,14 @@
             "type": "disabled"
           }
         },
-        "concurrency": 4
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 500000,
+          "scope": "per_model"
+        }
       }
-    ]
+    ],
+    "pool_model": "doubao-seed-2-1-lite-260915"
   },
   {
     "id": "minimax",
@@ -881,14 +941,14 @@
       "api.minimaxi.com",
       "tokenhub.tencentmaas.com"
     ],
-    "model_hint": "Model ID; default MiniMax-M2",
+    "model_hint": "Model ID; default minimax-m3",
     "search": false,
     "docs": "https://platform.minimax.cn/docs/api-reference/text-openai-api",
     "boundary": "MiniMax 模型 API；不代表海螺 App",
     "label": "MiniMax",
     "region": "cn",
     "api_style": "chat",
-    "default_model": "MiniMax-M2",
+    "default_model": "minimax-m3",
     "env_key_var": "SIGNAL_MINIMAX_API_KEY",
     "env_model_var": "SIGNAL_MINIMAX_MODEL",
     "env_base_url_var": "SIGNAL_MINIMAX_BASE_URL",
@@ -922,36 +982,33 @@
         "protocol": "chat",
         "free": true,
         "verified": false,
-        "env_model_var": "SIGNAL_MINIMAX_NVIDIA_NIM_MODEL"
+        "env_model_var": "SIGNAL_MINIMAX_NVIDIA_NIM_MODEL",
+        "quota": {
+          "unlimited": true
+        },
+        "platform": "nvidia",
+        "default": false
       },
       {
         "id": "tokenhub",
         "name": "Tencent TokenHub",
         "base_url": "https://tokenhub.tencentmaas.com/v1",
         "env_key_var": "SIGNAL_TOKENHUB_API_KEY",
-        "default_model": "minimax-m3.1-flash",
+        "default_model": "minimax-m3",
         "protocol": "chat",
         "free": false,
         "verified": false,
-        "env_model_var": "SIGNAL_MINIMAX_TOKENHUB_MODEL"
-      },
-      {
-        "id": "nvidia:minimaxai/minimax-m3.1-flash",
-        "platform": "nvidia",
-        "base_url": "https://integrate.api.nvidia.com/v1",
-        "env_key_var": "SIGNAL_NVIDIA_API_KEY",
-        "default_model": "minimaxai/minimax-m3.1-flash",
-        "protocol": "chat",
-        "free": true,
-        "verified": true,
-        "pool": true,
-        "thinking_off": {
-          "chat_template_kwargs": {
-            "thinking": false,
-            "enable_thinking": false
-          }
+        "env_model_var": "SIGNAL_MINIMAX_TOKENHUB_MODEL",
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-11-03",
+          "scope": "per_model"
         },
-        "concurrency": 4
+        "thinking_off": {
+          "thinking": {
+            "type": "disabled"
+          }
+        }
       },
       {
         "id": "tokenhub:minimax-m3",
@@ -968,22 +1025,15 @@
             "type": "disabled"
           }
         },
-        "concurrency": 4
-      },
-      {
-        "id": "tokenhub:minimax-m3.1-flash",
-        "platform": "tokenhub",
-        "base_url": "https://tokenhub.tencentmaas.com/v1",
-        "env_key_var": "SIGNAL_TOKENHUB_API_KEY",
-        "default_model": "minimax-m3.1-flash",
-        "protocol": "chat",
-        "free": false,
-        "verified": true,
-        "pool": true,
-        "thinking_off": {},
-        "concurrency": 4
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-11-03",
+          "scope": "per_model"
+        }
       }
-    ]
+    ],
+    "pool_model": "minimax-m3"
   },
   {
     "id": "hunyuan",
@@ -1006,7 +1056,7 @@
     "label": "混元",
     "region": "cn",
     "api_style": "chat",
-    "default_model": "hunyuan-lite",
+    "default_model": "hy3",
     "env_key_var": "SIGNAL_HUNYUAN_API_KEY",
     "env_model_var": "SIGNAL_HUNYUAN_MODEL",
     "env_base_url_var": "SIGNAL_HUNYUAN_BASE_URL",
@@ -1031,7 +1081,17 @@
         "protocol": "chat",
         "free": false,
         "verified": false,
-        "env_model_var": "SIGNAL_HUNYUAN_TOKENHUB_MODEL"
+        "env_model_var": "SIGNAL_HUNYUAN_TOKENHUB_MODEL",
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-11-03",
+          "scope": "per_model"
+        },
+        "thinking_off": {
+          "thinking": {
+            "type": "disabled"
+          }
+        }
       },
       {
         "id": "tokenhub:hy3",
@@ -1048,9 +1108,15 @@
             "type": "disabled"
           }
         },
-        "concurrency": 4
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 1000000,
+          "expires": "2027-11-03",
+          "scope": "per_model"
+        }
       }
-    ]
+    ],
+    "pool_model": "hy3"
   },
   {
     "id": "bai",

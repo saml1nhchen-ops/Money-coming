@@ -14,7 +14,9 @@ def catalog():return registry.catalog()
 def provider(pid):return registry.provider(pid)
 def resolved(p,route=None):
  c=CONFIG.get(p['id'])
- if c and route in (None,'auto','official'):return {**c,'route':'official','free':registry.model_is_free(p['routes'][0],c['model']),'protocol':p['protocol']}
+ if c and route in (None,'auto','official'):
+  spec=next(r for r in p['routes'] if r['id']=='official')
+  return {**c,'route':'official','route_platform':spec.get('platform','official'),'quota':spec.get('quota',{}),'free':registry.model_is_free(spec,c['model']),'protocol':p['protocol']}
  if route=='pool' or route in (None,'auto') and not os.environ.get(p['env_route_var'], '').strip():
   routes=registry.route_pool(p)
   if routes:return {**routes[0], 'route':'pool'}
@@ -84,19 +86,59 @@ def http_json(url,headers,body):
   # Do not echo provider error bodies, headers or URLs: they can contain secrets.
   raise ValueError('Provider HTTP '+str(e.code)+'; verify key, balance, model permissions and endpoint') from None
  except urllib.error.URLError:raise ValueError('Provider connection failed or timed out') from None
+def openai_reasoning_effort(model):
+ model=model.lower()
+ if model.endswith('-chat-latest'):return None
+ match=re.match(r'^gpt-(\d+)(?:\.(\d+))?(?=-|$)',model)
+ if match:
+  major=int(match[1]);minor=int(match[2] or 0)
+  if major>=6 or major==5 and minor>=1:return 'none'
+  if major==5:return 'minimal'
+ if re.match(r'^o\d+(?=-|$)',model):return 'low'
+ return None
+
+def effort_level(family, default):
+ return os.getenv('SIGNAL_'+family.upper()+'_REASONING_EFFORT', default)
+
+def thinking_policy(p,c):
+ """Lowest accepted thinking settings; registry overrides describe route exceptions."""
+ pid=p['id'];route=c.get('route_platform',c.get('route','official'));model=c['model'].lower()
+ fields={}
+ if pid=='openai':
+  effort=openai_reasoning_effort(model)
+  if not effort:return {}
+  effort=effort_level(pid,effort)
+  return {'reasoning':{'effort':effort}} if c.get('protocol',p['protocol'])=='responses' else {'reasoning_effort':effort}
+ if pid=='gemini':
+  if model.startswith('gemini-3'):return {'thinkingConfig':{'thinkingLevel':effort_level(pid,'minimal' if 'flash' in model else 'low')}}
+  if model.startswith('gemini-2.5'):return {'thinkingConfig':{'thinkingBudget':128 if 'pro' in model else 0}}
+  return {}
+ if route in ('nvidia','nvidia_nim'):
+  if 'instruct' not in model:fields={'chat_template_kwargs':{'thinking':False,'enable_thinking':False}}
+ elif route=='bailian' or pid=='qwen':
+  fields={'enable_thinking':False}
+ elif pid in ('deepseek','kimi','doubao','zhipu','hunyuan','minimax'):
+  fields={'thinking':{'type':'disabled'}}
+ if pid=='zhipu' and route=='tokenhub' and model in ('glm-5.2','glm-5.3-flash'):
+  fields={'reasoning_effort':'low'}
+ if pid=='minimax' and route=='tokenhub' and 'm3.1' in model:
+  fields={'reasoning_effort':'low'}
+ if 'thinking_off' in c:fields=copy.deepcopy(c['thinking_off'])
+ if 'reasoning_effort' in fields:fields['reasoning_effort']=effort_level(pid,fields['reasoning_effort'])
+ return fields
+
 def request_for(p,c,prompt):
- base=c['base_url'];model=c['model'];search=c['search'];kind=c.get('protocol',p['protocol']);tokens=max_output_tokens();fast=os.environ.get('SIGNAL_GEO_THINKING')!='1'
+ base=c['base_url'];model=c['model'];search=c['search'];kind=c.get('protocol',p['protocol']);tokens=max_output_tokens()
  headers={'Authorization':'Bearer '+c['key']}
  if kind=='responses':
   body={'model':model,'input':prompt,'max_output_tokens':tokens,'store':False}
-  if fast and (model.startswith('gpt-5') and 'chat' not in model or re.match(r'^(o3|o4-mini|o1)(?:-20|$)',model)):body['reasoning']={'effort':'low'}
+  body.update(thinking_policy(p,c))
   if search:body['tools']=[{'type':'web_search'}]
   return base+'/responses',headers,body
  if kind=='perplexity':return base+'/agent',headers,{'preset':model,'input':prompt}
  if kind=='gemini':
   body={'contents':[{'role':'user','parts':[{'text':prompt}]}],'generationConfig':{'maxOutputTokens':tokens}}
-  if fast and model.startswith('gemini-3'):body['generationConfig']['thinkingConfig']={'thinkingLevel':'low'}
-  elif fast and model.startswith('gemini-2.5'):body['generationConfig']['thinkingConfig']={'thinkingBudget':128 if 'pro' in model else 0}
+  body['generationConfig'].update(thinking_policy(p,c))
   if search:body['tools']=[{'google_search':{}}]
   return base+'/models/'+urllib.parse.quote(model,safe='')+':generateContent',{'x-goog-api-key':c['key']},body
  if kind=='anthropic':
@@ -104,28 +146,9 @@ def request_for(p,c,prompt):
   if search:body['tools']=[{'type':'web_search_20250305','name':'web_search','max_uses':3}]
   return base+'/messages',{'x-api-key':c['key'],'anthropic-version':'2023-06-01'},body
  body={'model':model,'messages':[{'role':'user','content':prompt}],'stream':False}
- body['max_completion_tokens' if p['id']=='minimax' and c.get('route','official')=='official' else 'max_tokens']=tokens
- if fast:
-  pid=p['id'];route=c.get('route','official');lower=model.lower()
-  if pid=='qwen' and route in ('official','siliconflow'):body['enable_thinking']=False
-  if pid=='qwen' and route=='nvidia_nim' and 'instruct' not in lower:body['chat_template_kwargs']={'enable_thinking':False}
-  # MiniMax M3.1 Flash requires thinking; use its supported low effort setting.
-  if pid=='minimax' and 'm3.1' in lower:
-   if route=='nvidia_nim':body['chat_template_kwargs']={'reasoning_effort':'low'}
-   else:body['reasoning_effort']='low'
-  elif pid=='minimax' and route=='tokenhub' and any(x in lower for x in ('m2.5','m2.7','m3')):body['thinking']={'type':'disabled'}
-  if pid=='hunyuan' and route=='tokenhub' and lower.startswith(('hy3','hy4')):body['thinking']={'type':'disabled'}
-  if (pid=='doubao' and route in ('official','tokenhub')) or (pid=='zhipu' and route=='official'):body['thinking']={'type':'disabled'}
-  # TokenHub GLM rejects thinking disabled and reasoning_effort none.
-  if pid=='zhipu' and route=='tokenhub':body['reasoning_effort']='low'
-  if pid=='deepseek' and route in ('official','tokenhub'):
-   if model=='deepseek-reasoner':body['model']='deepseek-chat'
-   elif 'v4' in lower or 'v3.2' in lower:body['thinking']={'type':'disabled'}
-  # TokenHub Kimi K3.x also supports disabling thinking.
-  if pid=='kimi' and ((route in ('official','tokenhub') and any(x in lower for x in ('k2.5','k2.6'))) or (route=='tokenhub' and 'k3.' in lower)):body['thinking']={'type':'disabled'}
- if fast and 'thinking_off' in c:
-  for field in ('thinking','enable_thinking','chat_template_kwargs','reasoning_effort'):body.pop(field,None)
-  body.update(copy.deepcopy(c['thinking_off']))
+ body['max_completion_tokens' if p['id']=='openai' or p['id']=='minimax' and c.get('route','official')=='official' else 'max_tokens']=tokens
+ if p['id']=='deepseek' and model=='deepseek-reasoner':body['model']='deepseek-chat'
+ body.update(thinking_policy(p,c))
  if search and p['id']=='qwen':body['enable_search']=True
  return base+'/chat/completions',headers,body
 def parse(p,raw):
@@ -264,7 +287,7 @@ def execute_run(run,configs,out):
    p=provider(pid);c=configs[pid]
    for n,prompt in enumerate(run['prompts']):
     c=configs[pid]
-    sample={'provider':pid,'question_index':n,'prompt':prompt,'captured_at':stamp(),'entry_type':'model_api','search_requested':c['search'],'brand_prompted':bool(mention(prompt,run['brand_aliases'])),'status':'failed'};started=time.monotonic()
+    sample={'model_version':p.get('pool_model',c['model']),'route_model':c['model'],'provider':pid,'question_index':n,'prompt':prompt,'captured_at':stamp(),'entry_type':'model_api','search_requested':c['search'],'brand_prompted':bool(mention(prompt,run['brand_aliases'])),'status':'failed'};started=time.monotonic()
     try:
      def request(route):
       url,headers,body=request_for(p,route,prompt);return http_json(url,headers,body)
