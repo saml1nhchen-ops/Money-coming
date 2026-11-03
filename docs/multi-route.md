@@ -8,19 +8,29 @@ Multiple platforms may split load or fail over only within that same version.
 | Family | Version | Default pool platforms |
 | --- | --- | --- |
 | hunyuan | hy3 | TokenHub |
-| deepseek | deepseek-v4.1-flash | Bailian, TokenHub |
-| kimi | kimi-k3.1-pro | TokenHub |
-| zhipu | glm-5.3-flash | TokenHub |
+| deepseek | deepseek-v4.1-flash | Bailian, Ark; TokenHub fallback |
+| kimi | kimi-k3.1-pro | Ark; TokenHub fallback |
+| zhipu | glm-5.3-flash | Ark; TokenHub fallback |
 | minimax | minimax-m3 | TokenHub |
 | qwen | qwen3.7-plus | Bailian |
 | doubao | doubao-seed-2-1-lite-260915 | Ark |
 | openai | gpt-5.4-mini | Official |
 | gemini | gemini-3.5-flash | Official (existing single route) |
 
-The owner's live verification selected TokenHub GLM-5.3-flash: GLM-5.3 used roughly
-twice as many tokens, while Bailian GLM-5.3 required heavy reasoning. The Flash
-pool has one verified TokenHub route with concurrency 4; the TokenHub single route
-uses the same model and minimum thinking settings.
+`pool_model` is the canonical measured version; `pool_model_aliases` lists
+platform-specific IDs for the same version. Ark uses `deepseek-v4-1-flash-261017`
+for DeepSeek, `kimi-k3-1-pro-261024` for Kimi, and `glm-5-3-flash-260828` for Zhipu.
+Both `ark:deepseek-v4.1-flash` and `ark:deepseek-v4-1-flash-261017` select the same
+Ark route and send the actual Ark ID. Samples retain the canonical `model_version`
+and record the actual ID as `route_model`. Other versions remain rejected.
+
+Bailian MiniMax-M3 and GLM-5.3-Flash remain not activated: re-probes on
+2026-11-03 returned `model_not_found` / `access_denied`; neither is in the pool.
+
+Expected split: with routes at equal remaining free quota, preferred routes share
+load. TokenHub only takes overflow/failover for DeepSeek, Kimi and Zhipu; Hunyuan
+and MiniMax remain TokenHub-only. If only fallback routes are configured, they
+remain usable immediately under the existing admission rules.
 
 Default direct GEO sampling uses `pool: true` entries. Missing credentials remove
 routes. Families without a configured pool retain existing single-route fallback
@@ -108,6 +118,7 @@ Existing output token limits and `SIGNAL_MAX_TOKENS` behavior are unchanged.
 | Qwen official/Bailian, SiliconFlow | `enable_thinking: false` |
 | DeepSeek, Kimi on Bailian | `enable_thinking: false` |
 | DeepSeek, Kimi on TokenHub; official DeepSeek/Kimi | `thinking: {type: disabled}`; legacy DeepSeek reasoner selects chat |
+| DeepSeek, Kimi, Zhipu on Ark | `thinking: {type: disabled}` |
 | Doubao Ark/official, Zhipu official, Hunyuan TokenHub/official | `thinking: {type: disabled}` |
 | MiniMax official, TokenHub M3 | `thinking: {type: disabled}` |
 | NVIDIA NIM reasoning models | `chat_template_kwargs: {thinking: false, enable_thinking: false}`; instruct models omit unsupported switches |

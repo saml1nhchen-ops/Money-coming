@@ -488,10 +488,35 @@
           "free_tokens": 1000000,
           "expires": "2027-11-03",
           "scope": "per_model"
+        },
+        "fallback_only": true
+      },
+      {
+        "id": "ark:deepseek-v4.1-flash",
+        "platform": "ark",
+        "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+        "env_key_var": "SIGNAL_DOUBAO_API_KEY",
+        "default_model": "deepseek-v4-1-flash-261017",
+        "protocol": "chat",
+        "free": false,
+        "verified": true,
+        "pool": true,
+        "thinking_off": {
+          "thinking": {
+            "type": "disabled"
+          }
+        },
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 500000,
+          "scope": "per_model"
         }
       }
     ],
-    "pool_model": "deepseek-v4.1-flash"
+    "pool_model": "deepseek-v4.1-flash",
+    "pool_model_aliases": [
+      "deepseek-v4-1-flash-261017"
+    ]
   },
   {
     "id": "qwen",
@@ -678,10 +703,35 @@
         },
         "platform": "tokenhub",
         "pool": true,
-        "concurrency": 4
+        "concurrency": 4,
+        "fallback_only": true
+      },
+      {
+        "id": "ark:glm-5.3-flash",
+        "platform": "ark",
+        "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+        "env_key_var": "SIGNAL_DOUBAO_API_KEY",
+        "default_model": "glm-5-3-flash-260828",
+        "protocol": "chat",
+        "free": false,
+        "verified": true,
+        "pool": true,
+        "thinking_off": {
+          "thinking": {
+            "type": "disabled"
+          }
+        },
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 500000,
+          "scope": "per_model"
+        }
       }
     ],
-    "pool_model": "glm-5.3-flash"
+    "pool_model": "glm-5.3-flash",
+    "pool_model_aliases": [
+      "glm-5-3-flash-260828"
+    ]
   },
   {
     "id": "kimi",
@@ -777,10 +827,35 @@
           "free_tokens": 1000000,
           "expires": "2027-11-03",
           "scope": "per_model"
+        },
+        "fallback_only": true
+      },
+      {
+        "id": "ark:kimi-k3.1-pro",
+        "platform": "ark",
+        "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+        "env_key_var": "SIGNAL_DOUBAO_API_KEY",
+        "default_model": "kimi-k3-1-pro-261024",
+        "protocol": "chat",
+        "free": false,
+        "verified": true,
+        "pool": true,
+        "thinking_off": {
+          "thinking": {
+            "type": "disabled"
+          }
+        },
+        "concurrency": 4,
+        "quota": {
+          "free_tokens": 500000,
+          "scope": "per_model"
         }
       }
     ],
-    "pool_model": "kimi-k3.1-pro"
+    "pool_model": "kimi-k3.1-pro",
+    "pool_model_aliases": [
+      "kimi-k3-1-pro-261024"
+    ]
   },
   {
     "id": "doubao",

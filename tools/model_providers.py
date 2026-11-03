@@ -88,8 +88,8 @@ def route_pool(p, environ=None):
             for spec in specs:
                 if isinstance(spec, str):
                     platform, model = spec.strip().split(':', 1)
-                    validate_pool_model(p['id'], p.get('pool_model'), model)
-                    match = next(r for r in defaults if r['platform'] == platform and r['default_model'] == model)
+                    validate_pool_model(p['id'], p.get('pool_model'), model, p.get('pool_model_aliases', ()))
+                    match = next(r for r in defaults if r['platform'] == platform and (r['default_model'] == model or model == p.get('pool_model')))
                     routes.append(dict(match))
                 else:
                     platform = spec['platform']
@@ -102,7 +102,7 @@ def route_pool(p, environ=None):
     result = []
     for r in routes:
         model = r['default_model']
-        validate_pool_model(p['id'], p.get('pool_model'), model)
+        validate_pool_model(p['id'], p.get('pool_model'), model, p.get('pool_model_aliases', ()))
         key = credential(r['env_key_var'], env)
         if not key: continue
         if not re.fullmatch(r'[\w./:@+-]{1,200}', model): raise ValueError('Invalid route model')

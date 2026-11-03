@@ -72,14 +72,14 @@ class Quotas(unittest.TestCase):
         with patch.dict(os.environ,{'SIGNAL_ROUTE_QUOTA_MODE':'off'}):
             self.assertEqual(scheduler.invoke('fixture',[low,good],lambda _: {},{})[0],low)
 
-    def test_preferred_tokenhub_flash_pool_and_default(self):
+    def test_fallback_tokenhub_flash_pool_and_default(self):
         p=registry.provider('zhipu')
         keys={'SIGNAL_TOKENHUB_API_KEY':'fixture'}
         default=registry.configuration(p,keys,'tokenhub')
         self.assertEqual(default['model'],'glm-5.3-flash')
         self.assertFalse(default['fallback_only'])
         route=next(r for r in registry.route_pool(p,keys) if r['model']=='glm-5.3-flash')
-        self.assertFalse(route['fallback_only'])
+        self.assertTrue(route['fallback_only'])
         self.assertEqual(route['concurrency'],4)
         self.assertEqual(route['quota'],{'free_tokens':1000000,'expires':'2027-11-03','scope':'per_model'})
         for config in (default,route):
@@ -87,8 +87,24 @@ class Quotas(unittest.TestCase):
             self.assertEqual(config['thinking_off'],{'reasoning_effort':'low'})
             self.assertEqual(body['reasoning_effort'],'low')
             self.assertNotIn('thinking',body)
-        self.assertEqual([r['id'] for r in p['routes'] if r.get('pool')],['tokenhub:glm-5.3-flash'])
+        self.assertEqual([r['id'] for r in p['routes'] if r.get('pool')],['tokenhub:glm-5.3-flash','ark:glm-5.3-flash'])
         self.assertTrue(next(r for r in p['routes'] if r.get('pool'))['verified'])
+
+    def test_registry_preferences_and_fallback_only_pools(self):
+        keys = {'SIGNAL_TOKENHUB_API_KEY': 'fixture', 'SIGNAL_DOUBAO_API_KEY': 'fixture',
+                'SIGNAL_QWEN_API_KEY': 'fixture'}
+        for family in ('deepseek', 'kimi', 'zhipu', 'hunyuan', 'minimax'):
+            p = registry.provider(family)
+            routes = registry.route_pool(p, keys)
+            demoted = family in ('deepseek', 'kimi', 'zhipu')
+            for r in routes:
+                self.assertEqual(r['fallback_only'], demoted and r['route_platform'] == 'tokenhub')
+            with patch.object(ledger, 'fraction', return_value=1):
+                selected = [scheduler.invoke(family, routes, lambda _: {}, {})[0]['route_platform'] for _ in range(4)]
+            self.assertEqual(set(selected), {'ark', 'bailian'} if family == 'deepseek' else {'ark'} if demoted else {'tokenhub'})
+            fallback = [r for r in routes if r['route_platform'] == 'tokenhub']
+            with patch.object(scheduler.CONDITION, 'wait', side_effect=AssertionError('unexpected wait')):
+                self.assertEqual(scheduler.invoke(family, fallback, lambda _: {}, {})[0], fallback[0])
 
     def test_fallback_waits_for_preferred_slot_or_grace(self):
         for mode in ('release','release_late','elapsed','deadline','zero','invalid','off'):
@@ -159,14 +175,14 @@ class Quotas(unittest.TestCase):
                 body=api.request_for(p,c,'Reply with OK.')[2]
                 if 'thinking_off' in spec and p['id']!='openai':
                     for name,value in spec['thinking_off'].items():self.assertEqual(body[name],value)
-                if spec.get('pool'):self.assertEqual(spec['default_model'],p['pool_model'])
+                if spec.get('pool'):self.assertIn(spec['default_model'],[p['pool_model'], *p.get('pool_model_aliases',[])])
         p=registry.provider('gemini')
         for model,expected in [('gemini-2.5-flash',{'thinkingBudget':0}),('gemini-2.5-pro',{'thinkingBudget':128}),('gemini-3.5-flash',{'thinkingLevel':'minimal'}),('gemini-3-pro',{'thinkingLevel':'low'})]:
             c={'model':model,'base_url':p['base_url'],'key':'fixture','search':False}
             self.assertEqual(api.request_for(p,c,'OK')[2]['generationConfig']['thinkingConfig'],expected)
         p=registry.provider('zhipu')
         for r in registry.route_pool(p,keys):
-            self.assertFalse(r.get('fallback_only',False))
+            self.assertEqual(r.get('fallback_only',False),r['route_platform']=='tokenhub')
 
     def test_benchmark_china_plus_openai_and_averages(self):
         import contextlib,io,bench_geo_collect as bench
@@ -192,7 +208,7 @@ class Quotas(unittest.TestCase):
         expected={(p['id'],r['platform'],r['default_model']) for p in registry.catalog() for r in p['routes'] if r.get('pool')}
         expected.add(('gemini', 'official', 'gemini-3.5-flash'))
         self.assertEqual({(r['family'],r['platform'],r['model']) for r in rows},expected)
-        self.assertTrue(all(r['model']==r['model_version'] for r in rows))
+        self.assertTrue(all(r['model'] in [r['model_version'], *registry.provider(r['family']).get('pool_model_aliases',[])] for r in rows))
         self.assertNotIn('Authorization',out.getvalue());self.assertNotIn('dry-run',out.getvalue())
 
     def test_verifier_single_routes_and_missing_credentials(self):

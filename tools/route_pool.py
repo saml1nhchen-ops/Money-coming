@@ -13,8 +13,8 @@ STATE = {}
 CURSOR = {}
 
 
-def validate_pool_model(family, version, model):
-    if not version or model != version:
+def validate_pool_model(family, version, model, aliases=()):
+    if not version or (model != version and model not in aliases):
         raise ValueError(f'Route pool model mismatch for {family}: expected {version!r}, got {model!r}')
 
 
@@ -60,7 +60,8 @@ def invoke(family, routes, request, sample, *, timeout=None, deadline=None):
     for route in routes:
         if route.get('pool'):
             from model_providers import provider
-            validate_pool_model(family, provider(family).get('pool_model'), route['model'])
+            p = provider(family)
+            validate_pool_model(family, p.get('pool_model'), route['model'], p.get('pool_model_aliases', ()))
     if routes:
         sample.setdefault('model_version', routes[0].get('model_version', routes[0]['model']))
         sample.setdefault('route_model', routes[0]['model'])

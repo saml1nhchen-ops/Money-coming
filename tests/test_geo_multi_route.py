@@ -64,9 +64,9 @@ class MultiRoute(unittest.TestCase):
     def test_one_version_matrix_and_override_enforcement(self):
         expected = {
             'hunyuan': ('hy3', {'tokenhub'}),
-            'deepseek': ('deepseek-v4.1-flash', {'bailian', 'tokenhub'}),
-            'kimi': ('kimi-k3.1-pro', {'tokenhub'}),
-            'zhipu': ('glm-5.3-flash', {'tokenhub'}),
+            'deepseek': ('deepseek-v4.1-flash', {'bailian', 'ark', 'tokenhub'}),
+            'kimi': ('kimi-k3.1-pro', {'ark', 'tokenhub'}),
+            'zhipu': ('glm-5.3-flash', {'ark', 'tokenhub'}),
             'minimax': ('minimax-m3', {'tokenhub'}),
             'qwen': ('qwen3.7-plus', {'bailian'}),
             'doubao': ('doubao-seed-2-1-lite-260915', {'ark'}),
@@ -80,7 +80,7 @@ class MultiRoute(unittest.TestCase):
             routes = [r for r in p['routes'] if r.get('pool')]
             self.assertEqual({r['platform'] for r in routes}, platforms)
             if not routes: continue
-            self.assertEqual({r['default_model'] for r in routes}, {version})
+            self.assertTrue({r['default_model'] for r in routes} <= {version, *p.get('pool_model_aliases', [])})
             name = 'SIGNAL_' + family.upper() + '_ROUTES'
             platform = routes[0]['platform']
             for override in (platform + ':wrong-version', json.dumps([{'platform': platform, 'model': 'wrong-version'}])):
@@ -96,6 +96,30 @@ class MultiRoute(unittest.TestCase):
         p = registry.provider('deepseek')
         single = registry.configuration(p, {**ENV, 'SIGNAL_DEEPSEEK_TOKENHUB_MODEL': 'custom'}, 'tokenhub')
         self.assertEqual(single['model'], 'custom')
+
+    def test_ark_aliases_and_sample_version(self):
+        models = {'deepseek': 'deepseek-v4-1-flash-261017',
+                  'kimi': 'kimi-k3-1-pro-261024', 'zhipu': 'glm-5-3-flash-260828'}
+        for family, model in models.items():
+            p = registry.provider(family)
+            self.assertEqual(p['pool_model_aliases'], [model])
+            name = 'SIGNAL_' + family.upper() + '_ROUTES'
+            for selected in (model, p['pool_model']):
+                routes = registry.route_pool(p, {'SIGNAL_DOUBAO_API_KEY': 'fixture', name: 'ark:' + selected})
+                self.assertEqual(len(routes), 1)
+                self.assertEqual(routes[0]['route'], 'ark:' + p['pool_model'])
+                self.assertEqual(routes[0]['model'], model)
+                sample = {}
+                scheduler.invoke(family, routes, lambda _: RAW, sample)
+                self.assertEqual(sample['model_version'], p['pool_model'])
+                self.assertEqual(sample['route_model'], model)
+            other = next(value for value in models.values() if value != model)
+            for override in ('ark:' + other, json.dumps([{'platform': 'ark', 'model': other}])):
+                with self.assertRaises(ValueError):
+                    registry.route_pool(p, {name: override})
+            routes[0]['model'] = other
+            with self.assertRaises(ValueError):
+                scheduler.invoke(family, routes, lambda _: self.fail('invalid alias'), {})
 
     def test_failed_samples_retain_version_before_admission(self):
         sample = {}
@@ -113,7 +137,9 @@ class MultiRoute(unittest.TestCase):
 
     def test_distribution_and_caps_across_simultaneous_calls(self):
         routes = self.routes()
-        for r in routes: r['concurrency'] = 1
+        for r in routes:
+            r['concurrency'] = 1
+            r['fallback_only'] = False
         barrier = threading.Barrier(2)
         active = {}; peak = {}; lock = threading.Lock()
         def request(route):
